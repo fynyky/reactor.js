@@ -16,12 +16,12 @@
 # From the perspective of observers, all signals are updated atomically and instantly 
 # 
 # TODOs
-# destroy method for signals and observers
 # events
 # multi commit batching
-# removing duplicate array and setter methods when resetting definition
+# avoid removing array and setter methods if user overrides them
 
-
+# global switcher depending on whether its node.js or in browser
+global = exports ? this
 
 # global stack to automatically track signal dependencies
 # whenever a signal is evaluated - it puts itself on the dependency stack
@@ -40,7 +40,8 @@ dependencyStack = []
 # Note that signal definition should NOT have any external effects
 # They should only read values and not have any impact
 # For external impacts - use observers
-Signal = (definition)->
+# to "destory" a signal - just pass set its value to null
+global.Signal = (definition)->
 
   # stored value of this signal
   # only recalculated when definition has changed
@@ -77,7 +78,7 @@ Signal = (definition)->
     for observerTrigger in createdSignal.observers[...]
       observerList.push observerTrigger if (observerList.indexOf observerTrigger) < 0
 
-    # Recursively evaluate any dependents
+    # Recursively evaluate any de pendents
     # Note that the dependents is a list of the dependents evaluate functions
     # not the signals themselves
     # and give them the observer list to add to as well
@@ -99,22 +100,28 @@ Signal = (definition)->
     # If a new definition is given, update the signal
     # recursively update any dependent signals
     # then finally trigger affected observers
-    if newDefinition?
+    if newDefinition isnt undefined
       definition = newDefinition
 
       # Set the special array methods if the definition is an array
       # Essentially providing convenience mutator methods which automatically trigger revaluation
-      if definition instanceof Array
-        for methodName in ["pop", "push", "reverse", "shift", "sort", "splice", "unshift"]
-          createdSignal[methodName] = ->
-            definition[methodName].apply definition, arguments
-            createdSignal(definition)
+      for methodName in ["pop", "push", "reverse", "shift", "sort", "splice", "unshift"]
+        do (methodName)->
+          if definition instanceof Array
+            createdSignal[methodName] = ->
+              output = definition[methodName].apply definition, arguments
+              createdSignal(definition)
+              return output
+          else
+            delete createdSignal[methodName]
 
       # convenience method for setting properties
       if definition instanceof Object
         createdSignal.set = (key, value)->
           definition[key] = value
           createdSignal(definition)
+      else
+        delete createdSignal.set
 
       observerList = []
       evaluate(observerList)
@@ -170,7 +177,8 @@ Signal = (definition)->
 # - they have no value to read
 # - they cannot be observed themselves
 # - they are notified only after signals have all been updated
-Observer = (response)->
+# to remove an observer - just set its value to null
+global.Observer = (response)->
 
   # Activate the observer as well as reconfigure dependencies
   trigger = ->
@@ -183,7 +191,7 @@ Observer = (response)->
 
     # do initial trigger and set up to listen for future updates
     dependencyStack.push trigger
-    response()
+    response() unless response is null
     dependencyStack.pop()
 
   trigger.observees = []
@@ -200,208 +208,270 @@ Observer = (response)->
   return createdObserver
 
 
-console.log "----------------------------------------------------------------"
-console.log "Begin Testing on " + new Date() 
-console.log "----------------------------------------------------------------"
+# console.log "----------------------------------------------------------------"
+# console.log "Begin Testing on " + new Date() 
+# console.log "----------------------------------------------------------------"
 
-console.log "Single static signal"
-a = Signal 1
-console.log a() is 1
-console.log a(2) is 2
-console.log a() is 2
-console.log a(3) is 3
-console.log a() is 3
+# console.log "Single static signal"
+# a = Signal 1
+# console.log a() is 1
+# console.log a(2) is 2
+# console.log a() is 2
+# console.log a(3) is 3
+# console.log a() is 3
 
-console.log "Second static signal "
-a = Signal 1
-b = Signal 2
-console.log a() is 1
-console.log b() is 2
-console.log a() is 1
-console.log b(3) is 3
-console.log a() is 1
-console.log b() is 3
-console.log a() is 1
-console.log b(4) is 4
-console.log a() is 1
-console.log b() is 4
+# console.log "Second static signal "
+# a = Signal 1
+# b = Signal 2
+# console.log a() is 1
+# console.log b() is 2
+# console.log a() is 1
+# console.log b(3) is 3
+# console.log a() is 1
+# console.log b() is 3
+# console.log a() is 1
+# console.log b(4) is 4
+# console.log a() is 1
+# console.log b() is 4
 
-console.log "Signal with simple single dependency"
-a = Signal 1
-b = Signal -> a()
-console.log a() is 1
-console.log b() is 1
-a(2)
-console.log a() is 2
-console.log b() is 2
-c = Signal 3
-console.log a() is 2
-console.log b() is 2
+# console.log "Signal with simple single dependency"
+# a = Signal 1
+# b = Signal -> a()
+# console.log a() is 1
+# console.log b() is 1
+# a(2)
+# console.log a() is 2
+# console.log b() is 2
+# c = Signal 3
+# console.log a() is 2
+# console.log b() is 2
 
-console.log "multi dependents"
-a = Signal 1
-b = Signal -> a()
-c = Signal -> a() + 1
-console.log a() is 1
-console.log b() is 1
-console.log c() is 2
-a(2)
-console.log a() is 2
-console.log b() is 2
-console.log c() is 3
+# console.log "multi dependents"
+# a = Signal 1
+# b = Signal -> a()
+# c = Signal -> a() + 1
+# console.log a() is 1
+# console.log b() is 1
+# console.log c() is 2
+# a(2)
+# console.log a() is 2
+# console.log b() is 2
+# console.log c() is 3
 
-console.log "Breaking dependency"
-a = Signal 1
-b = Signal -> a()
-console.log a() is 1
-console.log b() is 1
-a(2)
-console.log a() is 2
-console.log b() is 2
-b(3)
-console.log a() is 2
-console.log b() is 3
-a(7)
-console.log a() is 7
-console.log b() is 3
+# console.log "Breaking dependency"
+# a = Signal 1
+# b = Signal -> a()
+# console.log a() is 1
+# console.log b() is 1
+# a(2)
+# console.log a() is 2
+# console.log b() is 2
+# b(3)
+# console.log a() is 2
+# console.log b() is 3
+# a(7)
+# console.log a() is 7
+# console.log b() is 3
 
-console.log "Signal with modified single dependency"
-a = Signal 1
-b = Signal -> a() + 10
-console.log a() is 1
-console.log b() is 11
-a(2)
-console.log a() is 2
-console.log b() is 12
+# console.log "Signal with modified single dependency"
+# a = Signal 1
+# b = Signal -> a() + 10
+# console.log a() is 1
+# console.log b() is 11
+# a(2)
+# console.log a() is 2
+# console.log b() is 12
 
-console.log "Signal with simple chain dependency"
-a = Signal 1
-b = Signal -> a()
-c = Signal -> b()
-console.log a() is 1
-console.log b() is 1
-console.log c() is 1
-a(2)
-console.log a() is 2
-console.log b() is 2
-console.log c() is 2
+# console.log "Signal with simple chain dependency"
+# a = Signal 1
+# b = Signal -> a()
+# c = Signal -> b()
+# console.log a() is 1
+# console.log b() is 1
+# console.log c() is 1
+# a(2)
+# console.log a() is 2
+# console.log b() is 2
+# console.log c() is 2
 
-console.log "Signal with complex chain dependency"
-a = Signal 1
-b = Signal -> a() + 1
-c = Signal -> b() + 1
-console.log a() is 1
-console.log b() is 2
-console.log c() is 3
-a(4)
-console.log a() is 4
-console.log b() is 5
-console.log c() is 6
+# console.log "Signal with complex chain dependency"
+# a = Signal 1
+# b = Signal -> a() + 1
+# c = Signal -> b() + 1
+# console.log a() is 1
+# console.log b() is 2
+# console.log c() is 3
+# a(4)
+# console.log a() is 4
+# console.log b() is 5
+# console.log c() is 6
 
-console.log "Signal with multiple dependency"
-a = Signal 1
-b = Signal 2
-c = Signal -> a() + b()
-console.log a() is 1
-console.log b() is 2
-console.log c() is 3
-a(3)
-console.log a() is 3
-console.log b() is 2
-console.log c() is 5
-b(4)
-console.log a() is 3
-console.log b() is 4
-console.log c() is 7
+# console.log "Signal with multiple dependency"
+# a = Signal 1
+# b = Signal 2
+# c = Signal -> a() + b()
+# console.log a() is 1
+# console.log b() is 2
+# console.log c() is 3
+# a(3)
+# console.log a() is 3
+# console.log b() is 2
+# console.log c() is 5
+# b(4)
+# console.log a() is 3
+# console.log b() is 4
+# console.log c() is 7
 
-console.log "Multipath dependencies"
-a = Signal 1
-b = Signal -> a() + 1
-c = Signal -> a() + b()
-console.log a() is 1
-console.log b() is 2
-console.log c() is 3
-a(7)
-console.log a() is 7
-console.log b() is 8
-console.log c() is 15
-b(3)
-console.log a() is 7
-console.log b() is 3
-console.log c() is 10
-a(4)
-console.log a() is 4
-console.log b() is 3
-console.log c() is 7
+# console.log "Multipath dependencies"
+# a = Signal 1
+# b = Signal -> a() + 1
+# c = Signal -> a() + b()
+# console.log a() is 1
+# console.log b() is 2
+# console.log c() is 3
+# a(7)
+# console.log a() is 7
+# console.log b() is 8
+# console.log c() is 15
+# b(3)
+# console.log a() is 7
+# console.log b() is 3
+# console.log c() is 10
+# a(4)
+# console.log a() is 4
+# console.log b() is 3
+# console.log c() is 7
 
-console.log "basic observer"
-a = Signal 1
-console.log a() is 1
-b = null
-console.log b is null
-c = Observer -> b = a()
-console.log b is 1
-a(2)
-console.log b is 2
+# console.log "basic observer"
+# a = Signal 1
+# console.log a() is 1
+# b = null
+# console.log b is null
+# c = Observer -> b = a()
+# console.log b is 1
+# a(2)
+# console.log b is 2
 
-console.log "multi observer"
-a = Signal 1
-b = Signal -> a()
-c = Signal -> a()
-d = Signal -> c()
-e = 0
-f = Observer ->
-  e += a() + b() + c() + d()
-console.log e is 4
-a(2)
-console.log e is 12
+# console.log "multi observer"
+# a = Signal 1
+# b = Signal -> a()
+# c = Signal -> a()
+# d = Signal -> c()
+# e = 0
+# f = Observer ->
+#   e += a() + b() + c() + d()
+# console.log e is 4
+# a(2)
+# console.log e is 12
 
-console.log "read write observer"
-a = Signal 1
-b = Signal 2
-console.log a() is 1
-console.log b() is 2
-c = Observer -> b(a())
-console.log b() is 1
-a(3)
-console.log a() is 3
-console.log b() is 3
-b(4)
-console.log a() is 3
-console.log b() is 4
+# console.log "read write observer"
+# a = Signal 1
+# b = Signal 2
+# console.log a() is 1
+# console.log b() is 2
+# c = Observer -> b(a())
+# console.log b() is 1
+# a(3)
+# console.log a() is 3
+# console.log b() is 3
+# b(4)
+# console.log a() is 3
+# console.log b() is 4
 
-console.log "another read write observer"
-a = 0
-b = Signal 1
-c = Signal 2
-console.log a is 0
-console.log b() is 1
-console.log c() is 2
-d = Observer ->
-  a += 1
-  b()
-  c(3)
-console.log a is 1
-console.log b() is 1
-console.log c() is 3
-a = 4
-console.log a is 4
-console.log b() is 1
-console.log c() is 3
-b(6)
-console.log a is 5
-console.log b() is 6
-console.log c() is 3
-c(7)
-console.log a is 5
-console.log b() is 6
-console.log c() is 7
+# console.log "another read write observer"
+# a = 0
+# b = Signal 1
+# c = Signal 2
+# console.log a is 0
+# console.log b() is 1
+# console.log c() is 2
+# d = Observer ->
+#   a += 1
+#   b()
+#   c(3)
+# console.log a is 1
+# console.log b() is 1
+# console.log c() is 3
+# a = 4
+# console.log a is 4
+# console.log b() is 1
+# console.log c() is 3
+# b(6)
+# console.log a is 5
+# console.log b() is 6
+# console.log c() is 3
+# c(7)
+# console.log a is 5
+# console.log b() is 6
+# console.log c() is 7
 
-console.log "object setter and getter"
-a = Signal {}
-b = Signal -> "Serialized: " + JSON.stringify(a())
-console.log b() is ""
+# console.log "object setter"
+# a = Signal {}
+# b = Signal -> "Serialized: " + JSON.stringify(a())
+# console.log b() is "Serialized: {}"
+# a()["x"] = 1
+# console.log JSON.stringify(a()) is '{"x":1}'
+# console.log b() is "Serialized: {}"
+# a(a())
+# console.log JSON.stringify(a()) is '{"x":1}'
+# console.log b() is 'Serialized: {"x":1}'
+# a.set("x", 2)
+# console.log JSON.stringify(a()) is '{"x":2}'
+# console.log b() is 'Serialized: {"x":2}'
+# a(3)
+# console.log a() is 3
+# console.log b() is 'Serialized: 3'
+# console.log a.set is undefined
 
-console.log "----------------------------------------------------------------"
-console.log "Completed Testing on " + new Date() 
-console.log "----------------------------------------------------------------"
+# console.log "array methods"
+# a = Signal []
+# b = Signal -> "Serialized: " + JSON.stringify(a())
+# console.log JSON.stringify(a()) is '[]'
+# console.log b() is 'Serialized: []'
+# a()[0] = "x"
+# console.log JSON.stringify(a()) is '["x"]'
+# console.log b() is 'Serialized: []'
+# a(a())
+# console.log JSON.stringify(a()) is '["x"]'
+# console.log b() is 'Serialized: ["x"]'
+# a.set(1, "y")
+# console.log JSON.stringify(a()) is '["x","y"]'
+# console.log b() is 'Serialized: ["x","y"]'
+# a.push("z")
+# console.log JSON.stringify(a()) is '["x","y","z"]'
+# console.log b() is 'Serialized: ["x","y","z"]'
+# a.unshift("w")
+# console.log JSON.stringify(a()) is '["w","x","y","z"]'
+# console.log b() is 'Serialized: ["w","x","y","z"]'
+# c = a.shift()
+# console.log JSON.stringify(a()) is '["x","y","z"]'
+# console.log b() is 'Serialized: ["x","y","z"]'
+# console.log c is "w"
+# a.reverse()
+# console.log JSON.stringify(a()) is '["z","y","x"]'
+# console.log b() is 'Serialized: ["z","y","x"]'
+# d = a.pop()
+# console.log JSON.stringify(a()) is '["z","y"]'
+# console.log b() is 'Serialized: ["z","y"]'
+# a.push("foo")
+# a.push("bar")
+# console.log JSON.stringify(a()) is '["z","y","foo","bar"]'
+# console.log b() is 'Serialized: ["z","y","foo","bar"]'
+# d = a.splice(1,2)
+# console.log JSON.stringify(d) is '["y","foo"]'
+# console.log JSON.stringify(a()) is '["z","bar"]'
+# console.log b() is 'Serialized: ["z","bar"]'
+# a("pies")
+# console.log a() is "pies"
+# console.log b() is 'Serialized: "pies"'
+# console.log a.pop is undefined
+# console.log a.push is undefined
+# console.log a.shift is undefined
+# console.log a.unshift is undefined
+# console.log a.sort is undefined
+# console.log a.reverse is undefined
+# console.log a.splice is undefined
+
+# console.log "----------------------------------------------------------------"
+# console.log "Completed Testing on " + new Date() 
+# console.log "----------------------------------------------------------------"
