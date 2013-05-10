@@ -186,10 +186,10 @@ Working with Arrays and Objects
 If a signal has an array as its value, directly updating the array will **not** update the signal's dependants. Because the signal object is still representing the same array, it does not detect the change. This applies to objects as well
 
 ```javascript
-# foo initialized as a signal with an array as its value
+// foo initialized as a signal with an array as its value
 foo = Signal(["a", "b", "c"]); 
 
-# bar initialized as a signal whos value depends on foo
+// bar initialized as a signal whos value depends on foo
 bar = Signal(function(){
   return foo().join("-");
 });
@@ -197,7 +197,7 @@ bar = Signal(function(){
 foo(); // ["a","b","c"]
 bar(); // "a-b-c"
 
-# Updating foo's array directly does not trigger an update of bar
+// Updating foo's array directly does not trigger an update of bar
 foo().push("d");
 foo(); // ["a","b","c","d"]
 bar(); // "a-b-c"
@@ -206,7 +206,7 @@ bar(); // "a-b-c"
 A simple solution is to manually trigger the refresh by setting the signals function to itself.
 
 ```javascript
-# Writing to foo with its already existing value triggers the refresh
+// Writing to foo with its already existing value triggers the refresh
 foo(foo());
 foo(); // ["a","b","c","d"]
 bar(); // "a-b-c-d"
@@ -226,8 +226,8 @@ foo.pop(); // Equivalent to
            // foo(foo());
 
 foo.push(); // Equivalent to 
-               // foo().push(); 
-               // foo(foo());
+            // foo().push(); 
+            // foo(foo());
 
 foo.reverse(); // Equivalent to 
                // foo().reverse();
@@ -238,8 +238,8 @@ foo.shift(); // Equivalent to
              // foo(foo());
 
 foo.unshift(); // Equivalent to 
-                  // foo().unshift();
-                  // foo(foo());
+               // foo().unshift();
+               // foo(foo());
 
 foo.sort(); // Equivalent to 
             // foo().sort();
