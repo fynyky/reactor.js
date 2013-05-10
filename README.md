@@ -17,7 +17,7 @@ Whenever a signal is updated it automatically updates all its dependent signals 
 
 Here is an example of a basic application using Reactor
 
-
+    ```javascript
     title = Signal("Manager");
     fullTitle = Signal(function(){
       return "Mr " + title();
@@ -25,6 +25,7 @@ Here is an example of a basic application using Reactor
     Observer(function(){
       alert "Welcome " + fullTitle() + "!"
     });
+    ```
 
 
 Signals
@@ -34,34 +35,46 @@ Signal are just values which other signals can depend on.
 
 Reactor provides a global function called `Signal`. It wraps a given value and returns it as a signal object.
 
+    ```javascript
     foo = Signal(7);  
+    ```
 
 Signal objects are implemented as functions. To read the value of a signal, call it without any arguments.
 
+    ```javascript
     foo(); // returns 7
+    ```
 
 To change the value of a signal, just pass it the new value as an argument
 
+    ```javascript
     foo(9); // sets the signal's value to 9
+    ```
 
-Signals can take on any value: numbers, strings, booleans, and even objects 
+Signals can take on any value: numbers, strings, booleans, and even arrays and objects.
 
+    ```javascript
     foo(2.39232);
     foo("cheese cakes");
+    foo(true);
     foo(["x", "y", "z"]);
     foo({"moo": bar});
+    ```
 
 However, if a signal is given a function, it takes the output of the function as its value instead of the function itself.
 
+    ```javascript
     foo = Signal(function(){
       return 2 * 3;
     });
 
     foo(); // returns 6 instead of the function
+    ```
 
 Signals can have their value depend on other signals by using these functions.
 If a different signal is read from within the given function, then that signal will automatically be set as a dependency. This means that when the dependency has been updated, the value of the dependent signal will be updated as well.
 
+    ```javascript
     foo = Signal(7);
     bar = Signal(function(){ 
       return foo() * foo(); // since foo is read here, 
@@ -75,11 +88,13 @@ If a different signal is read from within the given function, then that signal w
              // and the value of bar as well
 
     bar(); // returns 100 since it was automatically updated together with foo
+    ```
 
 Notice that there is no need to declare any listeners or bindings. Reactor automatically finds these dependencies in a signal's function definition.
 
 This automatic updating allows signals to be linked together to form more complex dependency graphs. 
 
+    ```javascript
     firstName = Signal("Gob");
     lastName = Signal("Bluth");
 
@@ -113,6 +128,7 @@ This automatic updating allows signals to be linked together to form more comple
     fullName(); // "Michael Bluth"
     barbarianName(); // "Michael the Chicken"
     comicTitle(); // "He who was once Michael Bluth is now Michael the Chicken"
+    ```
 
 Signals should not have any external effects in their definition. In a complex graph, a changed valued might cascade and cause a some dependent signals' definitions to be invoked multiple times before propagation is complete. 
 
@@ -131,18 +147,23 @@ Observers are used to invoke external effects when signals are updated. They are
 
 Observers are created in the same way as signals
 
+    ```javascript
     foo = Signal("random string");
     bar = Observer(function(){ // alerts "random string" on creation
       alert(foo());
     });
+    ```
 
 Just like signals, their dependencies are automatically calculated and triggered when the appropriate signal is updated.
 
+    ```javascript
     foo("a new random string"); // triggers bar which
                                 // alerts "a new random string"
+    ```
 
 Just like signals, their functions can be updated
 
+    ```javascript
     // change bar to log instead of alert
     // triggers once immediately after updating
     bar(function(){
@@ -151,16 +172,20 @@ Just like signals, their functions can be updated
 
     foo("this string will be logged now"); // triggers bar which now
                                            // logs the string instead
+    ```
 
 To disable an observer, just pass in a null value
 
+    ```javascript
     bar(null); // disables the observer 
+    ```
 
 Working with Arrays and Objects
 -------------------------------
 
-If a signal has an array as its value, directly updating the array will *not* update the signals dependants. Because the signal object is still representing the same array, it does not detect the change. This applies to objects as well
+If a signal has an array as its value, directly updating the array will **not** update the signal's dependants. Because the signal object is still representing the same array, it does not detect the change. This applies to objects as well
 
+    ```javascript
     # foo initialized as a signal with an array as its value
     foo = Signal(["a", "b", "c"]); 
 
@@ -176,23 +201,29 @@ If a signal has an array as its value, directly updating the array will *not* up
     foo().push("d");
     foo(); // ["a","b","c","d"]
     bar(); // "a-b-c"
+    ```
 
 A simple solution is to manually trigger the refresh by setting the signals function to itself.
 
+    ```javascript
     # Writing to foo with its already existing value triggers the refresh
     foo(foo());
     foo(); // ["a","b","c","d"]
     bar(); // "a-b-c-d"
+    ```
 
 In order to make it easier to work with arrays and object. If a signal is representing an object it gains a convenience method for setting its properties
     
+    ```javascript
     foo.set(key, value); // equivalent to
                          // foo()[key] = value;
                          // foo(foo());
+    ```
 
 Additionally, if a signal is representing an array it gains a number of convenience methods duplicating standard array mutator methods. 
 
 
+    ```javascript
     foo.pop(); // Equivalent to 
                // foo().pop(); 
                // foo(foo());
@@ -220,3 +251,4 @@ Additionally, if a signal is representing an array it gains a number of convenie
     foo.splice(); // Equivalent to 
                   // foo().splice();
                   // foo(foo());
+    ```
