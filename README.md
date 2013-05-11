@@ -1,32 +1,85 @@
 Reactor.js
 ==========
 
-Reactor is a super lightweight library for reactive programming. It makes it trivial to update your model and keep your UI in sync. Reactor automatically creates and maintains dependencies between values, removing the need for manually declaring listeners and bindings. 
+Reactor is a lightweight library for [reactive programming](http://en.wikipedia.org/wiki/Reactive_programming). It provides reactive variables which automatically update themselves when the things they depend on are changed.
 
-Reactor is designed to be unopionated and unobtrusive. It consists of just 2 components: `Signal` and `Observer`. Unlike many frameworks, it imposes no particular structure on your code. There is no need to learn a special syntax or use special classes, objects, or methods.
+Here's a quick example of what Reactor does
+
+```javascript
+foo = Signal(1);
+bar = Signa(function(){
+  return foo() + 1;
+});
+
+foo(); // 1
+bar(); // 2
+
+foo(6);
+
+foo(); // 6
+bar(); // 7
+```
+
+You declare how a variable should be calculated once, and it automatically recalculates itself when necessary. This makes it easy to keep a complex data model consistent, and to keep a user interface up to date when a model is changed.
+
+Reactor is designed to be unobtrusive and unopinionated. 
+
+- There is no need to manually declare listeners or bindings since Reactor automatically keeps track of all that for you. 
+- It imposes no particular structure on your code since any variable can be easily replaced with a reactive one. 
+- There is no need to learn special special syntax or use special classes, objects, or methods.
 
 Overview
 --------
 
-Reactor provides signals and observers. 
+Reactor has just 2 components: **signals** and **observers**
 
-- Signals are values which may depend on other signals.
-- Observers are functions which are triggered on signal changes.
+- **Signals** are values which may depend on other signals.
+- **Observers** are functions which are triggered on signal changes.
 
 Whenever a signal is updated it automatically updates all its dependent signals & observers as well. 
 
-Here is an example of a basic application using Reactor
+Here is a summary of how to use Reactor
 
 ```javascript
-title = Signal("Manager");
-fullTitle = Signal(function(){
-  return "Mr " + title();
-})''
-Observer(function(){
-  alert "Welcome " + fullTitle() + "!"
-});
-```
+stringSignal = Signal("a string");    // Signals can be set to any value
+booleanSignal = Signal(true);
+numberSignal = Signal(1);
 
+dependentSignal = Signal(function(){  // If given a function, the value is the output of the function
+                                      // rather than the function itself
+
+  if (booleanSignal()){               // Reading from another signal automatically sets it
+    return "I haz " + stringSignal(); // as a dependency
+  } else {
+    return numberSignal() * 2;
+  }
+  
+});
+
+stringSignal("a new string value");   // To update a signal just pass it a new value
+                                      // this automatically updates all its depenents as well
+
+arraySignal = Signal([                // Signals can even be arrays or objects
+  stringSignal,                       // which contain other signals
+  booleanSignal,
+  numberSignal
+]);
+
+alertObserver = Observer(function(){  // Observers are just like signals except:
+  alert(arraySignal().join(","));     // They are updated last
+});                                   // They are only updated once per propagation
+                                      // They cannot be depended on by signals
+
+arraySignal.set(4, "a new value!")    // Convenience method for setting properties on an object Signal
+
+arraySignal.push("foo");              // Convenience methods for updating an array Signal
+arraySignal.pop();
+arraySignal.unshift("bar");
+arraySignal.shift();
+arraySignal.reverse();
+arraySignal.sort();
+arraySignal.splice(1, 2, "not a signal");
+```
 
 Signals
 -------
@@ -186,10 +239,10 @@ Working with Arrays and Objects
 If a signal has an array as its value, directly updating the array will **not** update the signal's dependants. Because the signal object is still representing the same array, it does not detect the change. This applies to objects as well
 
 ```javascript
-// foo initialized as a signal with an array as its value
+# foo initialized as a signal with an array as its value
 foo = Signal(["a", "b", "c"]); 
 
-// bar initialized as a signal whos value depends on foo
+# bar initialized as a signal whos value depends on foo
 bar = Signal(function(){
   return foo().join("-");
 });
@@ -197,7 +250,7 @@ bar = Signal(function(){
 foo(); // ["a","b","c"]
 bar(); // "a-b-c"
 
-// Updating foo's array directly does not trigger an update of bar
+# Updating foo's array directly does not trigger an update of bar
 foo().push("d");
 foo(); // ["a","b","c","d"]
 bar(); // "a-b-c"
@@ -206,13 +259,14 @@ bar(); // "a-b-c"
 A simple solution is to manually trigger the refresh by setting the signals function to itself.
 
 ```javascript
-// Writing to foo with its already existing value triggers the refresh
+# Writing to foo with its already existing value triggers the refresh
 foo(foo());
 foo(); // ["a","b","c","d"]
 bar(); // "a-b-c-d"
 ```
 
 In order to make it easier to work with arrays and object. If a signal is representing an object it gains a convenience method for setting its properties
+
 ```javascript
 foo.set(key, value); // equivalent to
                      // foo()[key] = value;
@@ -220,14 +274,15 @@ foo.set(key, value); // equivalent to
 ```
 
 Additionally, if a signal is representing an array it gains a number of convenience methods duplicating standard array mutator methods.
+
 ```javascript
 foo.pop(); // Equivalent to 
            // foo().pop(); 
            // foo(foo());
 
 foo.push(); // Equivalent to 
-            // foo().push(); 
-            // foo(foo());
+               // foo().push(); 
+               // foo(foo());
 
 foo.reverse(); // Equivalent to 
                // foo().reverse();
@@ -238,8 +293,8 @@ foo.shift(); // Equivalent to
              // foo(foo());
 
 foo.unshift(); // Equivalent to 
-               // foo().unshift();
-               // foo(foo());
+                  // foo().unshift();
+                  // foo(foo());
 
 foo.sort(); // Equivalent to 
             // foo().sort();
