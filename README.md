@@ -36,7 +36,10 @@ Reactor has just 2 components: **signals** and **observers**
 - **Signals** are values which may depend on other signals.
 - **Observers** are functions which are triggered on signal changes.
 
-Whenever a signal is updated it automatically updates all its dependent signals & observers as well. 
+Whenever a signal is updated it automatically updates all its dependent signals & observers as well. Together, signals and observers form a graph representing the propagation of data throughout the application. Signals sit on the inside of the graph representing the internal data model, while observers are on the edges of the graph affecting external systems.
+
+As an example: Signals could be used to represent user data in a web application while observers are used to update the html.
+
 
 Signals
 -------
@@ -235,6 +238,10 @@ foo.set(key, value); // equivalent to
 Additionally, if a signal is representing an array it gains a number of convenience methods duplicating standard array mutator methods.
 
 ```javascript
+
+// Instead of needing to manually call foo(foo()); after every update
+// the following equivalent convenience methods can be used
+
 foo.pop(); // Equivalent to 
            // foo().pop(); 
            // foo(foo());
