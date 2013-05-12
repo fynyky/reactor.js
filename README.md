@@ -350,10 +350,10 @@ arraySignal.splice 1, 2, "not a signal"
 Installation and use
 --------------------
 
-Download `reactor.js` and include it in your application. 
+Download [reactor.js](https://github.com/fynyky/reactor.js/raw/master/reactor.js) and include it in your application. 
 
 Reactor has just 2 components: `Signal` and `Observer`
 - For browsers, they will be bound to window as global objects for use anywhere.
 - For node.js, they will be bound as properties of the exports object to be imported as modules
 
-For [Coffeescript](http://coffeescript.org/) users, you can instead use `reactor.coffee` for your coffeescript workflow.
+For [Coffeescript](http://coffeescript.org/) users, you can instead use [reactor.coffee](https://github.com/fynyky/reactor.js/raw/master/reactor.coffee) for your coffeescript workflow.
