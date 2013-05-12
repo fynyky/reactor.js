@@ -58,7 +58,7 @@ Signal objects are implemented as functions. To read the value of a signal, call
 foo(); // returns 7
 ```
 
-To change the value of a signal, just pass it the new value as an argument.
+To change the value of a signal, pass it the new value as an argument.
 
 ```javascript
 foo(9); // sets the signal's value to 9
@@ -155,7 +155,7 @@ Observers are almost identical to signals except for 3 main differences:
 
 - They are triggered only after all signals have been updated
 - They are only triggered once per signal update
-- Unlike signals, Observers cannot be depended on
+- Unlike signals, observers cannot be depended upon
 
 Observers are used for external effects while signals are used for internal state. Signal functions might trigger multiple times before all signals have finished updating. If signals are used for external effects, they could triggered incorrectly and redundantly. Observers are triggered last and only once per update and therefore do not have this problem.
 
@@ -189,7 +189,7 @@ foo("this string will be logged now"); // triggers bar which now
                                        // logs the string instead
 ```
 
-To disable an observer, just pass in a null value.
+To disable an observer, pass in a null value.
 
 ```javascript
 bar(null); // disables the observer 
