@@ -1,7 +1,7 @@
 Reactor.js
 ==========
 
-Reactor is a lightweight library for [reactive programming](http://en.wikipedia.org/wiki/Reactive_programming). It provides reactive variables which automatically update themselves when the things they depend on change.
+Reactor is a lightweight library for [reactive programming](http://en.wikipedia.org/wiki/Reactive_programming). It provides reactive variables which automatically update themselves when the things they depend on change. This is similar to how a spreadsheet works, where cells can automatically change their own values in reaction to changes other cells. 
 
 Here's a quick example of what Reactor does:
 
@@ -36,7 +36,9 @@ Reactor has just 2 components: **signals** and **observers**
 - **Signals** are values that are expected to change over time. Signals can depend on each other.
 - **Observers** are functions which are triggered on signal changes.
 
-Whenever a signal is updated it automatically updates all its dependent signals & observers as well. Together, signals and observers form a graph representing the propagation of data throughout the application. Signals sit on the inside of the graph representing the internal data model, while observers are on the edges of the graph affecting external systems.
+A signal depends on another signal when it requires the other signal's value to determine its own. Similarly, an observer depends on a signal when it requires that signal's value to determine what to do.
+
+Whenever a signal is updated, it automatically updates all its dependent signals & observers as well. Together, signals and observers form a graph representing the propagation of data throughout the application. Signals sit on the inside of the graph representing the internal data model, while observers are on the edges of the graph affecting external systems.
 
 As an example: Signals could be used to represent user data in a web application while observers are used to update the html.
 
@@ -142,14 +144,14 @@ barbarianName(); // "Michael the Chicken"
 comicTitle(); // "He who was once Michael Bluth is now Michael the Chicken"
 ```
 
-As far as possible, signals should only **read and avoid having any external effects. This refers to actions such as:
+As far as possible, signals should only read and avoid having any external effects. This refers to actions such as:
 
 - Modifying the HTML
-- Initiating a write to disk
+- Writing to disk
 - Logging an interaction
 - Triggering an alert
 
-The reason for this is that in a complex graph, a changed valued might cascade and cause some dependent signals' definitions to be invoked multiple times before propagation is complete.
+In a complex graph, a changed valued might cascade and cause some dependent signals' definitions to be invoked multiple times before propagation is complete.
 
 In the example above, updating `firstName` first causes both `fullName` and `barbarianName` to update. This causes `comicTitle` to be updated twice. Once when `fullName` is updated, and again when `barbarianName` is updated. This is fine on its own since there are no external effects. 
 
