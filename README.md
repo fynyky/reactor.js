@@ -198,14 +198,25 @@ bar(null); // disables the observer
 Working with Arrays and Objects
 -------------------------------
 
-If a signal has an array as its value, directly updating the array will **not** update the signal's dependants. Because the signal object is still representing the same array, it does not detect the change. This applies to objects as well.
+When updating Arrays and Objects, you should use Reactor's convenience methods instead of updating the objects directly. This means you should use:
+- `foo.set(key, value)` instead of `foo()[key] = value`
+- `foo.pop()` instead of `foo().pop()`
+- `foo.push(value)` instead of `foo().push(value)`
+- `foo.reverse()` instead of `foo().reverse()`
+- `foo.shift()` instead of `foo().shift()`
+- `foo.unshift(value)` instead of `foo().unshift(value)`
+- `foo.sort(comparison)` instead of `foo().sort(comparison)`
+- `foo.splice(start, length)` instead of `foo().splice(start, length)`
+
+The reason for this is if a signal has an array as its value, directly updating the array will **not** update the signal's dependants. Because the signal object is still representing the same array, it does not detect the change. Instead, using the provided convenience methods does the same update but allows the change to be detected. This applies to objects as well.
+
 
 ```javascript
 // foo initialized as a signal with an array as its value
 foo = Signal(["a", "b", "c"]); 
 
 // bar initialized as a signal whos value depends on foo
-bar = Signal(function(){
+bar = Signal(function(){ 
   return foo().join("-");
 });
 
@@ -216,59 +227,11 @@ bar(); // "a-b-c"
 foo().push("d");
 foo(); // ["a","b","c","d"]
 bar(); // "a-b-c"
-```
 
-A simple solution is to manually trigger the refresh by setting the signals function to itself.
-
-```javascript
-// Writing to foo with its already existing value triggers the refresh
-foo(foo());
-foo(); // ["a","b","c","d"]
-bar(); // "a-b-c-d"
-```
-
-If a signal is representing an object it gains a convenience method for setting its properties.
-
-```javascript
-foo.set(key, value); // equivalent to
-                     // foo()[key] = value;
-                     // foo(foo());
-```
-
-Additionally, if a signal is representing an array it gains a number of convenience methods duplicating standard array mutator methods.
-
-```javascript
-
-// Instead of needing to manually call foo(foo()); after every update
-// the following equivalent convenience methods can be used
-
-foo.pop(); // Equivalent to 
-           // foo().pop(); 
-           // foo(foo());
-
-foo.push(); // Equivalent to 
-               // foo().push(); 
-               // foo(foo());
-
-foo.reverse(); // Equivalent to 
-               // foo().reverse();
-               // foo(foo());
-
-foo.shift(); // Equivalent to 
-             // foo().shift();
-             // foo(foo());
-
-foo.unshift(); // Equivalent to 
-                  // foo().unshift();
-                  // foo(foo());
-
-foo.sort(); // Equivalent to 
-            // foo().sort();
-            // foo(foo());
-
-foo.splice(); // Equivalent to 
-              // foo().splice();
-              // foo(foo());
+// Instead, updating using the convenience method does trigger the update of bar
+foo.push("e");
+foo(); // ["a","b","c","d","e"]
+bar(); // "a-b-c-d-e"
 ```
 
 Summary
