@@ -1,7 +1,7 @@
 Reactor.js
 ==========
 
-Reactor is a lightweight library for [reactive programming](http://en.wikipedia.org/wiki/Reactive_programming). It provides reactive variables which automatically update themselves when the things they depend on are changed.
+Reactor is a lightweight library for [reactive programming](http://en.wikipedia.org/wiki/Reactive_programming). It provides reactive variables which automatically update themselves when the things they depend on change.
 
 Here's a quick example of what Reactor does:
 
@@ -24,8 +24,8 @@ You declare how a variable should be calculated once, and it automatically recal
 
 Reactor is designed to be unobtrusive and unopinionated. 
 
-- There is no need to manually declare listeners or bindings since Reactor automatically keeps track of all that for you. 
-- It imposes no particular structure on your code since any variable can be easily replaced with a reactive one. 
+- There is no need to manually declare listeners or bindings. Reactor automatically keeps track of all that for you. 
+- It imposes no particular structure on your code. Any variable can be easily replaced with a reactive one. 
 - There is no need to learn special special syntax or use special classes, objects, or methods.
 
 Overview
@@ -33,7 +33,7 @@ Overview
 
 Reactor has just 2 components: **signals** and **observers**
 
-- **Signals** are values which may depend on other signals.
+- **Signals** are values that are expected to change over time. Signals can depend on each other.
 - **Observers** are functions which are triggered on signal changes.
 
 Whenever a signal is updated it automatically updates all its dependent signals & observers as well. Together, signals and observers form a graph representing the propagation of data throughout the application. Signals sit on the inside of the graph representing the internal data model, while observers are on the edges of the graph affecting external systems.
@@ -74,7 +74,7 @@ foo(["x", "y", "z"]);
 foo({"moo": bar});
 ```
 
-However, if a signal is given a function, it takes the output of the function as its value instead of the function itself.
+However, if a signal is given a function, it takes the return value of the function as its value instead of the function itself.
 
 ```javascript
 foo = Signal(function(){
@@ -84,7 +84,7 @@ foo = Signal(function(){
 foo(); // returns 6 instead of the function
 ```
 
-Signals can have their value depend on other signals by using these functions. If a different signal is read from within the given function, then that signal will automatically be set as a dependency. This means that when the dependency has been updated, the value of the dependent signal will be updated as well.
+Signals can have their value depend on other signals by using functions. If a different signal is read from within the given function, then that signal will automatically be set as a dependency. This means that when the dependency has been updated, the value of the dependent signal will be updated as well.
 
 ```javascript
 foo = Signal(7);
@@ -251,8 +251,8 @@ stringSignal = Signal("a string");    // Signals can be set to any value
 booleanSignal = Signal(true);
 numberSignal = Signal(1);
 
-dependentSignal = Signal(function(){  // If given a function, the signal's value is the output of the
-                                      // function instead of the function itself
+dependentSignal = Signal(function(){  // If given a function, the signal's value is the return value
+                                      // of the function instead of the function itself
   return numberSignal() + 1;          // Reading from another signal automatically sets it
                                       // as a dependency
 });                     
