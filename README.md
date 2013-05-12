@@ -1,7 +1,7 @@
 Reactor.js
 ==========
 
-Reactor is a lightweight library for [reactive programming](http://en.wikipedia.org/wiki/Reactive_programming). It provides reactive variables which automatically update themselves when the things they depend on change. This is similar to how a spreadsheet works, where cells can automatically change their own values in reaction to changes other cells. 
+Reactor is a lightweight library for [reactive programming](http://en.wikipedia.org/wiki/Reactive_programming). It provides reactive variables which automatically update themselves when the things they depend on change. This is similar to how a spreadsheet works, where cells can automatically change their own values in reaction to changes in other cells. 
 
 Here's a quick example of what Reactor does:
 
