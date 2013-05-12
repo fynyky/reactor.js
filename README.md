@@ -279,16 +279,11 @@ stringSignal = Signal("a string");    // Signals can be set to any value
 booleanSignal = Signal(true);
 numberSignal = Signal(1);
 
-dependentSignal = Signal(function(){  // If given a function, the value is the output of the function
-                                      // rather than the function itself
-
-  if (booleanSignal()){               // Reading from another signal automatically sets it
-    return "I haz " + stringSignal(); // as a dependency
-  } else {
-    return numberSignal() * 2;
-  }
-  
-});
+dependentSignal = Signal(function(){  // If given a function, the signal's value is the output of the
+                                      // function instead of the function itself
+  return numberSignal() + 1;          // Reading from another signal automatically sets it
+                                      // as a dependency
+});                     
 
 stringSignal("a new string value");   // To update a signal just pass it a new value
                                       // this automatically updates all its depenents as well
@@ -314,3 +309,51 @@ arraySignal.reverse();
 arraySignal.sort();
 arraySignal.splice(1, 2, "not a signal");
 ```
+And if you like [Coffeescript](http://coffeescript.org/), Reactor gets even simpler!
+
+```coffeescript
+
+stringSignal = Signal "a string"                # Signals can be set to any value
+booleanSignal = Signal true
+numberSignal = Signal 1
+
+dependentSignal = Signal -> numberSignal() + 1  # If given a function, the signal's value is the output
+                                                # of the function instead of the function itself
+                                                # Reading from another signal automatically 
+                                                # sets it as a dependency
+
+stringSignal "a new string value"               # To update a signal just pass it a new value
+                                                # this automatically updates all its depenents as well
+
+arraySignal = Signal [                          # Signals can even be arrays or objects
+  stringSignal                                  # which contain other signals
+  booleanSignal
+  numberSignal
+]
+
+alertObserver = Observer ->                     # Observers are just like signals except:
+  alert arraySignal().join(",")                 # They are updated last
+                                                # They are only updated once per propagation
+                                                # They cannot be depended on by signals
+                                                
+arraySignal.set 4, "a new value!"               # Convenience method for setting properties 
+                                                # on an object Signal
+
+arraySignal.push "foo"                          # Convenience methods for updating an array Signal      
+arraySignal.pop()
+arraySignal.unshift("bar")
+arraySignal.shift()
+arraySignal.reverse()
+arraySignal.sort()
+arraySignal.splice 1, 2, "not a signal"
+```
+Installation and use
+--------------------
+
+Download `reactor.js` and include it in your application. 
+
+Reactor has just 2 components: `Signal` and `Observer`
+- For browsers, they will be bound to window as global objects for use anywhere.
+- For node.js, they will be bound as properties of the exports object to be imported as modules
+
+For [Coffeescript](http://coffeescript.org/) users, you can instead use `reactor.coffee` for your coffeescript workflow.
