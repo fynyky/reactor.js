@@ -78,7 +78,7 @@ global.Signal = (definition)->
     for observerTrigger in createdSignal.observers[...]
       observerList.push observerTrigger if (observerList.indexOf observerTrigger) < 0
 
-    # Recursively evaluate any de pendents
+    # Recursively evaluate any dependents
     # Note that the dependents is a list of the dependents evaluate functions
     # not the signals themselves
     # and give them the observer list to add to as well

@@ -142,9 +142,18 @@ barbarianName(); // "Michael the Chicken"
 comicTitle(); // "He who was once Michael Bluth is now Michael the Chicken"
 ```
 
-Signals should not have any external effects in their definition. In a complex graph, a changed valued might cascade and cause some dependent signals' definitions to be invoked multiple times before propagation is complete. 
+As far as possible, signals should only **read and avoid having any external effects. This refers to actions such as:
 
-In the example above, updating `firstName` first causes both `fullName` and `barbarianName` to update. However, this causes `comicTitle` to be updated twice. Once when `fullName` is updated, and again when `barbarianName` is updated.
+- Modifying the HTML
+- Initiating a write to disk
+- Logging an interaction
+- Triggering an alert
+
+The reason for this is that in a complex graph, a changed valued might cascade and cause some dependent signals' definitions to be invoked multiple times before propagation is complete.
+
+In the example above, updating `firstName` first causes both `fullName` and `barbarianName` to update. This causes `comicTitle` to be updated twice. Once when `fullName` is updated, and again when `barbarianName` is updated. This is fine on its own since there are no external effects. 
+
+However, if the definition of `comicTitle` included writing to disk then it would cause problems. Because `comicTitle` is updated twice, it would initiate 2 different writes. Furthermore, the first write would be incorrect as the change propagation would not have completed yet.
 
 For external effects, it is recommended that observers are used instead.
 
