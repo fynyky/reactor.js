@@ -263,7 +263,8 @@ var dependentSignal = Signal(function(){  // If given a function, the signal's v
 });                     
 
 var stringSignal("a new string value");   // To update a signal just pass it a new value
-                                          // this automatically updates all its depenents as well
+                                          // this automatically updates all 
+                                          // its dependents as well
 
 var arraySignal = Signal([                // Signals can even be arrays or objects
   stringSignal,                           // which contain other signals
@@ -302,7 +303,8 @@ dependentSignal = Signal -> numberSignal() + 1  # If given a function, the signa
                                                 # sets it as a dependency
 
 stringSignal "a new string value"               # To update a signal just pass it a new value
-                                                # this automatically updates all its depenents as well
+                                                # this automatically updates all 
+                                                # its dependents as well
 
 arraySignal = Signal [                          # Signals can even be arrays or objects
   stringSignal                                  # which contain other signals
