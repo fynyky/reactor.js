@@ -254,8 +254,10 @@ var stringSignal = Signal("a string");    // Signals can be set to any value
 var booleanSignal = Signal(true);
 var numberSignal = Signal(1);
 
-var dependentSignal = Signal(function(){  // If given a function, the signal's value is the return value
-                                          // of the function instead of the function itself
+var dependentSignal = Signal(function(){  // If given a function, the signal's value 
+                                          // is the return value of the function 
+                                          // instead of the function itself
+                                          
   return numberSignal() + 1;              // Reading from another signal automatically sets it
                                           // as a dependency
 });                     
@@ -293,8 +295,9 @@ stringSignal = Signal "a string"                # Signals can be set to any valu
 booleanSignal = Signal true
 numberSignal = Signal 1
 
-dependentSignal = Signal -> numberSignal() + 1  # If given a function, the signal's value is the output
-                                                # of the function instead of the function itself
+dependentSignal = Signal -> numberSignal() + 1  # If given a function, the signal's value
+                                                # is the return value of the function 
+                                                # instead of the function itself
                                                 # Reading from another signal automatically 
                                                 # sets it as a dependency
 
