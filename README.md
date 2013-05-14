@@ -6,8 +6,8 @@ Reactor is a lightweight library for [reactive programming](http://en.wikipedia.
 Here's a quick example of what Reactor does:
 
 ```javascript
-foo = Signal(1);
-bar = Signal(function(){
+var foo = Signal(1);
+var bar = Signal(function(){
   return foo() + 1;
 });
 
@@ -51,7 +51,7 @@ Signal are just values which other signals can depend on.
 Reactor provides a global function called `Signal`. It wraps a given value and returns it as a signal object.
 
 ```javascript
-foo = Signal(7);  
+var foo = Signal(7);  
 ```
 
 Signal objects are implemented as functions. To read the value of a signal, call it without any arguments.
@@ -79,7 +79,7 @@ foo({"moo": bar});
 However, if a signal is given a function, it takes the return value of the function as its value instead of the function itself.
 
 ```javascript
-foo = Signal(function(){
+var foo = Signal(function(){
   return 2 * 3;
 });
 
@@ -89,8 +89,8 @@ foo(); // returns 6 instead of the function
 Signals can have their value depend on other signals by using functions. If a different signal is read from within the given function, then that signal will automatically be set as a dependency. This means that when the dependency has been updated, the value of the dependent signal will be updated as well.
 
 ```javascript
-foo = Signal(7);
-bar = Signal(function(){ 
+var foo = Signal(7);
+var bar = Signal(function(){ 
   return foo() * foo(); // since foo is read here, 
                         // is is registered as a dependency of bar
 });
@@ -109,22 +109,22 @@ Notice that there is no need to declare any listeners or bindings. Reactor autom
 This automatic updating allows signals to be linked together to form more complex dependency graphs. 
 
 ```javascript
-firstName = Signal("Gob");
-lastName = Signal("Bluth");
+var firstName = Signal("Gob");
+var lastName = Signal("Bluth");
 
 // fullName depends on both firstName and lastName
-fullName = Signal(function(){  
+var fullName = Signal(function(){  
   return firstName() + " " + lastName();
 });
 
 // barbarianName depends only on firstName
-barbarianName = Signal(function(){
+var barbarianName = Signal(function(){
   return firstName() + " the Chicken"
 });
 
 // comicTitle depends on barbrianName and fullName and therefore
 // indirectly depending on firstName and lastName
-comicTitle = Signal(function(){
+var comicTitle = Signal(function(){
   return "He who was once " + fullName() + " is now " + barbarianName();
 });
 
@@ -173,10 +173,11 @@ Observers are used for external effects while signals are used for internal stat
 Observers are created in the same way as signals.
 
 ```javascript
-foo = Signal("random string");
-bar = Observer(function(){ // alerts "random string" on creation
-  alert(foo());
-});
+var foo = Signal("random string");
+var bar = Observer(function(){  // Triggers first on creation
+  alert(foo());                 // Reads from foo and alerts "random string"
+});                             // Is automatically registered as a dependent
+                                // and triggers again whenever foo is changed
 ```
 
 Just like signals, their dependencies are automatically calculated and triggered when the appropriate signal is updated.
@@ -224,10 +225,10 @@ The reason for this is if a signal has an array as its value, directly updating 
 
 ```javascript
 // foo initialized as a signal with an array as its value
-foo = Signal(["a", "b", "c"]); 
+var foo = Signal(["a", "b", "c"]); 
 
 // bar initialized as a signal whos value depends on foo
-bar = Signal(function(){ 
+var bar = Signal(function(){ 
   return foo().join("-");
 });
 
@@ -249,33 +250,34 @@ Summary
 -------
 
 ```javascript
-stringSignal = Signal("a string");    // Signals can be set to any value
-booleanSignal = Signal(true);
-numberSignal = Signal(1);
+var stringSignal = Signal("a string");    // Signals can be set to any value
+var booleanSignal = Signal(true);
+var numberSignal = Signal(1);
 
-dependentSignal = Signal(function(){  // If given a function, the signal's value is the return value
-                                      // of the function instead of the function itself
-  return numberSignal() + 1;          // Reading from another signal automatically sets it
-                                      // as a dependency
+var dependentSignal = Signal(function(){  // If given a function, the signal's value is the return value
+                                          // of the function instead of the function itself
+  return numberSignal() + 1;              // Reading from another signal automatically sets it
+                                          // as a dependency
 });                     
 
-stringSignal("a new string value");   // To update a signal just pass it a new value
-                                      // this automatically updates all its depenents as well
+var stringSignal("a new string value");   // To update a signal just pass it a new value
+                                          // this automatically updates all its depenents as well
 
-arraySignal = Signal([                // Signals can even be arrays or objects
-  stringSignal,                       // which contain other signals
+var arraySignal = Signal([                // Signals can even be arrays or objects
+  stringSignal,                           // which contain other signals
   booleanSignal,
   numberSignal
 ]);
 
-alertObserver = Observer(function(){  // Observers are just like signals except:
-  alert(arraySignal().join(","));     // They are updated last
-});                                   // They are only updated once per propagation
-                                      // They cannot be depended on by signals
+var alertObserver = Observer(function(){  // Observers are just like signals except:
+  alert(arraySignal().join(","));         // They are updated last
+});                                       // They are only updated once per propagation
+                                          // They cannot be depended on by signals
 
-arraySignal.set(4, "a new value!")    // Convenience method for setting properties on an object Signal
+arraySignal.set(4, "a new value!")        // Convenience method for setting properties 
+                                          // on an Array or Object Signal
 
-arraySignal.push("foo");              // Convenience methods for updating an array Signal
+arraySignal.push("foo");                  // Convenience methods for updating an array Signal
 arraySignal.pop();
 arraySignal.unshift("bar");
 arraySignal.shift();
