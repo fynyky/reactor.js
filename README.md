@@ -40,7 +40,39 @@ A signal depends on another signal when it requires the other signal's value to 
 
 Whenever a signal is updated, it automatically updates all its dependent signals & observers as well. Together, signals and observers form a graph representing the propagation of data throughout the application. Signals sit on the inside of the graph representing the internal data model, while observers are on the edges of the graph affecting external systems.
 
-As an example: Signals could be used to represent user data in a web application while observers are used to update the html.
+Here is an example of [simple note taking application](http://jsfiddle.net/TjMgh/4/) using Reactor. A signal is used to represent user data while observers are used to update the html.
+
+```javascript
+// The model is just an array of strings wrapped in a Signal
+noteList = Signal(["sample note", "another sample note"]);
+
+// The code to display the notes is wrapped in an Observer
+// This code is automatically retriggered when the noteList is modified
+Observer(function(){
+  var noteListElement = document.getElementById("noteList");
+  noteListElement.innerHTML = '';
+
+  // "noteList().length" causes a read of noteList
+  // This automatically sets noteList as a dependency of this Observer
+  // When noteList is updated it automatically retriggers the whole code block
+  for (var i = 0; i < noteList().length; i++) {
+    var noteElement = document.createElement("div");
+    noteElement.textContent = noteList()[i];
+    noteListElement.appendChild(noteElement);
+  }
+
+});
+
+// The input only needs to modify the Signal
+// The UI update is automatically handled by the Observer
+var noteInputElement = document.getElementById("noteInput");
+noteInputElement.onkeydown = function(event){
+  if (event.keyCode === 13) {
+    noteList.push(noteInputElement.value);
+    noteInputElement.value = '';
+  }
+};
+```
 
 
 Signals
