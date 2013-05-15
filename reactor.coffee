@@ -58,6 +58,26 @@ global.Signal = (definition)->
     # by default the value is the definition
     value = definition
 
+    # Set the special array methods if the definition is an array
+    # Essentially providing convenience mutator methods which automatically trigger revaluation
+    for methodName in ["pop", "push", "reverse", "shift", "sort", "splice", "unshift"]
+      do (methodName)->
+        if definition instanceof Array
+          createdSignal[methodName] = ->
+            output = definition[methodName].apply definition, arguments
+            createdSignal(definition)
+            return output
+        else
+          delete createdSignal[methodName]
+
+    # convenience method for setting properties
+    if definition instanceof Object
+      createdSignal.set = (key, value)->
+        definition[key] = value
+        createdSignal(definition)
+    else
+      delete createdSignal.set
+
     # if definition is a function then we need to evaluate it
     # and set it up to be notified when its dependencies change
     if typeof definition is "function"
@@ -78,7 +98,7 @@ global.Signal = (definition)->
     for observerTrigger in createdSignal.observers[...]
       observerList.push observerTrigger if (observerList.indexOf observerTrigger) < 0
 
-    # Recursively evaluate any dependents
+    # Recursively evaluate any de pendents
     # Note that the dependents is a list of the dependents evaluate functions
     # not the signals themselves
     # and give them the observer list to add to as well
@@ -102,27 +122,6 @@ global.Signal = (definition)->
     # then finally trigger affected observers
     if newDefinition isnt undefined
       definition = newDefinition
-
-      # Set the special array methods if the definition is an array
-      # Essentially providing convenience mutator methods which automatically trigger revaluation
-      for methodName in ["pop", "push", "reverse", "shift", "sort", "splice", "unshift"]
-        do (methodName)->
-          if definition instanceof Array
-            createdSignal[methodName] = ->
-              output = definition[methodName].apply definition, arguments
-              createdSignal(definition)
-              return output
-          else
-            delete createdSignal[methodName]
-
-      # convenience method for setting properties
-      if definition instanceof Object
-        createdSignal.set = (key, value)->
-          definition[key] = value
-          createdSignal(definition)
-      else
-        delete createdSignal.set
-
       observerList = []
       evaluate(observerList)
       observerTrigger() for observerTrigger in observerList
@@ -211,6 +210,9 @@ global.Observer = (response)->
 # console.log "----------------------------------------------------------------"
 # console.log "Begin Testing on " + new Date() 
 # console.log "----------------------------------------------------------------"
+
+# Signal = global.Signal
+# Observer = global.Observer
 
 # console.log "Single static signal"
 # a = Signal 1
@@ -422,6 +424,36 @@ global.Observer = (response)->
 # console.log a() is 3
 # console.log b() is 'Serialized: 3'
 # console.log a.set is undefined
+
+# console.log "basic array push "
+# a = Signal []
+# a.push "x"
+# console.log JSON.stringify(a()) is '["x"]'
+
+# console.log "array initialized properly"
+# a = Signal []
+# a.push("x")
+# console.log JSON.stringify(a()) is '["x"]'
+# a.push("y")
+# console.log JSON.stringify(a()) is '["x","y"]'
+# a.pop()
+# console.log JSON.stringify(a()) is '["x"]'
+# a.pop()
+# console.log JSON.stringify(a()) is '[]'
+# a.unshift("x")
+# console.log JSON.stringify(a()) is '["x"]'
+# a.unshift("y")
+# console.log JSON.stringify(a()) is '["y","x"]'
+# a.unshift("z")
+# console.log JSON.stringify(a()) is '["z","y","x"]'
+# a.sort()
+# console.log JSON.stringify(a()) is '["x","y","z"]'
+# a.reverse()
+# console.log JSON.stringify(a()) is '["z","y","x"]'
+# a.splice(1,1,"w")
+# console.log JSON.stringify(a()) is '["z","w","x"]'
+# a.shift()
+# console.log JSON.stringify(a()) is '["w","x"]'
 
 # console.log "array methods"
 # a = Signal []
