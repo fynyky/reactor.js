@@ -371,3 +371,9 @@ Reactor has just 2 components: `Signal` and `Observer`
 - For node.js, they will be bound as properties of the exports object to be imported as modules
 
 For [Coffeescript](http://coffeescript.org/) users, you can instead use [reactor.coffee](https://github.com/fynyky/reactor.js/raw/master/reactor.coffee) for your coffeescript workflow.
+
+For [node.js](http://nodejs.org/) users, Reactor.js is also [available on npm](https://npmjs.org/package/reactorjs) by running
+
+```
+$ npm install reactorjs
+```
