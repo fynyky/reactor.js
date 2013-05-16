@@ -13,5 +13,8 @@
   "author": "Hongyi Li",
   "license": "BSD",
   "gitHead": "ba6b8b6e8a34d8a801473317bf8031e7448d4cd0",
-  "readmeFilename": "README.md"
+  "readmeFilename": "README.md",
+  "devDependencies": {
+    "mocha": "~1.9.0"
+  }
 }
