@@ -76,6 +76,15 @@ noteInputElement.onkeydown = function(event){
 
 Reactor adds very little overhead. You use `Signal` and `Observer` to wrap the appropriate variables and code blocks, swap reads and assignments for function calls, and you're good to go!
 
+Comparison to other libraries
+-----------------------------
+
+Reactor is based on the same reactive principles as [Bacon.js](https://github.com/raimohanska/bacon.js) and [Knockout.js](http://knockoutjs.com/). The main difference is that Reactor is trying to be lightweight and keep the additional syntax and complexity to a minimum.
+
+Compared to Knockout, Reactor does not provide semantic bindings directly to HTML.
+
+Compared to Bacon, Reactor does not help to handle event streams.
+
 Signals
 -------
 
