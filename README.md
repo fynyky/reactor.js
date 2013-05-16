@@ -79,9 +79,9 @@ Reactor adds very little overhead. You use `Signal` and `Observer` to wrap the a
 Comparison to other libraries
 -----------------------------
 
-Reactor is based on the same reactive principles as [Bacon.js](https://github.com/raimohanska/bacon.js) and [Knockout.js](http://knockoutjs.com/). The main difference is that Reactor is trying to be lightweight and keep the additional syntax and complexity to a minimum.
+Reactor is based on the same reactive principles as [Bacon.js](https://github.com/raimohanska/bacon.js) and [Knockout.js](http://knockoutjs.com/). The main difference is that Reactor is trying to be lightweight and keep the additional syntax and complexity to a minimum. Reactor sets dependencies for you automatically so there is no need to manually set subscriptions/listeners.
 
-Compared to Knockout, Reactor does not provide semantic bindings directly to HTML.
+Compared to Knockout, Reactor does not provide semantic bindings directly to HTML. Instead, users set the appropriate HTML modifying functions as Observers.
 
 Compared to Bacon, Reactor does not help to handle event streams.
 
