@@ -10,17 +10,20 @@ var foo = Signal(1);
 var bar = Signal(function(){
   return foo() + 1;
 });
+var moo = Observer(function(){
+  console.log(bar());
+});
 
 foo(); // 1
 bar(); // 2
 
-foo(6);
+foo(6); // console logs 7
 
 foo(); // 6
 bar(); // 7
 ```
 
-You declare how a variable should be calculated once, and it automatically recalculates itself when necessary. This makes it easy to keep a complex data model consistent, and a user interface up to date when a model is changed.
+You declare how a variable should be calculated once, and it automatically recalculates itself when necessary. Observers get notified when the variables they use get updated. This makes it easy to keep a complex data model consistent, and a user interface up to date when a model is changed.
 
 Reactor is designed to be unobtrusive and unopinionated. 
 
