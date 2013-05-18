@@ -1,0 +1,15 @@
+{
+  "name": "reactor.js",
+  "repo": "fynyky/reactor.js",
+  "description": "Functional reactive programming library",
+  "version": "0.0.2",
+  "keywords": ["reactive"],
+  "dependencies": {},
+  "development": {},
+  "license": "BSD",
+  "scripts": [
+    "reactor.js"
+  ],
+  "main": "reactor.js",
+  "author": "Hongyi Li"
+}
