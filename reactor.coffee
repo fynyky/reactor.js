@@ -16,6 +16,8 @@
 # From the perspective of observers, all signals are updated atomically and instantly 
 # 
 # TODOs
+# hide dependents & observers variables
+# reduce redundant evaluation using tokens
 # events
 # multi commit batching
 # avoid removing array and setter methods if user overrides them
@@ -65,7 +67,7 @@ global.Signal = (definition)->
         if definition instanceof Array
           createdSignal[methodName] = ->
             output = definition[methodName].apply definition, arguments
-            createdSignal(definition)
+            createdSignal(definition) # Manually trigger the refresh
             return output
         else
           delete createdSignal[methodName]
@@ -74,7 +76,7 @@ global.Signal = (definition)->
     if definition instanceof Object
       createdSignal.set = (key, value)->
         definition[key] = value
-        createdSignal(definition)
+        createdSignal(definition) # Manually trigger the refresh
     else
       delete createdSignal.set
 
@@ -95,15 +97,18 @@ global.Signal = (definition)->
 
     # Add this signals own observers to the observer list
     # Note that observers is a list of observer triggers instead of the observers themselves
-    for observerTrigger in createdSignal.observers[...]
+    for observerTrigger in evaluate.observers[...]
       observerList.push observerTrigger if (observerList.indexOf observerTrigger) < 0
 
-    # Recursively evaluate any de pendents
+    # TODO push evaluate tokens to observers here
+
+    # Recursively evaluate any dependents
     # Note that the dependents is a list of the dependents evaluate functions
     # not the signals themselves
     # and give them the observer list to add to as well
     # need to duplicate list since it will be modified by child evaluations
-    for dependentEvaluate in createdSignal.dependents[...]
+    for dependentEvaluate in evaluate.dependents[...]
+      # TODO check for token before evaluating here
       dependentEvaluate(observerList)
 
   # List of signals that this depends on
@@ -112,6 +117,11 @@ global.Signal = (definition)->
   # dependencies is a list of the signals themselves
   evaluate.dependencies = []
   evaluate.dependencyType = "signal"
+
+  # Symmetrically - the list of other signals and observers that depend on this signal
+  # Used to know who to notify when this signal has been updated
+  evaluate.dependents = []
+  evaluate.observers = []
 
   # The actual returned function representing the signal
   createdSignal = (newDefinition)->
@@ -139,31 +149,30 @@ global.Signal = (definition)->
       # If its a signal dependency - register it as such
       if dependent? and dependent.dependencyType is "signal"
 
+        # TODO remove evaluate token
+
         # register it as a dependent if necessary
-        existingDependentIndex = createdSignal.dependents.indexOf dependent
-        createdSignal.dependents.push dependent if existingDependentIndex < 0
+        existingDependentIndex = evaluate.dependents.indexOf dependent
+        evaluate.dependents.push dependent if existingDependentIndex < 0
 
         # symmetrically - register self as a dependency
         # this is needed for cleaning dependencies later
-        existingDependencyIndex = dependent.dependencies.indexOf createdSignal
-        dependent.dependencies.push createdSignal if existingDependencyIndex < 0
+        existingDependencyIndex = dependent.dependencies.indexOf evaluate
+        dependent.dependencies.push evaluate if existingDependencyIndex < 0
 
       # If it is a observer dependency - similarly register it as a observer
       else if dependent? and dependent.dependencyType is "observer"
 
         # register the observer if necessary
-        existingObserverIndex = createdSignal.observers.indexOf dependent
-        createdSignal.observers.push dependent if existingObserverIndex < 0
+        existingObserverIndex = evaluate.observers.indexOf dependent
+        evaluate.observers.push dependent if existingObserverIndex < 0
 
         # symmetrically - register self as a observee
         # this is needed for cleaning obeserver dependencies later
-        existingObserveeIndex = dependent.observees.indexOf createdSignal
-        dependent.observees.push createdSignal if existingObserveeIndex < 0
+        existingObserveeIndex = dependent.observees.indexOf evaluate
+        dependent.observees.push evaluate if existingObserveeIndex < 0
 
       return value
-
-  createdSignal.dependents = []
-  createdSignal.observers = []
 
   # run an initial evaluation on creation
   # no need to notify observers/dependents because it shouldnt have any yet
