@@ -1,20 +1,24 @@
-# Reactor is a javascript framework for functional reactive programming
+# Reactor is a javascript library for reactive programming
 # It comprises of 2 primary components: Signals, and Observers
-# 
+
 # Signals represent values which can be observed
-# Signals can depend on other signals
-# When a signal is updated, it automatically updates all dependent signals as well
-# 
+# A signal's value can depend on one or more other signals
+
 # Observers represent reactions to changes in signals
-# Observers are triggered after its dependent signals are updated
-# 
-# Observer and signal dependencies are set automatically 
-# based on the observer/signal definition
-# 
-# When a signal is updated, it first updates all dependent signals
-# After all dependnt signals have been updated, the relevant observers are notified
+# An observer can be observing one or more signals
+
+# Together, signals and observers form a directed acyclic graph
+# Signals form the root and intermediate nodes of the graph
+# Observers form the leaf nodes in the graph
+# When a signal is updated, it propagates its changes through the graph
+# Observers are updated last after all affected signals have been updated
 # From the perspective of observers, all signals are updated atomically and instantly 
-# 
+
+# In Reactor, observer and signal dependencies are set automatically and dynamically
+# Reactor detects when a signal is being used at run time, and automatically establishes the link
+# This means there is no need to explicitly declare dependencies
+# And dependencies can be changed across the execution of the program
+
 # TODOs
 # remove redundant triggering when same value is made
 # add in ability to get old values
@@ -23,32 +27,37 @@
 # multi commit batching
 # avoid removing array and setter methods if user overrides them
 
-# global switcher depending on whether its node.js or in browser
+# In node.js, Reactor is packaged into the exports object as a module import
+# In the browser, Reactor is bound directly to the window namespace
 global = exports ? this
 
-# global stack to automatically track signal dependencies
-# whenever a signal is evaluated - it puts itself on the dependency stack
-# when other signals read their own value - they check dependency stack to see who is asking
-# the top of the stack gets added as a dependent to the signal being read
-# when a signals evaluation is done - it pops itself off the stack
+# Global stack to automatically track signal dependencies
+# Whenever a signal or observer is evaluated - it puts itself on the dependency stack
+# When another signals is read - the dependency stack is checked to see who is asking
+# The reader gets added as a dependent to the signal being read
+# wWen a signal or observer's evaluation is done - it pops itself off the stack
 dependencyStack = []
 
 # Signals are functions representing observed values
 # They are read by executing the function with no arguments
 # They are set by executing the function with a signal definition as the only argument
-# If the definition is a function - it is executed to retrive the signal value
-# otherwise the definition is read as the value directly
+# If the definition is itself a function - it is executed to retrive the signal value
+# Otherwise, the definition is read as the value directly
 # If a signal definition reads other signals, it automatically gets set as a dependent
-# If any signal dependencies get updated, the signal is automatically updated as well
-# Note that signal definition should NOT have any external effects
-# They should only read values and not have any impact
-# For external impacts - use observers
-# to "destory" a signal - just pass set its value to null
+# If any signal dependencies get updated, the dependent signal is automatically updated as well
+# Note that a signal's definition should NOT have any external effects
+# It should only read other values and return its own value
+# For external effects, use observers instead
+# To "destory" a signal, just set its definition to null
+# -----------------------------------------------------------------------------
+# Signals themselves have 3 main components 
+#   A value - the cached value returned when the signal is read
+#   An evaluate function - the "guts" which sets the value and handles propagation
+#   The signal function - a wrapper providing the interface to read and write to the signal
 global.Signal = (definition)->
 
-  # stored value of this signal
-  # only recalculated when definition has changed
-  # or when a dependency notifies it to
+  # Cached value of this signal calculated by the evaluate function
+  # Recalculated when a definition has changed or when notified by a dependency
   value = null
 
   # evaluate is a function to calculates the signal value given the definition
@@ -63,15 +72,17 @@ global.Signal = (definition)->
 
     # Set the special array methods if the definition is an array
     # Essentially providing convenience mutator methods which automatically trigger revaluation
-    for methodName in ["pop", "push", "reverse", "shift", "sort", "splice", "unshift"]
-      do (methodName)->
-        if definition instanceof Array
+    arrayMethods = ["pop", "push", "reverse", "shift", "sort", "splice", "unshift"]
+    if definition instanceof Array
+      for methodName in arrayMethods
+        do (methodName)->
           createdSignal[methodName] = ->
             output = definition[methodName].apply definition, arguments
             createdSignal(definition) # Manually trigger the refresh
             return output
-        else
-          delete createdSignal[methodName]
+    else 
+      for methodName in arrayMethods
+        delete createdSignal[methodName]
 
     # convenience method for setting properties
     if definition instanceof Object
@@ -92,9 +103,9 @@ global.Signal = (definition)->
       evaluate.dependencies = []
 
       # evaluate the definition and set new dependencies
-      dependencyStack.push evaluate
+      dependencyStack.unshift evaluate
       value = definition()
-      dependencyStack.pop()
+      dependencyStack.shift()
 
     # Add this signals own observers to the observer list
     # Note that observers is a list of observer triggers instead of the observers themselves
@@ -131,13 +142,30 @@ global.Signal = (definition)->
   evaluate.observers = []
   evaluate.dependentTargets = []
 
-  # The actual returned function representing the signal
+  # The actual signal function that is returned to the caller
+  # Read by calling with no arguments
+  # Write by calling with a new argument
+  # Array methods if previously given an array as a definition
+  # "set" convenience method if given an object/array as a definition
   createdSignal = (newDefinition)->
 
     # Write path
     # If a new definition is given, update the signal
     # recursively update any dependent signals
     # then finally trigger affected observers
+    # -------------------------------------------------------------------------
+    # Life of a write
+    #   new definition is set
+    #   delete/configure convenience methods
+    #   execute new definition if necessary
+    #   add observers to notify later
+    #   make list of target dependents to be notified
+    #   recursively evaluate dependents
+    #     delete/configure convenience methods
+    #     execute new definition
+    #     get removed from target dependents list
+    #     add observers to notify later
+    #   notify observers
     if newDefinition isnt undefined
       definition = newDefinition
       observerList = []
@@ -148,11 +176,18 @@ global.Signal = (definition)->
     # Read path
     # If no definition is given, we treat it as a read call and return the cached value
     # Simultaneously, check for calling signals/observers and register dependenceis accordingly
+    # -------------------------------------------------------------------------
+    # Life of a read
+    #   check to see who is asking
+    #   remove them from the list of targets to be notified
+    #   register them as a dependent
+    #   register self and their dependency
+    #   return value
     else
       
       # check the global stack for the most recent dependent being evaluated
       # assume this is the caller and set it as a dependent
-      dependent = dependencyStack[dependencyStack.length - 1]
+      dependent = dependencyStack[0]
 
       # If its a signal dependency - register it as such
       if dependent? and dependent.dependencyType is "signal"
