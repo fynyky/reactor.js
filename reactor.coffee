@@ -16,8 +16,9 @@
 # From the perspective of observers, all signals are updated atomically and instantly 
 # 
 # TODOs
-# hide dependents & observers variables
-# reduce redundant evaluation using tokens
+# remove redundant triggering when same value is made
+# add in ability to get old values
+# recompile with latest coffeescript compiler
 # events
 # multi commit batching
 # avoid removing array and setter methods if user overrides them
@@ -100,7 +101,13 @@ global.Signal = (definition)->
     for observerTrigger in evaluate.observers[...]
       observerList.push observerTrigger if (observerList.indexOf observerTrigger) < 0
 
-    # TODO push evaluate tokens to observers here
+    # A copy of the dependents to be evaluated
+    # This is used to avoid redundant evaluation where a descendent has
+    # already read from this value
+    # Check to see if a dependent is still on this list before evaluating it
+    # If a descendent reads from this signal at some point
+    # it will remove itself from this list
+    evaluate.dependentTargets = evaluate.dependents[...]
 
     # Recursively evaluate any dependents
     # Note that the dependents is a list of the dependents evaluate functions
@@ -108,8 +115,8 @@ global.Signal = (definition)->
     # and give them the observer list to add to as well
     # need to duplicate list since it will be modified by child evaluations
     for dependentEvaluate in evaluate.dependents[...]
-      # TODO check for token before evaluating here
-      dependentEvaluate(observerList)
+      if evaluate.dependentTargets.indexOf(dependentEvaluate) >= 0
+        dependentEvaluate(observerList)
 
   # List of signals that this depends on
   # Used to remove self from their dependents list when necessary
@@ -119,9 +126,10 @@ global.Signal = (definition)->
   evaluate.dependencyType = "signal"
 
   # Symmetrically - the list of other signals and observers that depend on this signal
-  # Used to know who to notify when this signal has been updated
+  # Used to know who to notify when this signal has been updatedls
   evaluate.dependents = []
   evaluate.observers = []
+  evaluate.dependentTargets = []
 
   # The actual returned function representing the signal
   createdSignal = (newDefinition)->
@@ -149,7 +157,10 @@ global.Signal = (definition)->
       # If its a signal dependency - register it as such
       if dependent? and dependent.dependencyType is "signal"
 
-        # TODO remove evaluate token
+        # remove the dependent from the targets list if necessary
+        # this is used to avoid duplicate redundant evaluation
+        targetDependentIndex = evaluate.dependentTargets.indexOf dependent
+        evaluate.dependentTargets.splice(targetDependentIndex, 1) if targetDependentIndex >= 0
 
         # register it as a dependent if necessary
         existingDependentIndex = evaluate.dependents.indexOf dependent

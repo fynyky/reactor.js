@@ -136,6 +136,16 @@ describe 'Signal', ->
     assert.equal b(), 3
     assert.equal c(), 7
 
+  it "avoid redundant multipath triggering", ->
+    cCount = 0
+    a = Signal 1
+    b = Signal -> a() + 1
+    c = Signal -> 
+      a() + b()
+      cCount += 1
+    a(2)
+    assert.equal cCount, 2
+
 describe "Observer", ->
   it "basic observer", ->
     a = Signal 1
