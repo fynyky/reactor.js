@@ -43,7 +43,7 @@ A signal depends on another signal when it requires the other signal's value to 
 
 Whenever a signal is updated, it automatically updates all its dependent signals & observers as well. Together, signals and observers form a graph representing the propagation of data throughout the application. Signals sit on the inside of the graph representing the internal data model, while observers are on the edges of the graph affecting external systems.
 
-Here is an example of [simple note list application](http://jsfiddle.net/TjMgh/4/) using Reactor. A signal is used to represent user data while an observer is used to update the html.
+Here is an example of [simple note list application](http://jsfiddle.net/TjMgh/29/) using Reactor. A signal is used to represent user data while an observer is used to update the html.
 
 ```javascript
 // The model is just an array of strings wrapped in a Signal
