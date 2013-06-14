@@ -244,9 +244,9 @@ global.Observer = (response)->
     trigger.observees = []
 
     # do initial trigger and set up to listen for future updates
-    dependencyStack.push trigger
+    dependencyStack.unshift trigger
     response() unless response is null
-    dependencyStack.pop()
+    dependencyStack.shift()
 
   trigger.observees = []
   trigger.dependencyType = "observer"
