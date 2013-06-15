@@ -137,11 +137,11 @@
         observee.observers.splice(observerIndex, 1);
       }
       trigger.observees = [];
-      dependencyStack.push(trigger);
+      dependencyStack.unshift(trigger);
       if (response !== null) {
         response();
       }
-      return dependencyStack.pop();
+      return dependencyStack.shift();
     };
     trigger.observees = [];
     trigger.dependencyType = "observer";
