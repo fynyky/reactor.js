@@ -20,6 +20,7 @@
 # And dependencies can be changed across the execution of the program
 
 # TODOs
+# Update array methods
 # Investigate the necessity of the dependent targets list (or if there's a more efficient way of implementing it)
 # Make signals read only (especially by default for the dependent signals)
 # Memoery management
@@ -102,9 +103,9 @@ global.Signal = (definition)->
     # and set it up to be notified when its dependencies change
     if typeof definition is "function"
 
-      # clear old dependencies
+      # clear old dependencies both forward and back pointers
       for dependency in evaluate.dependencies
-        dependentIndex = dependency.dependents.indexOf evaluate
+        dependentIndex = dependency.dependents.indexOf(evaluate)
         dependency.dependents[dependentIndex] = null
       evaluate.dependencies = []
 
