@@ -307,42 +307,42 @@ describe "Observer", ->
     assert.equal a.reverse, undefined
     assert.equal a.splice, undefined
 
-describe 'Event', ->
-  it "basic event creation", ->
-    a = Event "foo"
-    assert.equal a(), null
-    b = Event "bar"
-    assert.equal b(), null
-    c = Event()
-    assert.equal c(), null
+# describe 'Event', ->
+#   it "basic event creation", ->
+#     a = Event "foo"
+#     assert.equal a(), null
+#     b = Event "bar"
+#     assert.equal b(), null
+#     c = Event()
+#     assert.equal c(), null
 
-  it "dependent event creation", ->
-    a = Event "foo"
-    assert.equal a(), null
-    b = Event "bar"
-    assert.equal b(), null
-    c = Event()
-    assert.equal c(), null
-    d = Event ->
-      if a()? then return a()
-      if b()? then return b()
-      if c()? then return c()
-    assert.equal d(), null
+#   it "dependent event creation", ->
+#     a = Event "foo"
+#     assert.equal a(), null
+#     b = Event "bar"
+#     assert.equal b(), null
+#     c = Event()
+#     assert.equal c(), null
+#     d = Event ->
+#       if a()? then return a()
+#       if b()? then return b()
+#       if c()? then return c()
+#     assert.equal d(), null
 
-  it "event propagation", ->
-    a = Event "foo"
-    b = Event "bar"
-    c = Event()
-    d = Event ->
-      if a()? then return a()
-      if b()? then return b()
-      if c()? then return c()
-    dValue = null
-    e = Observer -> dValue = d()
-    assert.equal dValue, null
-    a("foo")
-    assert.equal dValue, "foo"
-    assert.equal d(), null
+#   it "event propagation", ->
+#     a = Event "foo"
+#     b = Event "bar"
+#     c = Event()
+#     d = Event ->
+#       if a()? then return a()
+#       if b()? then return b()
+#       if c()? then return c()
+#     dValue = null
+#     e = Observer -> dValue = d()
+#     assert.equal dValue, null
+#     a("foo")
+#     assert.equal dValue, "foo"
+#     assert.equal d(), null
 
 
 
