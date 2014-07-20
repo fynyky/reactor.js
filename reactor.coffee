@@ -176,7 +176,7 @@ global.Signal = (definition)->
         # remove the dependent from the targets list if necessary
         # this is used to avoid duplicate redundant evaluation
         targetDependentIndex = evaluate.dependentTargets.indexOf dependent
-        evaluate.dependentTargets.splice(targetDependentIndex, 1) if targetDependentIndex >= 0
+        evaluate.dependentTargets[targetDependentIndex] = null if targetDependentIndex >= 0
 
         # register it as a dependent if necessary
         existingDependentIndex = evaluate.dependents.indexOf dependent

@@ -84,7 +84,7 @@
         if ((dependent != null) && dependent.dependencyType === "signal") {
           targetDependentIndex = evaluate.dependentTargets.indexOf(dependent);
           if (targetDependentIndex >= 0) {
-            evaluate.dependentTargets.splice(targetDependentIndex, 1);
+            evaluate.dependentTargets[targetDependentIndex] = null;
           }
           existingDependentIndex = evaluate.dependents.indexOf(dependent);
           if (existingDependentIndex < 0) {
