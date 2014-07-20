@@ -45,7 +45,7 @@
         for (_k = 0, _len2 = _ref.length; _k < _len2; _k++) {
           dependency = _ref[_k];
           dependentIndex = dependency.dependents.indexOf(evaluate);
-          dependency.dependents.splice(dependentIndex, 1);
+          dependency.dependents[dependentIndex] = null;
         }
         evaluate.dependencies = [];
         dependencyStack.push(evaluate);
@@ -55,7 +55,7 @@
       _ref1 = evaluate.observers.slice(0);
       for (_l = 0, _len3 = _ref1.length; _l < _len3; _l++) {
         observerTrigger = _ref1[_l];
-        if ((observerList.indexOf(observerTrigger)) < 0) {
+        if ((observerTrigger != null) && observerList.indexOf(observerTrigger) < 0) {
           observerList.push(observerTrigger);
         }
       }
@@ -64,7 +64,7 @@
       _results = [];
       for (_m = 0, _len4 = _ref2.length; _m < _len4; _m++) {
         dependentEvaluate = _ref2[_m];
-        if (evaluate.dependentTargets.indexOf(dependentEvaluate) >= 0) {
+        if ((dependentEvaluate != null) && evaluate.dependentTargets.indexOf(dependentEvaluate) >= 0) {
           _results.push(dependentEvaluate(observerList));
         } else {
           _results.push(void 0);
@@ -78,29 +78,25 @@
     evaluate.observers = [];
     evaluate.dependentTargets = [];
     createdSignal = function(newDefinition) {
-      var dependent, existingDependencyIndex, existingDependentIndex, existingObserveeIndex, existingObserverIndex, observerList, observerTrigger, targetDependentIndex, _i, _len;
+      var dependent, observerList, observerTrigger, targetDependentIndex, _i, _len;
       if (newDefinition === void 0) {
         dependent = dependencyStack[dependencyStack.length - 1];
         if ((dependent != null) && dependent.dependencyType === "signal") {
+          if (evaluate.dependents.indexOf(dependent) < 0) {
+            evaluate.dependents.push(dependent);
+          }
+          if (dependent.dependencies.indexOf(evaluate) < 0) {
+            dependent.dependencies.push(evaluate);
+          }
           targetDependentIndex = evaluate.dependentTargets.indexOf(dependent);
           if (targetDependentIndex >= 0) {
             evaluate.dependentTargets[targetDependentIndex] = null;
           }
-          existingDependentIndex = evaluate.dependents.indexOf(dependent);
-          if (existingDependentIndex < 0) {
-            evaluate.dependents.push(dependent);
-          }
-          existingDependencyIndex = dependent.dependencies.indexOf(evaluate);
-          if (existingDependencyIndex < 0) {
-            dependent.dependencies.push(evaluate);
-          }
         } else if ((dependent != null) && dependent.dependencyType === "observer") {
-          existingObserverIndex = evaluate.observers.indexOf(dependent);
-          if (existingObserverIndex < 0) {
+          if (evaluate.observers.indexOf(dependent) < 0) {
             evaluate.observers.push(dependent);
           }
-          existingObserveeIndex = dependent.observees.indexOf(evaluate);
-          if (existingObserveeIndex < 0) {
+          if (dependent.observees.indexOf(evaluate) < 0) {
             dependent.observees.push(evaluate);
           }
         }
@@ -128,7 +124,7 @@
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         observee = _ref[_i];
         observerIndex = observee.observers.indexOf(trigger);
-        observee.observers.splice(observerIndex, 1);
+        observee.observers[observerIndex] = null;
       }
       trigger.observees = [];
       dependencyStack.push(trigger);

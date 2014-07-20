@@ -20,6 +20,7 @@
 # And dependencies can be changed across the execution of the program
 
 # TODOs
+# Investigate the necessity of the dependent targets list (or if there's a more efficient way of implementing it)
 # Make signals read only (especially by default for the dependent signals)
 # Memoery management
 # Events
@@ -104,18 +105,19 @@ global.Signal = (definition)->
       # clear old dependencies
       for dependency in evaluate.dependencies
         dependentIndex = dependency.dependents.indexOf evaluate
-        dependency.dependents.splice dependentIndex, 1
+        dependency.dependents[dependentIndex] = null
       evaluate.dependencies = []
 
       # evaluate the definition and set new dependencies
-      dependencyStack.push evaluate
+      dependencyStack.push evaluate 
       value = definition()
       dependencyStack.pop()
 
     # Add this signals own observers to the observer list
     # Note that observers is a list of observer triggers instead of the observers themselves
     for observerTrigger in evaluate.observers[...]
-      observerList.push observerTrigger if (observerList.indexOf observerTrigger) < 0
+      if observerTrigger? and observerList.indexOf(observerTrigger) < 0
+        observerList.push observerTrigger
 
     # A copy of the dependents to be evaluated
     # This is used to avoid redundant evaluation where a descendent has
@@ -131,7 +133,7 @@ global.Signal = (definition)->
     # and give them the observer list to add to as well
     # need to duplicate list since it will be modified by child evaluations
     for dependentEvaluate in evaluate.dependents[...]
-      if evaluate.dependentTargets.indexOf(dependentEvaluate) >= 0
+      if dependentEvaluate? and evaluate.dependentTargets.indexOf(dependentEvaluate) >= 0
         dependentEvaluate(observerList)
 
   # List of signals that this depends on
@@ -171,33 +173,21 @@ global.Signal = (definition)->
       dependent = dependencyStack[dependencyStack.length - 1]
 
       # If its a signal dependency - register it as such
+      # symmetrically register self as a dependency for cleaning dependencies later
       if dependent? and dependent.dependencyType is "signal"
-        
+        evaluate.dependents.push dependent if evaluate.dependents.indexOf(dependent) < 0
+        dependent.dependencies.push evaluate if dependent.dependencies.indexOf(evaluate) < 0
+
         # remove the dependent from the targets list if necessary
         # this is used to avoid duplicate redundant evaluation
         targetDependentIndex = evaluate.dependentTargets.indexOf dependent
         evaluate.dependentTargets[targetDependentIndex] = null if targetDependentIndex >= 0
 
-        # register it as a dependent if necessary
-        existingDependentIndex = evaluate.dependents.indexOf dependent
-        evaluate.dependents.push dependent if existingDependentIndex < 0
-
-        # symmetrically - register self as a dependency
-        # this is needed for cleaning dependencies later
-        existingDependencyIndex = dependent.dependencies.indexOf evaluate
-        dependent.dependencies.push evaluate if existingDependencyIndex < 0
-
       # If it is a observer dependency - similarly register it as a observer
+      # symmetrically register self as a observee for cleaning dependencies later
       else if dependent? and dependent.dependencyType is "observer"
-
-        # register the observer if necessary
-        existingObserverIndex = evaluate.observers.indexOf dependent
-        evaluate.observers.push dependent if existingObserverIndex < 0
-
-        # symmetrically - register self as a observee
-        # this is needed for cleaning obeserver dependencies later
-        existingObserveeIndex = dependent.observees.indexOf evaluate
-        dependent.observees.push evaluate if existingObserveeIndex < 0
+        evaluate.observers.push dependent if evaluate.observers.indexOf(dependent) < 0
+        dependent.observees.push evaluate if dependent.observees.indexOf(evaluate) < 0
 
       return value
 
@@ -245,7 +235,7 @@ global.Observer = (response)->
     # clear old observees
     for observee in trigger.observees
       observerIndex = observee.observers.indexOf trigger
-      observee.observers.splice observerIndex, 1
+      observee.observers[observerIndex] = null
     trigger.observees = []
 
     # do initial trigger and set up to listen for future updates
