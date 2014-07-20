@@ -108,9 +108,9 @@ global.Signal = (definition)->
       evaluate.dependencies = []
 
       # evaluate the definition and set new dependencies
-      dependencyStack.unshift evaluate
+      dependencyStack.push evaluate
       value = definition()
-      dependencyStack.shift()
+      dependencyStack.pop()
 
     # Add this signals own observers to the observer list
     # Note that observers is a list of observer triggers instead of the observers themselves
@@ -168,7 +168,7 @@ global.Signal = (definition)->
 
       # check the global stack for the most recent dependent being evaluated
       # assume this is the caller and set it as a dependent
-      dependent = dependencyStack[0]
+      dependent = dependencyStack[dependencyStack.length - 1]
 
       # If its a signal dependency - register it as such
       if dependent? and dependent.dependencyType is "signal"
@@ -249,9 +249,9 @@ global.Observer = (response)->
     trigger.observees = []
 
     # do initial trigger and set up to listen for future updates
-    dependencyStack.unshift trigger
+    dependencyStack.push trigger
     response() unless response is null
-    dependencyStack.shift()
+    dependencyStack.pop()
 
   trigger.observees = []
   trigger.dependencyType = "observer"

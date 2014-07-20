@@ -48,9 +48,9 @@
           dependency.dependents.splice(dependentIndex, 1);
         }
         evaluate.dependencies = [];
-        dependencyStack.unshift(evaluate);
+        dependencyStack.push(evaluate);
         value = definition();
-        dependencyStack.shift();
+        dependencyStack.pop();
       }
       _ref1 = evaluate.observers.slice(0);
       for (_l = 0, _len3 = _ref1.length; _l < _len3; _l++) {
@@ -80,7 +80,7 @@
     createdSignal = function(newDefinition) {
       var dependent, existingDependencyIndex, existingDependentIndex, existingObserveeIndex, existingObserverIndex, observerList, observerTrigger, targetDependentIndex, _i, _len;
       if (newDefinition === void 0) {
-        dependent = dependencyStack[0];
+        dependent = dependencyStack[dependencyStack.length - 1];
         if ((dependent != null) && dependent.dependencyType === "signal") {
           targetDependentIndex = evaluate.dependentTargets.indexOf(dependent);
           if (targetDependentIndex >= 0) {
@@ -131,11 +131,11 @@
         observee.observers.splice(observerIndex, 1);
       }
       trigger.observees = [];
-      dependencyStack.unshift(trigger);
+      dependencyStack.push(trigger);
       if (response !== null) {
         response();
       }
-      return dependencyStack.shift();
+      return dependencyStack.pop();
     };
     trigger.observees = [];
     trigger.dependencyType = "observer";
