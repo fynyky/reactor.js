@@ -20,6 +20,8 @@
 # And dependencies can be changed across the execution of the program
 
 # TODOs
+# clear dependencies when new definition that is not a function is given
+# Figure out if it is necessary to delete all dependencies for each evaluate. Is there a better way?
 # Update array methods
 # Investigate the necessity of the dependent targets list (or if there's a more efficient way of implementing it)
 # Make signals read only (especially by default for the dependent signals)
@@ -77,6 +79,12 @@ global.Signal = (definition)->
     # by default the value is the definition
     value = definition
 
+    # clear old dependencies both forward and back pointers
+    for dependency in evaluate.dependencies
+      dependentIndex = dependency.dependents.indexOf(evaluate)
+      dependency.dependents[dependentIndex] = null
+    evaluate.dependencies = []
+
     # Set the special array methods if the definition is an array
     # Essentially providing convenience mutator methods which automatically trigger revaluation
     arrayMethods = ["pop", "push", "reverse", "shift", "sort", "splice", "unshift"]
@@ -102,12 +110,6 @@ global.Signal = (definition)->
     # if definition is a function then we need to evaluate it
     # and set it up to be notified when its dependencies change
     if typeof definition is "function"
-
-      # clear old dependencies both forward and back pointers
-      for dependency in evaluate.dependencies
-        dependentIndex = dependency.dependents.indexOf(evaluate)
-        dependency.dependents[dependentIndex] = null
-      evaluate.dependencies = []
 
       # evaluate the definition and set new dependencies
       dependencyStack.push evaluate 

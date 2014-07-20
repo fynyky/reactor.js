@@ -12,6 +12,13 @@
     evaluate = function(observerList) {
       var arrayMethods, dependency, dependentEvaluate, dependentIndex, methodName, observerTrigger, _fn, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _m, _ref, _ref1, _ref2, _results;
       value = definition;
+      _ref = evaluate.dependencies;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        dependency = _ref[_i];
+        dependentIndex = dependency.dependents.indexOf(evaluate);
+        dependency.dependents[dependentIndex] = null;
+      }
+      evaluate.dependencies = [];
       arrayMethods = ["pop", "push", "reverse", "shift", "sort", "splice", "unshift"];
       if (definition instanceof Array) {
         _fn = function(methodName) {
@@ -22,13 +29,13 @@
             return output;
           };
         };
-        for (_i = 0, _len = arrayMethods.length; _i < _len; _i++) {
-          methodName = arrayMethods[_i];
+        for (_j = 0, _len1 = arrayMethods.length; _j < _len1; _j++) {
+          methodName = arrayMethods[_j];
           _fn(methodName);
         }
       } else {
-        for (_j = 0, _len1 = arrayMethods.length; _j < _len1; _j++) {
-          methodName = arrayMethods[_j];
+        for (_k = 0, _len2 = arrayMethods.length; _k < _len2; _k++) {
+          methodName = arrayMethods[_k];
           delete createdSignal[methodName];
         }
       }
@@ -41,13 +48,6 @@
         delete createdSignal.set;
       }
       if (typeof definition === "function") {
-        _ref = evaluate.dependencies;
-        for (_k = 0, _len2 = _ref.length; _k < _len2; _k++) {
-          dependency = _ref[_k];
-          dependentIndex = dependency.dependents.indexOf(evaluate);
-          dependency.dependents[dependentIndex] = null;
-        }
-        evaluate.dependencies = [];
         dependencyStack.push(evaluate);
         value = definition();
         dependencyStack.pop();
