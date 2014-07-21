@@ -39,6 +39,7 @@
 # Constants
 SIGNAL = "SIGNAL"
 OBSERVER = "OBSERVER"
+ARRAY_METHODS = ["pop", "push", "reverse", "shift", "sort", "splice", "unshift"]
 
 
 # In node.js, Reactor is packaged into the exports object as a module import
@@ -74,9 +75,10 @@ global.Signal = (definition)->
   signalCore = 
     
     # Base properties of a signal
-    definition: definition
+    definition: null
     value: null
     dependencies: []
+    dependencyType: SIGNAL
     dependents: []
     observers: []
 
@@ -88,21 +90,66 @@ global.Signal = (definition)->
         dependency.dependents[dependentIndex] = null
       @dependencies = []
       if @definition instanceof Function
-        dependencyStack.push evaluate 
-        value = definition()
+        dependencyStack.push this
+        @value = @definition()
         dependencyStack.pop()
-      else value = definition
+      else @value = @definition
 
     propagate: (observerList)->
       observerList.push.apply(observerList, @observers)
-      for dependency in @dependencies
+      for dependency in @dependents when dependency?
         dependency.evaluate()
         dependency.propagate(observerList)
       return observerList
 
+    # check the global stack for the most recent dependent being evaluated
+    # assume this is the caller and set it as a dependent
+    # If its a signal dependency - register it as such
+    # symmetrically register self as a dependency for cleaning dependencies later
+    # If it is a observer dependency - similarly register it as a observer 
+    # symmetrically register self as a observee for cleaning dependencies later
     read: ->
+      dependent = dependencyStack[dependencyStack.length - 1]
+      if dependent? and dependent.dependencyType is SIGNAL
+        @dependents.push dependent if @dependents.indexOf(dependent) < 0
+        dependent.dependencies.push this if dependent.dependencies.indexOf(this) < 0
+      else if dependent? and dependent.dependencyType is OBSERVER
+        @observers.push dependent if @observers.indexOf(dependent) < 0
+        dependent.observees.push this if dependent.observees.indexOf(this) < 0
+      return @value
 
-    write: ->
+
+    # Life of a write
+    #   new definition is set
+    #   delete/configure convenience methods
+    #   execute new definition if necessary
+    #   add observers to notify later
+    #   make list of target dependents to be notified
+    #   recursively evaluate dependents
+    #     delete/configure convenience methods
+    #     execute new definition
+    #     get removed from target dependents list
+    #     add observers to notify later
+    #   notify observers
+    write: (newDefinition)->
+      @definition = newDefinition
+      @evaluate()
+      observerList = @propagate([])
+      observerTrigger() for observerTrigger in observerList
+      return @value
+
+  signalInterface = (newDefinition)->
+    if newDefinition is undefined then signalCore.read()
+    else signalCore.write(newDefinition)
+
+  signalCore.write(definition)
+  return signalInterface
+
+
+
+
+
+
 
   # Cached value of this signal calculated by the evaluate function
   # Recalculated when a definition has changed or when notified by a dependency
