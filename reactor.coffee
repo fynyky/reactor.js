@@ -102,7 +102,8 @@ global.Signal = (definition)->
       else @value = @definition
 
     propagate: (observerList)->
-      observerList.push.apply(observerList, @observers)
+      for observer in @observers
+        observerList.push(observer) if observerList.indexOf(observer) < 0
       for dependency in @dependents when dependency?
         dependency.evaluate()
         dependency.propagate(observerList)
@@ -138,8 +139,27 @@ global.Signal = (definition)->
     #     add observers to notify later
     #   notify observers
     write: (newDefinition)->
+
       @definition = newDefinition
       @evaluate()
+
+      if @definition instanceof Array then for methodName in ARRAY_METHODS
+        do (methodName)=>
+          signalInterface[methodName] = =>
+            output = @definition[methodName].apply(@definition, arguments)
+            observerList = @propagate([])
+            observer.trigger() for observer in observerList
+            return output
+      else delete signalInterface[methodName] for methodName in ARRAY_METHODS
+          
+      if @definition instanceof Object
+        signalInterface.set = (key, value)=>
+          @definition[key] = value
+          observerList = @propagate([])
+          observer.trigger() for observer in observerList
+          return @value
+      else delete signalInterface.set
+
       observerList = @propagate([])
       observer.trigger() for observer in observerList
       return @value
@@ -151,169 +171,6 @@ global.Signal = (definition)->
   signalCore.write(definition)
   return signalInterface
 
-
-
-
-
-
-
-  # # Cached value of this signal calculated by the evaluate function
-  # # Recalculated when a definition has changed or when notified by a dependency
-  # value = null
-
-  # # evaluate is a function to calculates the signal value given the definition
-  # # it recursively revaluates any signals that depend on it as well
-  # # Simultaneously, in order to know what observers to notify later
-  # # it recursively passes through a list to collect all the observers of the updated signals
-  # # After the signal cascade has completed, the observers on the list are notified
-  # evaluate = (observerList)->
-
-  #   # by default the value is the definition
-  #   value = definition
-
-  #   # clear old dependencies both forward and back pointers
-  #   for dependency in evaluate.dependencies
-  #     dependentIndex = dependency.dependents.indexOf(evaluate)
-  #     dependency.dependents[dependentIndex] = null
-  #   evaluate.dependencies = []
-
-  #   # Set the special array methods if the definition is an array
-  #   # Essentially providing convenience mutator methods which automatically trigger revaluation
-  #   arrayMethods = ["pop", "push", "reverse", "shift", "sort", "splice", "unshift"]
-  #   if definition instanceof Array
-  #     for methodName in arrayMethods
-  #       do (methodName)->
-  #         createdSignal[methodName] = ->
-  #           output = definition[methodName].apply definition, arguments
-  #           createdSignal(definition) # Manually trigger the refresh
-  #           return output
-  #   else 
-  #     for methodName in arrayMethods
-  #       delete createdSignal[methodName]
-
-  #   # convenience method for setting properties
-  #   if definition instanceof Object
-  #     createdSignal.set = (key, value)->
-  #       definition[key] = value
-  #       createdSignal(definition) # Manually trigger the refresh
-  #   else
-  #     delete createdSignal.set
-
-  #   # if definition is a function then we need to evaluate it
-  #   # and set it up to be notified when its dependencies change
-  #   if typeof definition is "function"
-
-  #     # evaluate the definition and set new dependencies
-  #     dependencyStack.push evaluate 
-  #     value = definition()
-  #     dependencyStack.pop()
-
-  #   # Add this signals own observers to the observer list
-  #   # Note that observers is a list of observer triggers instead of the observers themselves
-  #   for observerTrigger in evaluate.observers[...]
-  #     if observerTrigger? and observerList.indexOf(observerTrigger) < 0
-  #       observerList.push observerTrigger
-
-  #   # A copy of the dependents to be evaluated
-  #   # This is used to avoid redundant evaluation where a descendent has
-  #   # already read from this value
-  #   # Check to see if a dependent is still on this list before evaluating it
-  #   # If a descendent reads from this signal at some point
-  #   # it will remove itself from this list
-  #   evaluate.dependentTargets = evaluate.dependents[...]
-
-  #   # Recursively evaluate any dependents
-  #   # Note that the dependents is a list of the dependents evaluate functions
-  #   # not the signals themselves
-  #   # and give them the observer list to add to as well
-  #   # need to duplicate list since it will be modified by child evaluations
-  #   for dependentEvaluate in evaluate.dependents[...]
-  #     if dependentEvaluate? and evaluate.dependentTargets.indexOf(dependentEvaluate) >= 0
-  #       dependentEvaluate(observerList)
-
-  # # List of signals that this depends on
-  # # Used to remove self from their dependents list when necessary
-  # # Note that while the dependents is a list of evaluate functions
-  # # dependencies is a list of the signals themselves
-  # evaluate.dependencies = []
-  # evaluate.dependencyType = SIGNAL
-
-  # # Symmetrically - the list of other signals and observers that depend on this signal
-  # # Used to know who to notify when this signal has been updated
-  # evaluate.dependents = []
-  # evaluate.observers = []
-  # evaluate.dependentTargets = []
-
-  # # The actual signal function that is returned to the caller
-  # # Read by calling with no arguments
-  # # Write by calling with a new argument
-  # # Array methods if previously given an array as a definition
-  # # "set" convenience method if given an object/array as a definition
-  # createdSignal = (newDefinition)->
-
-  #   # Read path
-  #   # If no definition is given, we treat it as a read call and return the cached value
-  #   # Simultaneously, check for calling signals/observers and register dependenceis accordingly
-  #   # -------------------------------------------------------------------------
-  #   # Life of a read
-  #   #   check to see who is asking
-  #   #   remove them from the list of targets to be notified
-  #   #   register them as a dependent
-  #   #   register self and their dependency
-  #   #   return value
-  #   if newDefinition is undefined
-
-  #     # check the global stack for the most recent dependent being evaluated
-  #     # assume this is the caller and set it as a dependent
-  #     dependent = dependencyStack[dependencyStack.length - 1]
-
-  #     # If its a signal dependency - register it as such
-  #     # symmetrically register self as a dependency for cleaning dependencies later
-  #     if dependent? and dependent.dependencyType is SIGNAL
-  #       evaluate.dependents.push dependent if evaluate.dependents.indexOf(dependent) < 0
-  #       dependent.dependencies.push evaluate if dependent.dependencies.indexOf(evaluate) < 0
-
-  #       # remove the dependent from the targets list if necessary
-  #       # this is used to avoid duplicate redundant evaluation
-  #       targetDependentIndex = evaluate.dependentTargets.indexOf dependent
-  #       evaluate.dependentTargets[targetDependentIndex] = null if targetDependentIndex >= 0
-
-  #     # If it is a observer dependency - similarly register it as a observer
-  #     # symmetrically register self as a observee for cleaning dependencies later
-  #     else if dependent? and dependent.dependencyType is OBSERVER
-  #       evaluate.observers.push dependent if evaluate.observers.indexOf(dependent) < 0
-  #       dependent.observees.push evaluate if dependent.observees.indexOf(evaluate) < 0
-
-  #     return value
-
-  #   # Write path
-  #   # If a new definition is given, update the signal
-  #   # recursively update any dependent signals
-  #   # then finally trigger affected observers
-  #   # -------------------------------------------------------------------------
-  #   # Life of a write
-  #   #   new definition is set
-  #   #   delete/configure convenience methods
-  #   #   execute new definition if necessary
-  #   #   add observers to notify later
-  #   #   make list of target dependents to be notified
-  #   #   recursively evaluate dependents
-  #   #     delete/configure convenience methods
-  #   #     execute new definition
-  #   #     get removed from target dependents list
-  #   #     add observers to notify later
-  #   #   notify observers
-  #   else
-  #     definition = newDefinition
-  #     observerList = []
-  #     evaluate(observerList)
-  #     observerTrigger() for observerTrigger in observerList
-  #     return value
-
-  # # run an initial evaluation on creation
-  # # no need to notify observers/dependents because it shouldnt have any yet
-  # evaluate()
-  # return createdSignal
 
 # Observers represent responses to signal changes
 # They are defined in a manner similar to Signals
@@ -350,156 +207,3 @@ global.Observer = (response)->
 
   observerCore.write(response)
   return observerInterface
-
-# Removing the event stuff for now till I have time to work on it properly
-# 
-# global.Event = (definition)->
-
-#   # Cached value of this signal calculated by the evaluate function
-#   # Recalculated when a definition has changed or when notified by a dependency
-#   value = null
-
-#   # evaluate is a function to calculates the signal value given the definition
-#   # it recursively revaluates any signals that depend on it as well
-#   # Simultaneously, in order to know what observers to notify later
-#   # it recursively passes through a list to collect all the observers of the updated signals
-#   # After the signal cascade has completed, the observers on the list are notified
-#   evaluate = (observerList)->
-
-#     # by default the value is the definition
-#     value = definition
-
-#     # if definition is a function then we need to evaluate it
-#     # and set it up to be notified when its dependencies change
-#     if typeof definition is "function"
-
-#       # clear old dependencies
-#       for dependency in evaluate.dependencies
-#         dependentIndex = dependency.dependents.indexOf evaluate
-#         dependency.dependents.splice dependentIndex, 1
-#       evaluate.dependencies = []
-
-#       # evaluate the definition and set new dependencies
-#       dependencyStack.unshift evaluate
-#       value = definition()
-#       dependencyStack.shift()
-
-#     # Add this signals own observers to the observer list
-#     # Note that observers is a list of observer triggers instead of the observers themselves
-#     for observerTrigger in evaluate.observers[...]
-#       observerList.push observerTrigger if (observerList.indexOf observerTrigger) < 0
-
-#     # A copy of the dependents to be evaluated
-#     # This is used to avoid redundant evaluation where a descendent has
-#     # already read from this value
-#     # Check to see if a dependent is still on this list before evaluating it
-#     # If a descendent reads from this signal at some point
-#     # it will remove itself from this list
-#     evaluate.dependentTargets = evaluate.dependents[...]
-
-#     # Recursively evaluate any dependents
-#     # Note that the dependents is a list of the dependents evaluate functions
-#     # not the signals themselves
-#     # and give them the observer list to add to as well
-#     # need to duplicate list since it will be modified by child evaluations
-#     for dependentEvaluate in evaluate.dependents[...]
-#       if evaluate.dependentTargets.indexOf(dependentEvaluate) >= 0
-#         dependentEvaluate(observerList)
-
-#   # List of signals that this depends on
-#   # Used to remove self from their dependents list when necessary
-#   # Note that while the dependents is a list of evaluate functions
-#   # dependencies is a list of the signals themselves
-#   evaluate.dependencies = []
-#   evaluate.dependencyType = "event"
-
-#   # Symmetrically - the list of other signals and observers that depend on this signal
-#   # Used to know who to notify when this signal has been updatedls
-#   evaluate.dependents = []
-#   evaluate.observers = []
-#   evaluate.dependentTargets = []
-
-#   # The actual signal function that is returned to the caller
-#   # Read by calling with no arguments
-#   # Write by calling with a new argument
-#   # Array methods if previously given an array as a definition
-#   # "set" convenience method if given an object/array as a definition
-#   createdEvent = (newDefinition)->
-
-#     # Write path
-#     # If a new definition is given, update the signal
-#     # recursively update any dependent signals
-#     # then finally trigger affected observers
-#     # -------------------------------------------------------------------------
-#     # Life of a write
-#     #   new definition is set
-#     #   delete/configure convenience methods
-#     #   execute new definition if necessary
-#     #   add observers to notify later
-#     #   make list of target dependents to be notified
-#     #   recursively evaluate dependents
-#     #     delete/configure convenience methods
-#     #     execute new definition
-#     #     get removed from target dependents list
-#     #     add observers to notify later
-#     #   notify observers
-#     if newDefinition isnt undefined
-#       definition = newDefinition
-#       observerList = []
-#       evaluate(observerList)
-#       observerTrigger() for observerTrigger in observerList
-#       value = null
-#       return value
-
-#     # Read path
-#     # If no definition is given, we treat it as a read call and return the cached value
-#     # Simultaneously, check for calling signals/observers and register dependenceis accordingly
-#     # -------------------------------------------------------------------------
-#     # Life of a read
-#     #   check to see who is asking
-#     #   remove them from the list of targets to be notified
-#     #   register them as a dependent
-#     #   register self and their dependency
-#     #   return value
-#     else
-      
-#       # check the global stack for the most recent dependent being evaluated
-#       # assume this is the caller and set it as a dependent
-#       dependent = dependencyStack[0]
-
-#       # If its a signal dependency - register it as such
-#       if dependent? and (dependent.dependencyType is "signal" or dependent.dependencyType is "event")
-
-#         # remove the dependent from the targets list if necessary
-#         # this is used to avoid duplicate redundant evaluation
-#         targetDependentIndex = evaluate.dependentTargets.indexOf dependent
-#         evaluate.dependentTargets.splice(targetDependentIndex, 1) if targetDependentIndex >= 0
-
-#         # register it as a dependent if necessary
-#         existingDependentIndex = evaluate.dependents.indexOf dependent
-#         evaluate.dependents.push dependent if existingDependentIndex < 0
-
-#         # symmetrically - register self as a dependency
-#         # this is needed for cleaning dependencies later
-#         existingDependencyIndex = dependent.dependencies.indexOf evaluate
-#         dependent.dependencies.push evaluate if existingDependencyIndex < 0
-
-#       # If it is a observer dependency - similarly register it as a observer
-#       else if dependent? and dependent.dependencyType is "observer"
-
-#         # register the observer if necessary
-#         existingObserverIndex = evaluate.observers.indexOf dependent
-#         evaluate.observers.push dependent if existingObserverIndex < 0
-
-#         # symmetrically - register self as a observee
-#         # this is needed for cleaning obeserver dependencies later
-#         existingObserveeIndex = dependent.observees.indexOf evaluate
-#         dependent.observees.push evaluate if existingObserveeIndex < 0
-
-#       return value
-
-#   # run an initial evaluation on creation
-#   # no need to notify observers/dependents because it shouldnt have any yet
-#   evaluate()
-#   value = null
-#   return createdEvent

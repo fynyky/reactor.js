@@ -38,11 +38,17 @@ global.Signal = function(definition) {
       }
     },
     propagate: function(observerList) {
-      var dependency, _i, _len, _ref;
-      observerList.push.apply(observerList, this.observers);
-      _ref = this.dependents;
+      var dependency, observer, _i, _j, _len, _len1, _ref, _ref1;
+      _ref = this.observers;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        dependency = _ref[_i];
+        observer = _ref[_i];
+        if (observerList.indexOf(observer) < 0) {
+          observerList.push(observer);
+        }
+      }
+      _ref1 = this.dependents;
+      for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+        dependency = _ref1[_j];
         if (!(dependency != null)) {
           continue;
         }
@@ -72,12 +78,53 @@ global.Signal = function(definition) {
       return this.value;
     },
     write: function(newDefinition) {
-      var observer, observerList, _i, _len;
+      var methodName, observer, observerList, _fn, _i, _j, _k, _len, _len1, _len2;
       this.definition = newDefinition;
       this.evaluate();
+      if (this.definition instanceof Array) {
+        _fn = (function(_this) {
+          return function(methodName) {
+            return signalInterface[methodName] = function() {
+              var observer, observerList, output, _j, _len1;
+              output = _this.definition[methodName].apply(_this.definition, arguments);
+              observerList = _this.propagate([]);
+              for (_j = 0, _len1 = observerList.length; _j < _len1; _j++) {
+                observer = observerList[_j];
+                observer.trigger();
+              }
+              return output;
+            };
+          };
+        })(this);
+        for (_i = 0, _len = ARRAY_METHODS.length; _i < _len; _i++) {
+          methodName = ARRAY_METHODS[_i];
+          _fn(methodName);
+        }
+      } else {
+        for (_j = 0, _len1 = ARRAY_METHODS.length; _j < _len1; _j++) {
+          methodName = ARRAY_METHODS[_j];
+          delete signalInterface[methodName];
+        }
+      }
+      if (this.definition instanceof Object) {
+        signalInterface.set = (function(_this) {
+          return function(key, value) {
+            var observer, observerList, _k, _len2;
+            _this.definition[key] = value;
+            observerList = _this.propagate([]);
+            for (_k = 0, _len2 = observerList.length; _k < _len2; _k++) {
+              observer = observerList[_k];
+              observer.trigger();
+            }
+            return _this.value;
+          };
+        })(this);
+      } else {
+        delete signalInterface.set;
+      }
       observerList = this.propagate([]);
-      for (_i = 0, _len = observerList.length; _i < _len; _i++) {
-        observer = observerList[_i];
+      for (_k = 0, _len2 = observerList.length; _k < _len2; _k++) {
+        observer = observerList[_k];
         observer.trigger();
       }
       return this.value;
