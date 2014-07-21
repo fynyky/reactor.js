@@ -36,6 +36,11 @@
 # multi commit batching
 # avoid removing array and setter methods if user overrides them
 
+# Constants
+SIGNAL = "SIGNAL"
+OBSERVER = "OBSERVER"
+
+
 # In node.js, Reactor is packaged into the exports object as a module import
 # In the browser, Reactor is bound directly to the window namespace
 global = exports ? this
@@ -64,6 +69,40 @@ dependencyStack = []
 #   An evaluate function - the "guts" which sets the value and handles propagation
 #   The signal function - a wrapper providing the interface to read and write to the signal
 global.Signal = (definition)->
+
+
+  signalCore = 
+    
+    # Base properties of a signal
+    definition: definition
+    value: null
+    dependencies: []
+    dependents: []
+    observers: []
+
+    # clear old dependencies both forward and back pointers
+    # if definition is a function then we need to evaluate it
+    evaluate: ->
+      for dependency in @dependencies
+        dependentIndex = dependency.dependents.indexOf(this)
+        dependency.dependents[dependentIndex] = null
+      @dependencies = []
+      if @definition instanceof Function
+        dependencyStack.push evaluate 
+        value = definition()
+        dependencyStack.pop()
+      else value = definition
+
+    propagate: (observerList)->
+      observerList.push.apply(observerList, @observers)
+      for dependency in @dependencies
+        dependency.evaluate()
+        dependency.propagate(observerList)
+      return observerList
+
+    read: ->
+
+    write: ->
 
   # Cached value of this signal calculated by the evaluate function
   # Recalculated when a definition has changed or when notified by a dependency
@@ -144,7 +183,7 @@ global.Signal = (definition)->
   # Note that while the dependents is a list of evaluate functions
   # dependencies is a list of the signals themselves
   evaluate.dependencies = []
-  evaluate.dependencyType = "signal"
+  evaluate.dependencyType = SIGNAL
 
   # Symmetrically - the list of other signals and observers that depend on this signal
   # Used to know who to notify when this signal has been updated
@@ -177,7 +216,7 @@ global.Signal = (definition)->
 
       # If its a signal dependency - register it as such
       # symmetrically register self as a dependency for cleaning dependencies later
-      if dependent? and dependent.dependencyType is "signal"
+      if dependent? and dependent.dependencyType is SIGNAL
         evaluate.dependents.push dependent if evaluate.dependents.indexOf(dependent) < 0
         dependent.dependencies.push evaluate if dependent.dependencies.indexOf(evaluate) < 0
 
@@ -188,7 +227,7 @@ global.Signal = (definition)->
 
       # If it is a observer dependency - similarly register it as a observer
       # symmetrically register self as a observee for cleaning dependencies later
-      else if dependent? and dependent.dependencyType is "observer"
+      else if dependent? and dependent.dependencyType is OBSERVER
         evaluate.observers.push dependent if evaluate.observers.indexOf(dependent) < 0
         dependent.observees.push evaluate if dependent.observees.indexOf(evaluate) < 0
 
@@ -247,7 +286,7 @@ global.Observer = (response)->
     dependencyStack.pop()
 
   trigger.observees = []
-  trigger.dependencyType = "observer"
+  trigger.dependencyType = OBSERVER
 
   # returned in the form of a function
   # as with signals - can be provided with a new definition
