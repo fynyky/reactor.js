@@ -116,7 +116,7 @@ global.Signal = function(definition) {
               observer = observerList[_k];
               observer.trigger();
             }
-            return _this.value;
+            return value;
           };
         })(this);
       } else {

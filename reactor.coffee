@@ -1,52 +1,29 @@
 # Reactor is a javascript library for reactive programming
-# It comprises of 2 primary components: Signals, and Observers
-
+# It comprises of 2 primary components: Signals and Observers
+# 
 # Signals represent values which can be observed
-# A signal's value can depend on one or more other signals
-
+# A signal's value can either be set directly or defined in terms of other signals
+# 
 # Observers represent reactions to changes in signals
-# An observer can be observing one or more signals
-
+# An observer can observe multiple signals and will trigger when any of them changes
+# 
 # Together, signals and observers form a directed acyclic graph
 # Signals form the root and intermediate nodes of the graph
 # Observers form the leaf nodes in the graph
-# When a signal is updated, it propagates its changes through the graph
-# Observers are updated last after all affected signals have been updated
+# 
+# When a signal is updated, it propagates its changes through the graph updating other signals
+# After all dependent signals have been updated the relevant observers will be triggered
 # From the perspective of observers, all signals are updated atomically and instantly 
-
+# 
 # In Reactor, observer and signal dependencies are set automatically and dynamically
 # Reactor detects when a signal is being used at run time, and automatically establishes the link
 # This means there is no need to explicitly declare dependencies
 # And dependencies can be changed across the execution of the program
 
-# TODOs
-# Fix observers to work with signal core structure
-# Add back in array and object setters and getters
-# redo comments to read through it all
-# Add back in propagation target filtering
-
-
-# clear dependencies when new definition that is not a function is given
-# Figure out if it is necessary to delete all dependencies for each evaluate. Is there a better way?
-# Update array methods
-# Investigate the necessity of the dependent targets list (or if there's a more efficient way of implementing it)
-# Make signals read only (especially by default for the dependent signals)
-# Memoery management
-# Events
-# Read-only arrays & objects if generated from a function signal
-# Use nulls instead of splice when removing self from lists?
-# remove redundant triggering when same value is made
-# add in ability to get old values
-# recompile with latest coffeescript compiler
-# events
-# multi commit batching
-# avoid removing array and setter methods if user overrides them
-
 # Constants
 SIGNAL = "SIGNAL"
 OBSERVER = "OBSERVER"
 ARRAY_METHODS = ["pop", "push", "reverse", "shift", "sort", "splice", "unshift"]
-
 
 # In node.js, Reactor is packaged into the exports object as a module import
 # In the browser, Reactor is bound directly to the window namespace
@@ -71,16 +48,12 @@ dependencyStack = []
 # For external effects, use observers instead
 # To "destory" a signal, just set its definition to null
 # -----------------------------------------------------------------------------
-# Signals themselves have 3 main components 
-#   A value - the cached value returned when the signal is read
-#   An evaluate function - the "guts" which sets the value and handles propagation
-#   The signal function - a wrapper providing the interface to read and write to the signal
 global.Signal = (definition)->
 
-
+  # The actual "guts" of a signal containing properties and methods
   signalCore = 
     
-    # Base properties of a signal
+    # Initial base properly of the signal
     definition: null
     value: null
     dependencies: []
@@ -88,19 +61,26 @@ global.Signal = (definition)->
     dependents: []
     observers: []
 
-    # clear old dependencies both forward and back pointers
-    # if definition is a function then we need to evaluate it
+    # Sets the signals value based on the definition
+    # While establishing its dependencies
     evaluate: ->
+      # clear old dependencies both forward and back pointers
       for dependency in @dependencies
         dependentIndex = dependency.dependents.indexOf(this)
         dependency.dependents[dependentIndex] = null
       @dependencies = []
+      # if definition is a function then execute it for the value 
       if @definition instanceof Function
         dependencyStack.push this
         @value = @definition()
         dependencyStack.pop()
       else @value = @definition
 
+    # Notifies dependent signals of the change 
+    # While simultaneously collecting list of affected observers
+    # Adds its own observers to the list
+    # Then recursively updates its depndents
+    # The final observer list is return to the caller to trigger
     propagate: (observerList)->
       for observer in @observers
         observerList.push(observer) if observerList.indexOf(observer) < 0
@@ -109,14 +89,17 @@ global.Signal = (definition)->
         dependency.propagate(observerList)
       return observerList
 
-    # check the global stack for the most recent dependent being evaluated
-    # assume this is the caller and set it as a dependent
-    # If its a signal dependency - register it as such
-    # symmetrically register self as a dependency for cleaning dependencies later
-    # If it is a observer dependency - similarly register it as a observer 
-    # symmetrically register self as a observee for cleaning dependencies later
+    # Life of a read
+    #   check to see who is asking
+    #   register them as a dependent
+    #   register self and their dependency
+    #   return value
     read: ->
+      # check the global stack for the most recent dependent being evaluated
+      # assume this is the caller and set it as a dependent
       dependent = dependencyStack[dependencyStack.length - 1]
+      # If its a signal or observer dependency register it accordingly
+      # symmetrically register itself as a dependency for cleaning dependencies later
       if dependent? and dependent.dependencyType is SIGNAL
         @dependents.push dependent if @dependents.indexOf(dependent) < 0
         dependent.dependencies.push this if dependent.dependencies.indexOf(this) < 0
@@ -128,21 +111,17 @@ global.Signal = (definition)->
 
     # Life of a write
     #   new definition is set
+    #   execute new definition if necessary and establish dependencies
     #   delete/configure convenience methods
-    #   execute new definition if necessary
-    #   add observers to notify later
-    #   make list of target dependents to be notified
-    #   recursively evaluate dependents
-    #     delete/configure convenience methods
-    #     execute new definition
-    #     get removed from target dependents list
-    #     add observers to notify later
+    #   recursively evaluate dependents while collecting observers
     #   notify observers
     write: (newDefinition)->
 
       @definition = newDefinition
       @evaluate()
 
+      # Set the special array methods if the definition is an array
+      # Essentially providing convenience mutator methods which automatically trigger revaluation
       if @definition instanceof Array then for methodName in ARRAY_METHODS
         do (methodName)=>
           signalInterface[methodName] = =>
@@ -151,23 +130,28 @@ global.Signal = (definition)->
             observer.trigger() for observer in observerList
             return output
       else delete signalInterface[methodName] for methodName in ARRAY_METHODS
-          
+      # convenience method for setting properties
       if @definition instanceof Object
         signalInterface.set = (key, value)=>
           @definition[key] = value
           observerList = @propagate([])
           observer.trigger() for observer in observerList
-          return @value
+          return value
       else delete signalInterface.set
 
       observerList = @propagate([])
       observer.trigger() for observer in observerList
       return @value
 
+  # The interface function returned to the user to utilize the signal
+  # This is done to abstract away the messiness of how the signals work
   signalInterface = (newDefinition)->
+    # An empty call is treated as a read
     if newDefinition is undefined then signalCore.read()
+    # A non empty call is treated as a write
     else signalCore.write(newDefinition)
 
+  # Creation path - basically just initializing with the first definition
   signalCore.write(definition)
   return signalInterface
 
@@ -187,22 +171,24 @@ global.Observer = (response)->
     observees: []
 
     # Activate the observer as well as reconfigure dependencies
-    # clear old observees
-    # do initial trigger and set up to listen for future updates
     trigger: ->
+    # clear old observees
       for observee in @observees
         observerIndex = observee.observers.indexOf this
         observee.observers[observerIndex] = null
       @observees = []
+      # do initial trigger and establish dependencies
       if response instanceof Function
         dependencyStack.push this
-        @response() 
+        @response()
         dependencyStack.pop()
 
+    # configure the new response and do 
     write: (newResponse)->
       @response = newResponse
       @trigger()
 
+  # abstraction to hide the ugliness of how observers work
   observerInterface = (newResponse)-> write(newResponse)
 
   observerCore.write(response)
