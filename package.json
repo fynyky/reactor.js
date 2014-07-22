@@ -1,6 +1,6 @@
 {
   "name": "reactorjs",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "Functional reactive programming library",
   "main": "reactor.js",
   "repository": {

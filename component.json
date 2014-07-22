@@ -2,7 +2,7 @@
   "name": "reactor.js",
   "repo": "fynyky/reactor.js",
   "description": "Functional reactive programming library",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "keywords": ["reactive"],
   "dependencies": {},
   "development": {},
