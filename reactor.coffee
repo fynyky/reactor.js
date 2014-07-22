@@ -116,10 +116,8 @@ global.Signal = (definition)->
     #   recursively evaluate dependents while collecting observers
     #   notify observers
     write: (newDefinition)->
-
       @definition = newDefinition
       @evaluate()
-
       # Set the special array methods if the definition is an array
       # Essentially providing convenience mutator methods which automatically trigger revaluation
       if @definition instanceof Array then for methodName in ARRAY_METHODS
@@ -155,7 +153,6 @@ global.Signal = (definition)->
   signalCore.write(definition)
   return signalInterface
 
-
 # Observers represent responses to signal changes
 # They are defined in a manner similar to Signals
 # The primary differences of observers are
@@ -171,6 +168,7 @@ global.Observer = (response)->
     observees: []
 
     # Activate the observer as well as reconfigure dependencies
+    # The observer equivalent of evaluate
     trigger: ->
     # clear old observees
       for observee in @observees
@@ -191,5 +189,6 @@ global.Observer = (response)->
   # abstraction to hide the ugliness of how observers work
   observerInterface = (newResponse)-> write(newResponse)
 
+  # Creation path - basically identical to the signal creation path
   observerCore.write(response)
   return observerInterface

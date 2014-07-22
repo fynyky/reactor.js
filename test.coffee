@@ -1,8 +1,15 @@
 assert = require 'assert'
 
-{Signal, Observer, Event} = require './reactor'
+{Signal, Observer} = require './reactor'
 
 describe 'Signal', ->
+
+  it ''
+
+  it 'Creating numerical signal', ->
+    a = Signal 1
+
+
   it 'Single static signal', ->
     a = Signal 1
 
