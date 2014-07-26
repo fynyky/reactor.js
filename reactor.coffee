@@ -122,8 +122,8 @@ global.Signal = (definition)->
     #   notify observers
     write: (newDefinition)->
       @definition = newDefinition
-      @evaluate()
-      # Set the special array methods if the definition is an array
+
+      # Set the special array methods if the definition is an array or an object
       # Essentially providing convenience mutator methods which automatically trigger revaluation
       if @definition instanceof Array then for methodName in ARRAY_METHODS
         do (methodName)=>
@@ -132,12 +132,13 @@ global.Signal = (definition)->
             @write(@definition)
             return output
       else delete signalInterface[methodName] for methodName in ARRAY_METHODS
-      # convenience method for setting properties
       if @definition instanceof Object
         signalInterface.set = (key, value)=>
           @definition[key] = value
           @write(@definition)
       else delete signalInterface.set
+
+      @evaluate()
       observerList = @propagate([])
       observer.trigger() for observer in observerList
       return @value
@@ -146,7 +147,7 @@ global.Signal = (definition)->
   # This is done to abstract away the messiness of how the signals work
   signalInterface = (newDefinition)->
     # An empty call is treated as a read
-    if newDefinition is undefined then signalCore.read()
+    if arguments.length is 0 then signalCore.read()
     # A non empty call is treated as a write
     else signalCore.write(newDefinition)
 

@@ -87,7 +87,6 @@
       write: function(newDefinition) {
         var methodName, observer, observerList, _fn, _i, _j, _k, _len, _len1, _len2;
         this.definition = newDefinition;
-        this.evaluate();
         if (this.definition instanceof Array) {
           _fn = (function(_this) {
             return function(methodName) {
@@ -119,6 +118,7 @@
         } else {
           delete signalInterface.set;
         }
+        this.evaluate();
         observerList = this.propagate([]);
         for (_k = 0, _len2 = observerList.length; _k < _len2; _k++) {
           observer = observerList[_k];
@@ -128,7 +128,7 @@
       }
     };
     signalInterface = function(newDefinition) {
-      if (newDefinition === void 0) {
+      if (arguments.length === 0) {
         return signalCore.read();
       } else {
         return signalCore.write(newDefinition);
