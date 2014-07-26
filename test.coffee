@@ -4,8 +4,6 @@ assert = require 'assert'
 
 describe 'Signal', ->
 
-  it ''
-
   it 'Creating numerical signal', ->
     a = Signal 1
 
@@ -33,7 +31,6 @@ describe 'Signal', ->
     assert.equal b(4), 4
     assert.equal a(), 1
     assert.equal b(), 4
-
 
   it "Signal with simple single dependency", ->
     a = Signal 1

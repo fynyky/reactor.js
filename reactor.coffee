@@ -60,6 +60,7 @@ global.Signal = (definition)->
     dependencyType: SIGNAL
     dependents: []
     observers: []
+    readers: []
 
     # Sets the signals value based on the definition
     # While establishing its dependencies
@@ -75,6 +76,8 @@ global.Signal = (definition)->
         @value = @definition()
         dependencyStack.pop()
       else @value = @definition
+      # since a new value is set clear the list of people who 
+      @readers = []
 
     # Notifies dependent signals of the change 
     # While simultaneously collecting list of affected observers
@@ -85,8 +88,9 @@ global.Signal = (definition)->
       for observer in @observers
         observerList.push(observer) if observerList.indexOf(observer) < 0
       for dependency in @dependents when dependency?
-        dependency.evaluate()
-        dependency.propagate(observerList)
+        if @readers.indexOf(dependency) < 0
+          dependency.evaluate()
+          dependency.propagate(observerList)
       return observerList
 
     # Life of a read
@@ -98,6 +102,8 @@ global.Signal = (definition)->
       # check the global stack for the most recent dependent being evaluated
       # assume this is the caller and set it as a dependent
       dependent = dependencyStack[dependencyStack.length - 1]
+      # Register that they have read the current form and do not need to be notified
+      @readers.push(dependent) if dependent? and dependent not in @readers
       # If its a signal or observer dependency register it accordingly
       # symmetrically register itself as a dependency for cleaning dependencies later
       if dependent? and dependent.dependencyType is SIGNAL
@@ -124,19 +130,15 @@ global.Signal = (definition)->
         do (methodName)=>
           signalInterface[methodName] = =>
             output = @definition[methodName].apply(@definition, arguments)
-            observerList = @propagate([])
-            observer.trigger() for observer in observerList
+            @write(@definition)
             return output
       else delete signalInterface[methodName] for methodName in ARRAY_METHODS
       # convenience method for setting properties
       if @definition instanceof Object
         signalInterface.set = (key, value)=>
           @definition[key] = value
-          observerList = @propagate([])
-          observer.trigger() for observer in observerList
-          return value
+          @write(@definition)
       else delete signalInterface.set
-
       observerList = @propagate([])
       observer.trigger() for observer in observerList
       return @value

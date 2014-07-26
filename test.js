@@ -7,7 +7,6 @@
   _ref = require('./reactor'), Signal = _ref.Signal, Observer = _ref.Observer;
 
   describe('Signal', function() {
-    it('');
     it('Creating numerical signal', function() {
       var a;
       return a = Signal(1);
