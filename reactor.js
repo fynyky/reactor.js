@@ -46,19 +46,18 @@
         _ref = this.observers;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           observer = _ref[_i];
-          if (observerList.indexOf(observer) < 0) {
+          if (__indexOf.call(observerList, observer) < 0) {
             observerList.push(observer);
           }
         }
         _ref1 = this.dependents;
         for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
           dependency = _ref1[_j];
-          if (dependency != null) {
-            if (this.readers.indexOf(dependency) < 0) {
-              dependency.evaluate();
-              dependency.propagate(observerList);
-            }
+          if (!((dependency != null) && __indexOf.call(this.readers, dependency) < 0)) {
+            continue;
           }
+          dependency.evaluate();
+          dependency.propagate(observerList);
         }
         return observerList;
       },
@@ -69,17 +68,17 @@
           this.readers.push(dependent);
         }
         if ((dependent != null) && dependent.dependencyType === SIGNAL) {
-          if (this.dependents.indexOf(dependent) < 0) {
+          if (__indexOf.call(this.dependents, dependent) < 0) {
             this.dependents.push(dependent);
           }
-          if (dependent.dependencies.indexOf(this) < 0) {
+          if (__indexOf.call(dependent.dependencies, this) < 0) {
             dependent.dependencies.push(this);
           }
         } else if ((dependent != null) && dependent.dependencyType === OBSERVER) {
-          if (this.observers.indexOf(dependent) < 0) {
+          if (__indexOf.call(this.observers, dependent) < 0) {
             this.observers.push(dependent);
           }
-          if (dependent.observees.indexOf(this) < 0) {
+          if (__indexOf.call(dependent.observees, this) < 0) {
             dependent.observees.push(this);
           }
         }

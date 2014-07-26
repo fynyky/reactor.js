@@ -86,9 +86,8 @@ global.Signal = (definition)->
     # The final observer list is return to the caller to trigger
     propagate: (observerList)->
       for observer in @observers
-        observerList.push(observer) if observerList.indexOf(observer) < 0
-      for dependency in @dependents when dependency?
-        if @readers.indexOf(dependency) < 0
+        observerList.push(observer) if observer not in observerList
+      for dependency in @dependents when dependency? and dependency not in @readers
           dependency.evaluate()
           dependency.propagate(observerList)
       return observerList
@@ -107,11 +106,11 @@ global.Signal = (definition)->
       # If its a signal or observer dependency register it accordingly
       # symmetrically register itself as a dependency for cleaning dependencies later
       if dependent? and dependent.dependencyType is SIGNAL
-        @dependents.push dependent if @dependents.indexOf(dependent) < 0
-        dependent.dependencies.push this if dependent.dependencies.indexOf(this) < 0
+        @dependents.push dependent if dependent not in @dependents
+        dependent.dependencies.push this if this not in dependent.dependencies
       else if dependent? and dependent.dependencyType is OBSERVER
-        @observers.push dependent if @observers.indexOf(dependent) < 0
-        dependent.observees.push this if dependent.observees.indexOf(this) < 0
+        @observers.push dependent if dependent not in @observers
+        dependent.observees.push this if this not in dependent.observees
       return @value
 
 
