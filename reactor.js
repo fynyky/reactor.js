@@ -50,7 +50,7 @@
             observerList.push(observer);
           }
         }
-        _ref1 = this.dependents;
+        _ref1 = this.dependents.slice(0);
         for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
           dependency = _ref1[_j];
           if (!((dependency != null) && __indexOf.call(this.readers, dependency) < 0)) {
@@ -85,7 +85,7 @@
         return this.value;
       },
       write: function(newDefinition) {
-        var methodName, observer, observerList, _fn, _i, _j, _k, _len, _len1, _len2;
+        var methodName, observer, observerList, _fn, _i, _j, _k, _len, _len1, _len2, _ref;
         this.definition = newDefinition;
         if (this.definition instanceof Array) {
           _fn = (function(_this) {
@@ -120,8 +120,9 @@
         }
         this.evaluate();
         observerList = this.propagate([]);
-        for (_k = 0, _len2 = observerList.length; _k < _len2; _k++) {
-          observer = observerList[_k];
+        _ref = observerList.slice(0);
+        for (_k = 0, _len2 = _ref.length; _k < _len2; _k++) {
+          observer = _ref[_k];
           observer.trigger();
         }
         return this.value;

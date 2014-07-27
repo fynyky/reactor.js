@@ -1,20 +1,20 @@
 # Reactor is a javascript library for reactive programming
 # It comprises of 2 primary components: Signals and Observers
-# 
+
 # Signals represent values which can be observed
 # A signal's value can either be set directly or defined in terms of other signals
-# 
+
 # Observers represent reactions to changes in signals
 # An observer can observe multiple signals and will trigger when any of them changes
-# 
+
 # Together, signals and observers form a directed acyclic graph
 # Signals form the root and intermediate nodes of the graph
 # Observers form the leaf nodes in the graph
-# 
+
 # When a signal is updated, it propagates its changes through the graph updating other signals
 # After all dependent signals have been updated the relevant observers will be triggered
-# From the perspective of observers, all signals are updated atomically and instantly 
-# 
+# From the perspective of observers, all signals are updated atomically and instantly
+
 # In Reactor, observer and signal dependencies are set automatically and dynamically
 # Reactor detects when a signal is being used at run time, and automatically establishes the link
 # This means there is no need to explicitly declare dependencies
@@ -51,7 +51,7 @@ dependencyStack = []
 global.Signal = (definition)->
 
   # The actual "guts" of a signal containing properties and methods
-  signalCore = 
+  signalCore =
     
     # Initial base properly of the signal
     definition: null
@@ -70,26 +70,27 @@ global.Signal = (definition)->
         dependentIndex = dependency.dependents.indexOf(this)
         dependency.dependents[dependentIndex] = null
       @dependencies = []
-      # if definition is a function then execute it for the value 
+      # if definition is a function then execute it for the value
       if @definition instanceof Function
         dependencyStack.push this
         @value = @definition()
         dependencyStack.pop()
       else @value = @definition
-      # since a new value is set clear the list of people who 
+      # since a new value is set clear the list of people who
       @readers = []
 
-    # Notifies dependent signals of the change 
+    # Notifies dependent signals of the change
     # While simultaneously collecting list of affected observers
     # Adds its own observers to the list
-    # Then recursively updates its depndents
+    # Then recursively updates its dependents
     # The final observer list is return to the caller to trigger
     propagate: (observerList)->
       for observer in @observers
         observerList.push(observer) if observer not in observerList
-      for dependency in @dependents when dependency? and dependency not in @readers
-          dependency.evaluate()
-          dependency.propagate(observerList)
+      # Need to make a copy of the list since the child evalutaes reach back and modify the dependent list
+      for dependency in @dependents[...] when dependency? and dependency not in @readers
+        dependency.evaluate()
+        dependency.propagate(observerList)
       return observerList
 
     # Life of a read
@@ -140,7 +141,7 @@ global.Signal = (definition)->
 
       @evaluate()
       observerList = @propagate([])
-      observer.trigger() for observer in observerList
+      observer.trigger() for observer in observerList[...] # Copy the list since the trigger might modify it
       return @value
 
   # The interface function returned to the user to utilize the signal
@@ -164,7 +165,7 @@ global.Signal = (definition)->
 # to remove an observer - just set its value to null
 global.Observer = (response)->
 
-  observerCore = 
+  observerCore =
     response: null
     dependencyType: OBSERVER
     observees: []
@@ -183,7 +184,7 @@ global.Observer = (response)->
         @response()
         dependencyStack.pop()
 
-    # configure the new response and do 
+    # configure the new response and do
     write: (newResponse)->
       @response = newResponse
       @trigger()
