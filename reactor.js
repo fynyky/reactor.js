@@ -46,8 +46,10 @@
         _ref = this.observers;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           observer = _ref[_i];
-          if (__indexOf.call(observerList, observer) < 0) {
-            observerList.push(observer);
+          if (observer != null) {
+            if (__indexOf.call(observerList, observer) < 0) {
+              observerList.push(observer);
+            }
           }
         }
         _ref1 = this.dependents.slice(0);

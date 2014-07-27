@@ -85,7 +85,7 @@ global.Signal = (definition)->
     # Then recursively updates its dependents
     # The final observer list is return to the caller to trigger
     propagate: (observerList)->
-      for observer in @observers
+      for observer in @observers when observer?
         observerList.push(observer) if observer not in observerList
       # Need to make a copy of the list since the child evalutaes reach back and modify the dependent list
       for dependency in @dependents[...] when dependency? and dependency not in @readers

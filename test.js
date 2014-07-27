@@ -314,111 +314,43 @@
       });
     });
     return describe("Array and Object convenience methods", function() {
-      it("TODO rewrite: object setter", function() {
-        var a, b;
-        a = Signal({});
-        b = Signal(function() {
-          return "Serialized: " + JSON.stringify(a());
+      it("should be able to call object set without error", function() {
+        var aSignal;
+        aSignal = Signal({});
+        return aSignal.set("foo", 1);
+      });
+      it("should have its value using object set", function() {
+        var aSignal;
+        aSignal = Signal({});
+        aSignal.set("foo", 1);
+        assert.equal(JSON.stringify(aSignal()), '{"foo":1}');
+        aSignal.set("bar", 2);
+        return assert.equal(JSON.stringify(aSignal()), '{"foo":1,"bar":2}');
+      });
+      it("should not have set on non object signals`", function() {
+        var aSignal;
+        aSignal = Signal(1);
+        return assert.equal(aSignal.set, void 0);
+      });
+      it("should remove set once signal is no longer object", function() {
+        var aSignal;
+        aSignal = Signal({});
+        aSignal(1);
+        return assert.equal(aSignal.set, void 0);
+      });
+      it("should propagate the value when using the object set convenience method", function() {
+        var aSignal, bSignal;
+        aSignal = Signal({});
+        bSignal = Signal(function() {
+          return "Serialized: " + JSON.stringify(aSignal());
         });
-        assert.equal(b(), "Serialized: {}");
-        a()["x"] = 1;
-        assert.equal(JSON.stringify(a()), '{"x":1}');
-        assert.equal(b(), "Serialized: {}");
-        a(a());
-        assert.equal(JSON.stringify(a()), '{"x":1}');
-        assert.equal(b(), 'Serialized: {"x":1}');
-        a.set("x", 2);
-        assert.equal(JSON.stringify(a()), '{"x":2}');
-        assert.equal(b(), 'Serialized: {"x":2}');
-        a(3);
-        assert.equal(a(), 3);
-        assert.equal(b(), 'Serialized: 3');
-        return assert.equal(a.set, void 0);
+        assert.equal(JSON.stringify(aSignal()), "{}");
+        aSignal.set("foo", 1);
+        return assert.equal(bSignal(), 'Serialized: {"foo":1}');
       });
-      it("TODO rewrite: basic array push ", function() {
-        var a;
-        a = Signal([]);
-        a.push("x");
-        return assert.equal(JSON.stringify(a()), '["x"]');
-      });
-      it("TODO rewrite: array initialized properly", function() {
-        var a;
-        a = Signal([]);
-        a.push("x");
-        assert.equal(JSON.stringify(a()), '["x"]');
-        a.push("y");
-        assert.equal(JSON.stringify(a()), '["x","y"]');
-        a.pop();
-        assert.equal(JSON.stringify(a()), '["x"]');
-        a.pop();
-        assert.equal(JSON.stringify(a()), '[]');
-        a.unshift("x");
-        assert.equal(JSON.stringify(a()), '["x"]');
-        a.unshift("y");
-        assert.equal(JSON.stringify(a()), '["y","x"]');
-        a.unshift("z");
-        assert.equal(JSON.stringify(a()), '["z","y","x"]');
-        a.sort();
-        assert.equal(JSON.stringify(a()), '["x","y","z"]');
-        a.reverse();
-        assert.equal(JSON.stringify(a()), '["z","y","x"]');
-        a.splice(1, 1, "w");
-        assert.equal(JSON.stringify(a()), '["z","w","x"]');
-        a.shift();
-        return assert.equal(JSON.stringify(a()), '["w","x"]');
-      });
-      return it("TODO rewrite: array methods", function() {
-        var a, b, c, d;
-        a = Signal([]);
-        b = Signal(function() {
-          return "Serialized: " + JSON.stringify(a());
-        });
-        assert.equal(JSON.stringify(a()), '[]');
-        assert.equal(b(), 'Serialized: []');
-        a()[0] = "x";
-        assert.equal(JSON.stringify(a()), '["x"]');
-        assert.equal(b(), 'Serialized: []');
-        a(a());
-        assert.equal(JSON.stringify(a()), '["x"]');
-        assert.equal(b(), 'Serialized: ["x"]');
-        a.set(1, "y");
-        assert.equal(JSON.stringify(a()), '["x","y"]');
-        assert.equal(b(), 'Serialized: ["x","y"]');
-        a.push("z");
-        assert.equal(JSON.stringify(a()), '["x","y","z"]');
-        assert.equal(b(), 'Serialized: ["x","y","z"]');
-        a.unshift("w");
-        assert.equal(JSON.stringify(a()), '["w","x","y","z"]');
-        assert.equal(b(), 'Serialized: ["w","x","y","z"]');
-        c = a.shift();
-        assert.equal(JSON.stringify(a()), '["x","y","z"]');
-        assert.equal(b(), 'Serialized: ["x","y","z"]');
-        assert.equal(c, "w");
-        a.reverse();
-        assert.equal(JSON.stringify(a()), '["z","y","x"]');
-        assert.equal(b(), 'Serialized: ["z","y","x"]');
-        d = a.pop();
-        assert.equal(JSON.stringify(a()), '["z","y"]');
-        assert.equal(b(), 'Serialized: ["z","y"]');
-        a.push("foo");
-        a.push("bar");
-        assert.equal(JSON.stringify(a()), '["z","y","foo","bar"]');
-        assert.equal(b(), 'Serialized: ["z","y","foo","bar"]');
-        d = a.splice(1, 2);
-        assert.equal(JSON.stringify(d), '["y","foo"]');
-        assert.equal(JSON.stringify(a()), '["z","bar"]');
-        assert.equal(b(), 'Serialized: ["z","bar"]');
-        a("pies");
-        assert.equal(a(), "pies");
-        assert.equal(b(), 'Serialized: "pies"');
-        assert.equal(a.pop, void 0);
-        assert.equal(a.push, void 0);
-        assert.equal(a.shift, void 0);
-        assert.equal(a.unshift, void 0);
-        assert.equal(a.sort, void 0);
-        assert.equal(a.reverse, void 0);
-        return assert.equal(a.splice, void 0);
-      });
+      it("TODO rewrite: basic array push ");
+      it("TODO rewrite: array initialized properly");
+      return it("TODO rewrite: array methods");
     });
   });
 
@@ -454,6 +386,22 @@
       aSignal(2);
       return assert.equal(anExternalValue, 2);
     });
+    it("should trigger the observer when a signal is updated multiple times", function() {
+      var aSignal, anExternalValue, anObserver;
+      aSignal = Signal(1);
+      anExternalValue = null;
+      anObserver = Observer(function() {
+        return anExternalValue = aSignal();
+      });
+      aSignal(2);
+      assert.equal(anExternalValue, 2);
+      aSignal(3);
+      assert.equal(anExternalValue, 3);
+      aSignal(4);
+      assert.equal(anExternalValue, 4);
+      aSignal(5);
+      return assert.equal(anExternalValue, 5);
+    });
     it("should trigger even when observing multiple signals", function() {
       var aSignal, anExternalValue, anObserver, bSignal, cSignal, dSignal;
       aSignal = Signal(1);
@@ -467,53 +415,30 @@
       assert.equal(anExternalValue, "1234");
       aSignal(5);
       assert.equal(anExternalValue, "5234");
-      return aSignal(6);
+      bSignal(6);
+      assert.equal(anExternalValue, "5634");
+      cSignal(7);
+      assert.equal(anExternalValue, "5674");
+      dSignal(8);
+      return assert.equal(anExternalValue, "5678");
     });
-    it("read write observer", function() {
-      var a, b, c;
-      a = Signal(1);
-      b = Signal(2);
-      assert.equal(a(), 1);
-      assert.equal(b(), 2);
-      c = Observer(function() {
-        return b(a());
+    return it("should write to another signal without building a dependency", function() {
+      var aSignal, anObserver, bSignal, triggerCount;
+      triggerCount = 0;
+      aSignal = Signal(1);
+      bSignal = Signal(2);
+      anObserver = Observer(function() {
+        triggerCount += 1;
+        return bSignal(aSignal());
       });
-      assert.equal(b(), 1);
-      a(3);
-      assert.equal(a(), 3);
-      assert.equal(b(), 3);
-      b(4);
-      assert.equal(a(), 3);
-      return assert.equal(b(), 4);
-    });
-    return it("another read write observer", function() {
-      var a, b, c, d;
-      a = 0;
-      b = Signal(1);
-      c = Signal(2);
-      assert.equal(a, 0);
-      assert.equal(b(), 1);
-      assert.equal(c(), 2);
-      d = Observer(function() {
-        a += 1;
-        b();
-        return c(3);
-      });
-      assert.equal(a, 1);
-      assert.equal(b(), 1);
-      assert.equal(c(), 3);
-      a = 4;
-      assert.equal(a, 4);
-      assert.equal(b(), 1);
-      assert.equal(c(), 3);
-      b(6);
-      assert.equal(a, 5);
-      assert.equal(b(), 6);
-      assert.equal(c(), 3);
-      c(7);
-      assert.equal(a, 5);
-      assert.equal(b(), 6);
-      return assert.equal(c(), 7);
+      assert.equal(triggerCount, 1);
+      assert.equal(bSignal(), 1);
+      aSignal(3);
+      assert.equal(triggerCount, 2);
+      assert.equal(bSignal(), 3);
+      bSignal(4);
+      assert.equal(triggerCount, 2);
+      return assert.equal(bSignal(), 4);
     });
   });
 

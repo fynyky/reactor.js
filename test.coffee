@@ -235,102 +235,111 @@ describe 'Signal', ->
 
   describe "Array and Object convenience methods", ->
 
-    it "TODO rewrite: object setter", ->
-      a = Signal {}
-      b = Signal -> "Serialized: " + JSON.stringify(a())
-      assert.equal b(), "Serialized: {}"
-      a()["x"] = 1
-      assert.equal JSON.stringify(a()), '{"x":1}'
-      assert.equal b(), "Serialized: {}"
-      a(a())
-      assert.equal JSON.stringify(a()), '{"x":1}'
-      assert.equal b(), 'Serialized: {"x":1}'
-      a.set("x", 2)
-      assert.equal JSON.stringify(a()), '{"x":2}'
-      assert.equal b(), 'Serialized: {"x":2}'
-      a(3)
-      assert.equal a(), 3
-      assert.equal b(), 'Serialized: 3'
-      assert.equal a.set, undefined
+    it "should be able to call object set without error", ->
+      aSignal = Signal {}
+      aSignal.set("foo", 1)
 
-    it "TODO rewrite: basic array push ", ->
-      a = Signal []
-      a.push "x"
-      assert.equal JSON.stringify(a()), '["x"]'
+    it "should have its value using object set", ->
+      aSignal = Signal {}
+      aSignal.set("foo", 1)
+      assert.equal JSON.stringify(aSignal()), '{"foo":1}'
+      aSignal.set("bar", 2)
+      assert.equal JSON.stringify(aSignal()), '{"foo":1,"bar":2}'
 
-    it "TODO rewrite: array initialized properly", ->
-      a = Signal []
-      a.push("x")
-      assert.equal JSON.stringify(a()), '["x"]'
-      a.push("y")
-      assert.equal JSON.stringify(a()), '["x","y"]'
-      a.pop()
-      assert.equal JSON.stringify(a()), '["x"]'
-      a.pop()
-      assert.equal JSON.stringify(a()), '[]'
-      a.unshift("x")
-      assert.equal JSON.stringify(a()), '["x"]'
-      a.unshift("y")
-      assert.equal JSON.stringify(a()), '["y","x"]'
-      a.unshift("z")
-      assert.equal JSON.stringify(a()), '["z","y","x"]'
-      a.sort()
-      assert.equal JSON.stringify(a()), '["x","y","z"]'
-      a.reverse()
-      assert.equal JSON.stringify(a()), '["z","y","x"]'
-      a.splice(1,1,"w")
-      assert.equal JSON.stringify(a()), '["z","w","x"]'
-      a.shift()
-      assert.equal JSON.stringify(a()), '["w","x"]'
+    it "should not have set on non object signals`", ->
+      aSignal = Signal 1
+      assert.equal(aSignal.set, undefined)
 
-    it "TODO rewrite: array methods", ->
-      a = Signal []
-      b = Signal -> "Serialized: " + JSON.stringify(a())
-      assert.equal JSON.stringify(a()), '[]'
-      assert.equal b(), 'Serialized: []'
-      a()[0] = "x"
-      assert.equal JSON.stringify(a()), '["x"]'
-      assert.equal b(), 'Serialized: []'
-      a(a())
-      assert.equal JSON.stringify(a()), '["x"]'
-      assert.equal b(), 'Serialized: ["x"]'
-      a.set(1, "y")
-      assert.equal JSON.stringify(a()), '["x","y"]'
-      assert.equal b(), 'Serialized: ["x","y"]'
-      a.push("z")
-      assert.equal JSON.stringify(a()), '["x","y","z"]'
-      assert.equal b(), 'Serialized: ["x","y","z"]'
-      a.unshift("w")
-      assert.equal JSON.stringify(a()), '["w","x","y","z"]'
-      assert.equal b(), 'Serialized: ["w","x","y","z"]'
-      c = a.shift()
-      assert.equal JSON.stringify(a()), '["x","y","z"]'
-      assert.equal b(), 'Serialized: ["x","y","z"]'
-      assert.equal c, "w"
-      a.reverse()
-      assert.equal JSON.stringify(a()), '["z","y","x"]'
-      assert.equal b(), 'Serialized: ["z","y","x"]'
-      d = a.pop()
-      assert.equal JSON.stringify(a()), '["z","y"]'
-      assert.equal b(), 'Serialized: ["z","y"]'
-      a.push("foo")
-      a.push("bar")
-      assert.equal JSON.stringify(a()), '["z","y","foo","bar"]'
-      assert.equal b(), 'Serialized: ["z","y","foo","bar"]'
-      d = a.splice(1,2)
-      assert.equal JSON.stringify(d), '["y","foo"]'
-      assert.equal JSON.stringify(a()), '["z","bar"]'
-      assert.equal b(), 'Serialized: ["z","bar"]'
-      a("pies")
-      assert.equal a(), "pies"
-      assert.equal b(), 'Serialized: "pies"'
-      assert.equal a.pop, undefined
-      assert.equal a.push, undefined
-      assert.equal a.shift, undefined
-      assert.equal a.unshift, undefined
-      assert.equal a.sort, undefined
-      assert.equal a.reverse, undefined
-      assert.equal a.splice, undefined
+    it "should remove set once signal is no longer object", ->
+      aSignal = Signal {}
+      aSignal(1)
+      assert.equal(aSignal.set, undefined)
+
+    it "should propagate the value when using the object set convenience method", ->
+      aSignal = Signal({})
+      bSignal = Signal -> "Serialized: " + JSON.stringify(aSignal())
+      assert.equal JSON.stringify(aSignal()), "{}"
+      aSignal.set("foo", 1)
+      assert.equal bSignal(), 'Serialized: {"foo":1}'
+
+    it "TODO rewrite: basic array push "
+      # a = Signal []
+      # a.push "x"
+      # assert.equal JSON.stringify(a()), '["x"]'
+
+    it "TODO rewrite: array initialized properly"
+      # a = Signal []
+      # a.push("x")
+      # assert.equal JSON.stringify(a()), '["x"]'
+      # a.push("y")
+      # assert.equal JSON.stringify(a()), '["x","y"]'
+      # a.pop()
+      # assert.equal JSON.stringify(a()), '["x"]'
+      # a.pop()
+      # assert.equal JSON.stringify(a()), '[]'
+      # a.unshift("x")
+      # assert.equal JSON.stringify(a()), '["x"]'
+      # a.unshift("y")
+      # assert.equal JSON.stringify(a()), '["y","x"]'
+      # a.unshift("z")
+      # assert.equal JSON.stringify(a()), '["z","y","x"]'
+      # a.sort()
+      # assert.equal JSON.stringify(a()), '["x","y","z"]'
+      # a.reverse()
+      # assert.equal JSON.stringify(a()), '["z","y","x"]'
+      # a.splice(1,1,"w")
+      # assert.equal JSON.stringify(a()), '["z","w","x"]'
+      # a.shift()
+      # assert.equal JSON.stringify(a()), '["w","x"]'
+
+    it "TODO rewrite: array methods"
+      # a = Signal []
+      # b = Signal -> "Serialized: " + JSON.stringify(a())
+      # assert.equal JSON.stringify(a()), '[]'
+      # assert.equal b(), 'Serialized: []'
+      # a()[0] = "x"
+      # assert.equal JSON.stringify(a()), '["x"]'
+      # assert.equal b(), 'Serialized: []'
+      # a(a())
+      # assert.equal JSON.stringify(a()), '["x"]'
+      # assert.equal b(), 'Serialized: ["x"]'
+      # a.set(1, "y")
+      # assert.equal JSON.stringify(a()), '["x","y"]'
+      # assert.equal b(), 'Serialized: ["x","y"]'
+      # a.push("z")
+      # assert.equal JSON.stringify(a()), '["x","y","z"]'
+      # assert.equal b(), 'Serialized: ["x","y","z"]'
+      # a.unshift("w")
+      # assert.equal JSON.stringify(a()), '["w","x","y","z"]'
+      # assert.equal b(), 'Serialized: ["w","x","y","z"]'
+      # c = a.shift()
+      # assert.equal JSON.stringify(a()), '["x","y","z"]'
+      # assert.equal b(), 'Serialized: ["x","y","z"]'
+      # assert.equal c, "w"
+      # a.reverse()
+      # assert.equal JSON.stringify(a()), '["z","y","x"]'
+      # assert.equal b(), 'Serialized: ["z","y","x"]'
+      # d = a.pop()
+      # assert.equal JSON.stringify(a()), '["z","y"]'
+      # assert.equal b(), 'Serialized: ["z","y"]'
+      # a.push("foo")
+      # a.push("bar")
+      # assert.equal JSON.stringify(a()), '["z","y","foo","bar"]'
+      # assert.equal b(), 'Serialized: ["z","y","foo","bar"]'
+      # d = a.splice(1,2)
+      # assert.equal JSON.stringify(d), '["y","foo"]'
+      # assert.equal JSON.stringify(a()), '["z","bar"]'
+      # assert.equal b(), 'Serialized: ["z","bar"]'
+      # a("pies")
+      # assert.equal a(), "pies"
+      # assert.equal b(), 'Serialized: "pies"'
+      # assert.equal a.pop, undefined
+      # assert.equal a.push, undefined
+      # assert.equal a.shift, undefined
+      # assert.equal a.unshift, undefined
+      # assert.equal a.sort, undefined
+      # assert.equal a.reverse, undefined
+      # assert.equal a.splice, undefined
 
 describe "Observer", ->
 
@@ -355,6 +364,19 @@ describe "Observer", ->
     aSignal(2)
     assert.equal anExternalValue, 2
 
+  it "should trigger the observer when a signal is updated multiple times", ->
+    aSignal = Signal 1
+    anExternalValue = null
+    anObserver = Observer -> anExternalValue = aSignal()
+    aSignal(2)
+    assert.equal anExternalValue, 2
+    aSignal(3)
+    assert.equal anExternalValue, 3
+    aSignal(4)
+    assert.equal anExternalValue, 4
+    aSignal(5)
+    assert.equal anExternalValue, 5
+
   it "should trigger even when observing multiple signals", ->
     aSignal = Signal 1
     bSignal = Signal 2
@@ -366,51 +388,26 @@ describe "Observer", ->
     assert.equal anExternalValue, "1234"
     aSignal(5)
     assert.equal anExternalValue, "5234"
-    aSignal(6)
-    # assert.equal anExternalValue, "5634"
-    # aSignal(7)
-    # assert.equal anExternalValue, "5674"
-    # aSignal(8)
-    # assert.equal anExternalValue, "5678"
+    bSignal(6)
+    assert.equal anExternalValue, "5634"
+    cSignal(7)
+    assert.equal anExternalValue, "5674"
+    dSignal(8)
+    assert.equal anExternalValue, "5678"
 
-  it "read write observer", ->
-    a = Signal 1
-    b = Signal 2
-    assert.equal a(), 1
-    assert.equal b(), 2
-    c = Observer -> b(a())
-    assert.equal b(), 1
-    a(3)
-    assert.equal a(), 3
-    assert.equal b(), 3
-    b(4)
-    assert.equal a(), 3
-    assert.equal b(), 4
-
-  it "another read write observer", ->
-    a = 0
-    b = Signal 1
-    c = Signal 2
-    assert.equal a, 0
-    assert.equal b(), 1
-    assert.equal c(), 2
-    d = Observer ->
-      a += 1
-      b()
-      c(3)
-    assert.equal a, 1
-    assert.equal b(), 1
-    assert.equal c(), 3
-    a = 4
-    assert.equal a, 4
-    assert.equal b(), 1
-    assert.equal c(), 3
-    b(6)
-    assert.equal a, 5
-    assert.equal b(), 6
-    assert.equal c(), 3
-    c(7)
-    assert.equal a, 5
-    assert.equal b(), 6
-    assert.equal c(), 7
+  it "should write to another signal without building a dependency", ->
+    triggerCount = 0
+    aSignal = Signal 1
+    bSignal = Signal 2
+    anObserver = Observer -> 
+      triggerCount += 1
+      bSignal(aSignal())
+    assert.equal triggerCount, 1
+    assert.equal bSignal(), 1
+    aSignal(3)
+    assert.equal triggerCount, 2
+    assert.equal bSignal(), 3
+    bSignal(4)
+    assert.equal triggerCount, 2 # trigger count should stay the same since b was written not read
+    assert.equal bSignal(), 4
 
