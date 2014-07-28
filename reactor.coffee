@@ -73,8 +73,8 @@ global.Signal = (definition)->
       # if definition is a function then execute it for the value
       if @definition instanceof Function
         dependencyStack.push this
-        @value = @definition()
-        dependencyStack.pop()
+        try @value = @definition()
+        finally dependencyStack.pop()
       else @value = @definition
       # since a new value is set clear the list of people who
       @readers = []
@@ -181,8 +181,8 @@ global.Observer = (response)->
       # do initial trigger and establish dependencies
       if response instanceof Function
         dependencyStack.push this
-        @response()
-        dependencyStack.pop()
+        try @response()
+        finally dependencyStack.pop()
 
     # configure the new response and do
     write: (newResponse)->

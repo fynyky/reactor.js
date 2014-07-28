@@ -432,8 +432,46 @@
         assert.equal(JSON.stringify(arraySignal()), JSON.stringify(controlArray));
         return assert.equal(JSON.stringify(controlOutput), JSON.stringify(signalOutput));
       });
-      it("should propagate changes when using array convenience methods");
-      return it("should not propagate changes when not using array convenience methods");
+      return it("should propagate changes when using array convenience methods", function() {
+        var arraySignal, dependentSignal;
+        arraySignal = Signal([]);
+        dependentSignal = Signal(function() {
+          return JSON.stringify(arraySignal);
+        });
+        arraySignal.push("x");
+        assert.equal(dependentSignal(), JSON.stringify(arraySignal));
+        arraySignal.push("y");
+        assert.equal(dependentSignal(), JSON.stringify(arraySignal));
+        arraySignal.push("z");
+        assert.equal(dependentSignal(), JSON.stringify(arraySignal));
+        arraySignal.pop();
+        assert.equal(dependentSignal(), JSON.stringify(arraySignal));
+        arraySignal.pop();
+        assert.equal(dependentSignal(), JSON.stringify(arraySignal));
+        arraySignal.pop();
+        assert.equal(dependentSignal(), JSON.stringify(arraySignal));
+        arraySignal.unshift("a");
+        assert.equal(dependentSignal(), JSON.stringify(arraySignal));
+        arraySignal.unshift("b");
+        assert.equal(dependentSignal(), JSON.stringify(arraySignal));
+        arraySignal.unshift("c");
+        assert.equal(dependentSignal(), JSON.stringify(arraySignal));
+        arraySignal.shift();
+        assert.equal(dependentSignal(), JSON.stringify(arraySignal));
+        arraySignal.shift();
+        assert.equal(dependentSignal(), JSON.stringify(arraySignal));
+        arraySignal.shift();
+        assert.equal(dependentSignal(), JSON.stringify(arraySignal));
+        arraySignal.push(4, 2, 3, 1, 5);
+        arraySignal.sort(function(x, y) {
+          return x - y;
+        });
+        assert.equal(dependentSignal(), JSON.stringify(arraySignal));
+        arraySignal.reverse();
+        assert.equal(dependentSignal(), JSON.stringify(arraySignal));
+        arraySignal.splice(1, 1, "hello there");
+        return assert.equal(dependentSignal(), JSON.stringify(arraySignal));
+      });
     });
   });
 

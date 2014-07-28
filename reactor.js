@@ -34,8 +34,11 @@
         this.dependencies = [];
         if (this.definition instanceof Function) {
           dependencyStack.push(this);
-          this.value = this.definition();
-          dependencyStack.pop();
+          try {
+            this.value = this.definition();
+          } finally {
+            dependencyStack.pop();
+          }
         } else {
           this.value = this.definition;
         }
@@ -158,8 +161,11 @@
         this.observees = [];
         if (response instanceof Function) {
           dependencyStack.push(this);
-          this.response();
-          return dependencyStack.pop();
+          try {
+            return this.response();
+          } finally {
+            dependencyStack.pop();
+          }
         }
       },
       write: function(newResponse) {

@@ -338,55 +338,40 @@ describe 'Signal', ->
       assert.equal JSON.stringify(arraySignal()), JSON.stringify(controlArray)
       assert.equal JSON.stringify(controlOutput), JSON.stringify(signalOutput)
 
-    it "should propagate changes when using array convenience methods"
-    it "should not propagate changes when not using array convenience methods"
-      # a = Signal []
-      # b = Signal -> "Serialized: " + JSON.stringify(a())
-      # assert.equal JSON.stringify(a()), '[]'
-      # assert.equal b(), 'Serialized: []'
-      # a()[0] = "x"
-      # assert.equal JSON.stringify(a()), '["x"]'
-      # assert.equal b(), 'Serialized: []'
-      # a(a())
-      # assert.equal JSON.stringify(a()), '["x"]'
-      # assert.equal b(), 'Serialized: ["x"]'
-      # a.set(1, "y")
-      # assert.equal JSON.stringify(a()), '["x","y"]'
-      # assert.equal b(), 'Serialized: ["x","y"]'
-      # a.push("z")
-      # assert.equal JSON.stringify(a()), '["x","y","z"]'
-      # assert.equal b(), 'Serialized: ["x","y","z"]'
-      # a.unshift("w")
-      # assert.equal JSON.stringify(a()), '["w","x","y","z"]'
-      # assert.equal b(), 'Serialized: ["w","x","y","z"]'
-      # c = a.shift()
-      # assert.equal JSON.stringify(a()), '["x","y","z"]'
-      # assert.equal b(), 'Serialized: ["x","y","z"]'
-      # assert.equal c, "w"
-      # a.reverse()
-      # assert.equal JSON.stringify(a()), '["z","y","x"]'
-      # assert.equal b(), 'Serialized: ["z","y","x"]'
-      # d = a.pop()
-      # assert.equal JSON.stringify(a()), '["z","y"]'
-      # assert.equal b(), 'Serialized: ["z","y"]'
-      # a.push("foo")
-      # a.push("bar")
-      # assert.equal JSON.stringify(a()), '["z","y","foo","bar"]'
-      # assert.equal b(), 'Serialized: ["z","y","foo","bar"]'
-      # d = a.splice(1,2)
-      # assert.equal JSON.stringify(d), '["y","foo"]'
-      # assert.equal JSON.stringify(a()), '["z","bar"]'
-      # assert.equal b(), 'Serialized: ["z","bar"]'
-      # a("pies")
-      # assert.equal a(), "pies"
-      # assert.equal b(), 'Serialized: "pies"'
-      # assert.equal a.pop, undefined
-      # assert.equal a.push, undefined
-      # assert.equal a.shift, undefined
-      # assert.equal a.unshift, undefined
-      # assert.equal a.sort, undefined
-      # assert.equal a.reverse, undefined
-      # assert.equal a.splice, undefined
+    it "should propagate changes when using array convenience methods", ->
+      arraySignal = Signal []
+      dependentSignal = Signal -> JSON.stringify(arraySignal)
+      arraySignal.push("x")
+      assert.equal dependentSignal(), JSON.stringify(arraySignal)
+      arraySignal.push("y")
+      assert.equal dependentSignal(), JSON.stringify(arraySignal)
+      arraySignal.push("z")
+      assert.equal dependentSignal(), JSON.stringify(arraySignal)
+      arraySignal.pop()
+      assert.equal dependentSignal(), JSON.stringify(arraySignal)
+      arraySignal.pop()
+      assert.equal dependentSignal(), JSON.stringify(arraySignal)
+      arraySignal.pop()
+      assert.equal dependentSignal(), JSON.stringify(arraySignal)
+      arraySignal.unshift("a")
+      assert.equal dependentSignal(), JSON.stringify(arraySignal)
+      arraySignal.unshift("b")
+      assert.equal dependentSignal(), JSON.stringify(arraySignal)
+      arraySignal.unshift("c")
+      assert.equal dependentSignal(), JSON.stringify(arraySignal)
+      arraySignal.shift()
+      assert.equal dependentSignal(), JSON.stringify(arraySignal)
+      arraySignal.shift()
+      assert.equal dependentSignal(), JSON.stringify(arraySignal)
+      arraySignal.shift()
+      assert.equal dependentSignal(), JSON.stringify(arraySignal)
+      arraySignal.push(4,2,3,1,5)
+      arraySignal.sort((x,y)-> x - y)
+      assert.equal dependentSignal(), JSON.stringify(arraySignal)
+      arraySignal.reverse()
+      assert.equal dependentSignal(), JSON.stringify(arraySignal)
+      arraySignal.splice(1,1,"hello there")
+      assert.equal dependentSignal(), JSON.stringify(arraySignal)
 
 describe "Observer", ->
 
