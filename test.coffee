@@ -262,37 +262,84 @@ describe 'Signal', ->
       aSignal.set("foo", 1)
       assert.equal bSignal(), 'Serialized: {"foo":1}'
 
-    it "TODO rewrite: basic array push "
-      # a = Signal []
-      # a.push "x"
-      # assert.equal JSON.stringify(a()), '["x"]'
+    it "should call array mutator convenience methods without error", ->
+      arraySignal = Signal []
+      arraySignal.push("x")
+      arraySignal.pop()
+      arraySignal.unshift("x")
+      arraySignal.shift()
+      arraySignal.sort((x,y)-> x -y)
+      arraySignal.reverse()
+      arraySignal.splice(0, 0, "x")
 
-    it "TODO rewrite: array initialized properly"
-      # a = Signal []
-      # a.push("x")
-      # assert.equal JSON.stringify(a()), '["x"]'
-      # a.push("y")
-      # assert.equal JSON.stringify(a()), '["x","y"]'
-      # a.pop()
-      # assert.equal JSON.stringify(a()), '["x"]'
-      # a.pop()
-      # assert.equal JSON.stringify(a()), '[]'
-      # a.unshift("x")
-      # assert.equal JSON.stringify(a()), '["x"]'
-      # a.unshift("y")
-      # assert.equal JSON.stringify(a()), '["y","x"]'
-      # a.unshift("z")
-      # assert.equal JSON.stringify(a()), '["z","y","x"]'
-      # a.sort()
-      # assert.equal JSON.stringify(a()), '["x","y","z"]'
-      # a.reverse()
-      # assert.equal JSON.stringify(a()), '["z","y","x"]'
-      # a.splice(1,1,"w")
-      # assert.equal JSON.stringify(a()), '["z","w","x"]'
-      # a.shift()
-      # assert.equal JSON.stringify(a()), '["w","x"]'
+    it "should modify the array correctly when using array convenience methods", ->
+      controlArray = []
+      arraySignal = Signal []
+      controlOutput = controlArray.push("x")
+      signalOutput = arraySignal.push("x")
+      assert.equal JSON.stringify(arraySignal()), JSON.stringify(controlArray)
+      assert.equal JSON.stringify(controlOutput), JSON.stringify(signalOutput)
+      controlOutput = controlArray.push("y")
+      signalOutput = arraySignal.push("y")
+      assert.equal JSON.stringify(arraySignal()), JSON.stringify(controlArray)
+      assert.equal JSON.stringify(controlOutput), JSON.stringify(signalOutput)
+      controlOutput = controlArray.push("z")
+      signalOutput = arraySignal.push("z")
+      assert.equal JSON.stringify(arraySignal()), JSON.stringify(controlArray)
+      assert.equal JSON.stringify(controlOutput), JSON.stringify(signalOutput)
+      controlOutput = controlArray.pop()
+      signalOutput = arraySignal.pop()
+      assert.equal JSON.stringify(arraySignal()), JSON.stringify(controlArray)
+      assert.equal JSON.stringify(controlOutput), JSON.stringify(signalOutput)
+      controlOutput = controlArray.pop()
+      signalOutput = arraySignal.pop()
+      assert.equal JSON.stringify(arraySignal()), JSON.stringify(controlArray)
+      assert.equal JSON.stringify(controlOutput), JSON.stringify(signalOutput)
+      controlOutput = controlArray.pop()
+      signalOutput = arraySignal.pop()
+      assert.equal JSON.stringify(arraySignal()), JSON.stringify(controlArray)
+      assert.equal JSON.stringify(controlOutput), JSON.stringify(signalOutput)
+      controlOutput = controlArray.unshift("a")
+      signalOutput = arraySignal.unshift("a")
+      assert.equal JSON.stringify(arraySignal()), JSON.stringify(controlArray)
+      assert.equal JSON.stringify(controlOutput), JSON.stringify(signalOutput)
+      controlOutput = controlArray.unshift("b")
+      signalOutput = arraySignal.unshift("b")
+      assert.equal JSON.stringify(arraySignal()), JSON.stringify(controlArray)
+      assert.equal JSON.stringify(controlOutput), JSON.stringify(signalOutput)
+      controlOutput = controlArray.unshift("c")
+      signalOutput = arraySignal.unshift("c")
+      assert.equal JSON.stringify(arraySignal()), JSON.stringify(controlArray)
+      assert.equal JSON.stringify(controlOutput), JSON.stringify(signalOutput)
+      controlOutput = controlArray.shift()
+      signalOutput = arraySignal.shift()
+      assert.equal JSON.stringify(arraySignal()), JSON.stringify(controlArray)
+      assert.equal JSON.stringify(controlOutput), JSON.stringify(signalOutput)
+      controlOutput = controlArray.shift()
+      signalOutput = arraySignal.shift()
+      assert.equal JSON.stringify(arraySignal()), JSON.stringify(controlArray)
+      assert.equal JSON.stringify(controlOutput), JSON.stringify(signalOutput)
+      controlOutput = controlArray.shift()
+      signalOutput = arraySignal.shift()
+      assert.equal JSON.stringify(arraySignal()), JSON.stringify(controlArray)
+      assert.equal JSON.stringify(controlOutput), JSON.stringify(signalOutput)
+      controlOutput = controlArray.push(4,2,3,1,5)
+      signalOutput = arraySignal.push(4,2,3,1,5)
+      controlOutput = controlArray.sort((x,y)-> x - y)
+      signalOutput = arraySignal.sort((x,y)-> x - y)
+      assert.equal JSON.stringify(arraySignal()), JSON.stringify(controlArray)
+      assert.equal JSON.stringify(controlOutput), JSON.stringify(signalOutput)
+      controlOutput = controlArray.reverse()
+      signalOutput = arraySignal.reverse()
+      assert.equal JSON.stringify(arraySignal()), JSON.stringify(controlArray)
+      assert.equal JSON.stringify(controlOutput), JSON.stringify(signalOutput)
+      controlOutput = controlArray.splice(1,1,"hello there")
+      signalOutput = arraySignal.splice(1,1,"hello there")
+      assert.equal JSON.stringify(arraySignal()), JSON.stringify(controlArray)
+      assert.equal JSON.stringify(controlOutput), JSON.stringify(signalOutput)
 
-    it "TODO rewrite: array methods"
+    it "should propagate changes when using array convenience methods"
+    it "should not propagate changes when not using array convenience methods"
       # a = Signal []
       # b = Signal -> "Serialized: " + JSON.stringify(a())
       # assert.equal JSON.stringify(a()), '[]'
