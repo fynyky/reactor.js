@@ -443,3 +443,20 @@ describe "Observer", ->
     assert.equal triggerCount, 2 # trigger count should stay the same since b was written not read
     assert.equal bSignal(), 4
 
+describe 'Error Handling', ->
+
+  it "should not continue to propagate when a dependent signal fails", ->
+    sourceSignal = Signal 1
+    errorfulDependentSignal = Signal -> sourceSignal() + nonExistentVariable
+    errorlessDependentSignal = Signal -> sourceSignal() + 7
+
+  it "should throw an error as a corrupted signal when read", ->
+    sourceSignal = Signal 1
+    errorfulDependentSignal = Signal -> sourceSignal() + nonExistentVariable
+    errorfulDependentSignal()
+
+  it "should throw propagate the error through dependent signals", ->
+    sourceSignal = Signal 1
+    errorfulDependentSignal = Signal -> sourceSignal() + nonExistentVariable
+    anotherDependentSignal = Signal -> errorfulDependentSignal()
+    anotherDependentSignal()

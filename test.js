@@ -563,4 +563,36 @@
     });
   });
 
+  describe('Error Handling', function() {
+    it("should not continue to propagate when a dependent signal fails", function() {
+      var errorfulDependentSignal, errorlessDependentSignal, sourceSignal;
+      sourceSignal = Signal(1);
+      errorfulDependentSignal = Signal(function() {
+        return sourceSignal() + nonExistentVariable;
+      });
+      return errorlessDependentSignal = Signal(function() {
+        return sourceSignal() + 7;
+      });
+    });
+    it("should throw an error as a corrupted signal when read", function() {
+      var errorfulDependentSignal, sourceSignal;
+      sourceSignal = Signal(1);
+      errorfulDependentSignal = Signal(function() {
+        return sourceSignal() + nonExistentVariable;
+      });
+      return errorfulDependentSignal();
+    });
+    return it("should throw propagate the error through dependent signals", function() {
+      var anotherDependentSignal, errorfulDependentSignal, sourceSignal;
+      sourceSignal = Signal(1);
+      errorfulDependentSignal = Signal(function() {
+        return sourceSignal() + nonExistentVariable;
+      });
+      anotherDependentSignal = Signal(function() {
+        return errorfulDependentSignal();
+      });
+      return anotherDependentSignal();
+    });
+  });
+
 }).call(this);

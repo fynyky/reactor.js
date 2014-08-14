@@ -61,6 +61,7 @@ global.Signal = (definition)->
     dependents: []
     observers: []
     readers: []
+    error: null
 
     # Sets the signals value based on the definition
     # While establishing its dependencies
@@ -70,10 +71,15 @@ global.Signal = (definition)->
         dependentIndex = dependency.dependents.indexOf(this)
         dependency.dependents[dependentIndex] = null
       @dependencies = []
+      @error = null # clear old errors as well
       # if definition is a function then execute it for the value
       if @definition instanceof Function
         dependencyStack.push this
         try @value = @definition()
+        catch error
+          @error = error
+          for property of @error
+            console.log @error[property]
         finally dependencyStack.pop()
       else @value = @definition
       # since a new value is set clear the list of people who
@@ -112,8 +118,10 @@ global.Signal = (definition)->
       else if dependent? and dependent.dependencyType is OBSERVER
         @observers.push dependent if dependent not in @observers
         dependent.observees.push this if this not in dependent.observees
-      return @value
-
+      if @error
+        signalError = new Error("Signal corrupted with " + @error)
+        throw signalError
+      else return @value
 
     # Life of a write
     #   new definition is set
@@ -182,6 +190,7 @@ global.Observer = (response)->
       if response instanceof Function
         dependencyStack.push this
         try @response()
+        catch error # do nothing
         finally dependencyStack.pop()
 
     # configure the new response and do

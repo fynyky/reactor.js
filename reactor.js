@@ -23,8 +23,9 @@
       dependents: [],
       observers: [],
       readers: [],
+      error: null,
       evaluate: function() {
-        var dependency, dependentIndex, _i, _len, _ref;
+        var dependency, dependentIndex, error, property, _i, _len, _ref;
         _ref = this.dependencies;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           dependency = _ref[_i];
@@ -32,10 +33,17 @@
           dependency.dependents[dependentIndex] = null;
         }
         this.dependencies = [];
+        this.error = null;
         if (this.definition instanceof Function) {
           dependencyStack.push(this);
           try {
             this.value = this.definition();
+          } catch (_error) {
+            error = _error;
+            this.error = error;
+            for (property in this.error) {
+              console.log(this.error[property]);
+            }
           } finally {
             dependencyStack.pop();
           }
@@ -67,7 +75,7 @@
         return observerList;
       },
       read: function() {
-        var dependent;
+        var dependent, signalError;
         dependent = dependencyStack[dependencyStack.length - 1];
         if ((dependent != null) && __indexOf.call(this.readers, dependent) < 0) {
           this.readers.push(dependent);
@@ -87,7 +95,12 @@
             dependent.observees.push(this);
           }
         }
-        return this.value;
+        if (this.error) {
+          signalError = new Error("Signal corrupted with " + this.error);
+          throw signalError;
+        } else {
+          return this.value;
+        }
       },
       write: function(newDefinition) {
         var methodName, observer, observerList, _fn, _i, _j, _k, _len, _len1, _len2, _ref;
@@ -151,7 +164,7 @@
       dependencyType: OBSERVER,
       observees: [],
       trigger: function() {
-        var observee, observerIndex, _i, _len, _ref;
+        var error, observee, observerIndex, _i, _len, _ref;
         _ref = this.observees;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           observee = _ref[_i];
@@ -163,6 +176,8 @@
           dependencyStack.push(this);
           try {
             return this.response();
+          } catch (_error) {
+            error = _error;
           } finally {
             dependencyStack.pop();
           }
