@@ -627,4 +627,20 @@
     });
   });
 
+  describe('Class Inheritance', function() {
+    return it('should have an instance of Signal for created signals', function() {
+      var aSignal;
+      aSignal = Signal(1);
+      return assert.equal(aSignal instanceof Signal, true);
+    });
+  });
+
+  it('should have an instance of Observer for created observers', function() {
+    var anObserver;
+    anObserver = Observer(function() {
+      return 1;
+    });
+    return assert.equal(anObserver instanceof Observer, true);
+  });
+
 }).call(this);
