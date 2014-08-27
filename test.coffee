@@ -1,5 +1,5 @@
 assert = require 'assert'
-{Signal, Observer} = require './reactor'
+{Signal, Observer, CompoundError} = require './reactor'
 
 describe 'Signal', ->
 
@@ -13,11 +13,11 @@ describe 'Signal', ->
 
   describe 'Reading', ->
 
-    it 'should read the inital value without error', ->      
+    it 'should read the inital value without error', ->
       numberSignal = Signal 123456789
       stringSignal = Signal "foo"
       arraySignal = Signal []
-      objectSignal = Signal {}      
+      objectSignal = Signal {}
       numberSignal()
       stringSignal()
       arraySignal()
@@ -31,7 +31,7 @@ describe 'Signal', ->
       numberSignal = Signal numberValue
       stringSignal = Signal stringValue
       arraySignal = Signal arrayValue
-      objectSignal = Signal objectValue     
+      objectSignal = Signal objectValue
       assert.equal numberSignal(), 123456789
       assert.equal stringSignal(), "foo"
       assert.equal arraySignal(), arrayValue
@@ -72,7 +72,7 @@ describe 'Signal', ->
       assert.equal arraySignal(newArrayValue), newArrayValue
       assert.equal objectSignal(newObjectValue), newObjectValue
 
-    it 'should return the new value on subsequent reads', ->      
+    it 'should return the new value on subsequent reads', ->
       numberSignal = Signal 123456789
       stringSignal = Signal "foo"
       arraySignal = Signal ["a", "b", "c"]
@@ -83,7 +83,7 @@ describe 'Signal', ->
       newObjectValue = {"bar": 2}
       numberSignal(newNumberValue)
       stringSignal(newStringValue)
-      arraySignal(newArrayValue)      
+      arraySignal(newArrayValue)
       objectSignal(newObjectValue)
       assert.equal numberSignal(), newNumberValue
       assert.equal stringSignal(), newStringValue
@@ -91,7 +91,7 @@ describe 'Signal', ->
       assert.equal objectSignal(), newObjectValue
 
 
-  describe 'Propagation', ->    
+  describe 'Propagation', ->
 
     it "should initialize a dependent signal without error", ->
       a = Signal 1
@@ -157,12 +157,12 @@ describe 'Signal', ->
       assert.equal c(), 12
       assert.equal d(), 13
 
-    it 'should initialize convergent dependencies without error', ->    
+    it 'should initialize convergent dependencies without error', ->
       a = Signal 1
       b = Signal 2
       c = Signal -> a() + b()
 
-    it 'should initialize convergent dependencies with the correct value', ->    
+    it 'should initialize convergent dependencies with the correct value', ->
       a = Signal 1
       b = Signal 2
       c = Signal -> a() + b()
@@ -170,7 +170,7 @@ describe 'Signal', ->
       assert.equal b(), 2
       assert.equal c(), 3
 
-    it 'should propagate changes to convergent dependencies', ->    
+    it 'should propagate changes to convergent dependencies', ->
       a = Signal 1
       b = Signal 2
       c = Signal -> a() + b()
@@ -182,7 +182,7 @@ describe 'Signal', ->
       assert.equal a(), 7
       assert.equal b(), 3
       assert.equal c(), 10
-      
+
     it "should break unneeded dependencies after manual redefinition", ->
       a = Signal 1
       b = Signal -> a()
@@ -203,7 +203,7 @@ describe 'Signal', ->
       a = Signal true
       b = Signal "foo"
       c = Signal "bar"
-      d = Signal -> 
+      d = Signal ->
         triggerCount += 1
         if a() then b() else c()
       assert.equal triggerCount, 1 # initialization evaluation
@@ -222,7 +222,7 @@ describe 'Signal', ->
       triggerCount = 0
       a = Signal 1
       b = Signal -> a() + 1
-      c = Signal -> 
+      c = Signal ->
         a() + b()
         triggerCount += 1
       a(2)
@@ -431,7 +431,7 @@ describe "Observer", ->
     triggerCount = 0
     aSignal = Signal 1
     bSignal = Signal 2
-    anObserver = Observer -> 
+    anObserver = Observer ->
       triggerCount += 1
       bSignal(aSignal())
     assert.equal triggerCount, 1
@@ -445,18 +445,32 @@ describe "Observer", ->
 
 describe 'Error Handling', ->
 
-  it "should not continue to propagate when a dependent signal fails", ->
+  it "should throw error immediately on invalid signal definition", ->
     sourceSignal = Signal 1
-    errorfulDependentSignal = Signal -> sourceSignal() + nonExistentVariable
-    errorlessDependentSignal = Signal -> sourceSignal() + 7
+    try errorfulDependentSignal = Signal -> sourceSignal() + nonExistentVariable
+    catch error
+      throw error unless error instanceof ReferenceError
+      return
+    throw new Error("no error when errors expected")
 
-  it "should throw an error as a corrupted signal when read", ->
+  it "should throw a CompoundError if multiple signals are affected", ->
     sourceSignal = Signal 1
-    errorfulDependentSignal = Signal -> sourceSignal() + nonExistentVariable
-    errorfulDependentSignal()
+    firstErrorfulDependentSignal = Signal ->
+      if sourceSignal() > 2 then throw new RangeError("source too big!")
+      else return sourceSignal()
+    secondErrorfulDependentSignal = Signal -> firstErrorfulDependentSignal()
+    thirdErrorfulDependentSignal = Signal -> secondErrorfulDependentSignal()
+    try sourceSignal(5)
+    catch error
+      throw error unless error instanceof CompoundError
+      return
+    throw new Error("no error when errors expected")
 
-  it "should throw propagate the error through dependent signals", ->
+  it "should throw an error even if only observers are affected", ->
     sourceSignal = Signal 1
-    errorfulDependentSignal = Signal -> sourceSignal() + nonExistentVariable
-    anotherDependentSignal = Signal -> errorfulDependentSignal()
-    anotherDependentSignal()
+    errorfulObserver = Observer ->
+      if sourceSignal() > 2 then throw new RangeError("source too big!")
+      else return sourceSignal()
+    try sourceSignal(5)
+    catch error then return
+    throw new Error("no error when error expected")
