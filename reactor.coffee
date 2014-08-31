@@ -36,43 +36,7 @@ global = exports ? this
 # wWen a signal or observer's evaluation is done - it pops itself off the stack
 dependencyStack = []
 
-# Custom Error classes
-# Errors can occur in the user defined evaluation functions
-# When an error occurs do 3 things
-# 1) Set self in error
-# 2) propagate the error forward
-# 3) catch any remaining errors
-# class LinkedError extends Error
-#   constructor: (message, cause)->
-#     # Prepare the description to include the cause
-#     @cause = cause
-#     causeDescription = @cause.stack ? @cause.toString()
-#     compoundMessage = message + '\nCause: ' + causeDescription
-#     # Initialize it as a normal error with a different name
-#     proxyError = Error.call(this, compoundMessage)
-#     proxyError.name = "LinkedError"
-#     errorProperties = Object.getOwnPropertyNames(proxyError)
-#     for property in errorProperties when proxyError.hasOwnProperty(property)
-#       this[property] = proxyError[property]
-#     return this
 
-class CompoundError extends Error
-  constructor: (message, errorArray)->
-    # Prepare the description to include the cause
-    @errors = errorArray
-    for error in @errors
-      errorDescription = error.stack ? error.toString()
-      message = message + '\n' + errorDescription
-
-    # Initialize it as a normal error with a different name
-    proxyError = Error.call(this, message)
-    proxyError.name = "CompoundError"
-    errorProperties = Object.getOwnPropertyNames(proxyError)
-    for property in errorProperties when proxyError.hasOwnProperty(property)
-      this[property] = proxyError[property]
-    return this
-
-global.CompoundError = CompoundError
 
 # Signals are functions representing observed values
 # They are read by executing the function with no arguments
@@ -91,12 +55,11 @@ global.Signal = (definition)->
   # The actual "guts" of a signal containing properties and methods
   signalCore =
 
-    # Initial base properly of the signal
     definition: null
     value: null
+    dependents: []
     dependencies: []
     dependencyType: SIGNAL
-    dependents: []
     observers: []
     readers: []
     error: null
@@ -243,3 +206,25 @@ global.Observer = (response)->
   # Creation path - basically identical to the signal creation path
   observerCore.write(response)
   return observerInterface
+
+
+# Custom Error class to consolidate multiple errors together
+class CompoundError extends Error
+  constructor: (message, errorArray)->
+    @errors = errorArray
+    for error in @errors
+      errorDescription = error.stack ? error.toString()
+      message = message + '\n' + errorDescription
+
+    # Initialize it as a normal error with a different name
+    # stack property is dynamically generated on read
+    # so name needs to be set first before properties are copied
+    proxyError = Error.call(this, message)
+    proxyError.name = "CompoundError"
+    errorProperties = Object.getOwnPropertyNames(proxyError)
+    for property in errorProperties when proxyError.hasOwnProperty(property)
+      this[property] = proxyError[property]
+
+    return this
+
+global.CompoundError = CompoundError

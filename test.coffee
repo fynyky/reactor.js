@@ -474,14 +474,3 @@ describe 'Error Handling', ->
     try sourceSignal(5)
     catch error then return
     throw new Error("no error when error expected")
-
-
-describe 'Class Inheritance', ->
-
-  it 'should have an instance of Signal for created signals', ->
-    aSignal = Signal 1
-    assert.equal (aSignal instanceof Signal), true
-
-it 'should have an instance of Observer for created observers', ->
-  anObserver = Observer -> 1
-  assert.equal (anObserver instanceof Observer), true
