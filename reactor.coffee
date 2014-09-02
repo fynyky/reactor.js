@@ -1,170 +1,230 @@
-# Reactor is a javascript library for reactive programming
-# It comprises of 2 primary components: Signals and Observers
-
-# Signals represent values which can be observed
-# A signal's value can either be set directly or defined in terms of other signals
-
-# Observers represent reactions to changes in signals
-# An observer can observe multiple signals and will trigger when any of them changes
-
-# Together, signals and observers form a directed acyclic graph
-# Signals form the root and intermediate nodes of the graph
-# Observers form the leaf nodes in the graph
-
-# When a signal is updated, it propagates its changes through the graph updating other signals
-# After all dependent signals have been updated the relevant observers will be triggered
-# From the perspective of observers, all signals are updated atomically and instantly
-
-# In Reactor, observer and signal dependencies are set automatically and dynamically
-# Reactor detects when a signal is being used at run time, and automatically establishes the link
-# This means there is no need to explicitly declare dependencies
-# And dependencies can be changed across the execution of the program
-
 # Constants
 SIGNAL = "SIGNAL"
 OBSERVER = "OBSERVER"
-ARRAY_METHODS = ["pop", "push", "reverse", "shift", "sort", "splice", "unshift"]
 
-# In node.js, Reactor is packaged into the exports obgject as a module import
+# In Node.js, Reactor is packaged into a module
 # In the browser, Reactor is bound directly to the window namespace
 global = exports ? this
 
-# Global stack to automatically track signal dependencies
-# Whenever a signal or observer is evaluated - it puts itself on the dependency stack
-# When another signals is read - the dependency stack is checked to see who is asking
-# The reader gets added as a dependent to the signal being read
-# wWen a signal or observer's evaluation is done - it pops itself off the stack
+# Global stack to automatically track dependencies
+# - When a signal is evaluated, it first puts itself on the dependency stack
+# - When a signal is read, it checks the top of the stack to see who is reading
+# - The reader gets added as a dependent of the readee
+# - The readee gets added as a dependency of the reader
+# - When the signal evaluation is done, the signal pops itself off the stack
 dependencyStack = []
 
-
-
-# Signals are functions representing observed values
-# They are read by executing the function with no arguments
-# They are set by executing the function with a signal definition as the only argument
-# If the definition is itself a function - it is executed to retrive the signal value
-# Otherwise, the definition is read as the value directly
-# If a signal definition reads other signals, it automatically gets set as a dependent
-# If any signal dependencies get updated, the dependent signal is automatically updated as well
-# Note that a signal's definition should NOT have any external effects
-# It should only read other values and return its own value
-# For external effects, use observers instead
+# Signals are functions representing values
+# - Read a signal by calling it with no arguments
+# - Write to a signal by calling it with the desired value as an argument
+# - Define a signal by calling it with a function as an argument
+# - This means the value is the function's output instead of the function itself
+#-------------------------------------------------------------------------------
+# If a signal reads other signals in it's definition, it is dependent on them
+# - Signals automatically track what other signals they depend on
+# - If any dependencies get updated, the dependent gets updated as well
+#-------------------------------------------------------------------------------
+# Signals should NOT have any external effects
+# - It should only read other values and return its own value
+# - For external effects, use observers instead
+#-------------------------------------------------------------------------------
 # To "destory" a signal, just set its definition to null
-# -----------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+# Signals are made up of 2 main parts
+# - The core: The properties & methods which lets signals work
+# - The interface: The function returned to the user to use
 global.Signal = (definition)->
 
-  # The actual "guts" of a signal containing properties and methods
+  # The "guts" of a signal containing properties and methods
+  # All actual functionality & state should be built into the core
+  # Should be completely agnostic to syntactic sugar
   signalCore =
 
+    # Properties tracking the state of the signal
+    dependencyType: SIGNAL
     definition: null
     value: null
-    dependents: []
-    dependencies: []
-    dependencyType: SIGNAL
-    observers: []
-    readers: []
     error: null
+    dependencies: [] # Signals which this uses in its definition
+    dependents: [] # Signals which use this in their definitions
+    observers: [] # Observers which use this in their triggers
+    bindings: []
 
-    # Sets the signals value based on the definition
-    # While establishing its dependencies
-    evaluate: (observerList, errorList)->
-      # clear old dependencies both forward and back pointers
+    # Sets the signal's value based on the definition
+    # Also establishes dependencies if necessary
+    evaluate: ->
+
+      # clear old dependencies and errors
       for dependency in @dependencies
         dependentIndex = dependency.dependents.indexOf(this)
         dependency.dependents[dependentIndex] = null
       @dependencies = []
-      @error = null # clear old errors as well
+      @error = null
+
       # if definition is a function then execute it for the value
       if @definition instanceof Function
         dependencyStack.push this
         try @value = @definition()
         catch error
           @error = error
-          errorList.push error
+          throw error
         finally dependencyStack.pop()
+
+      # For non-functions the value is just definition
       else @value = @definition
-      # since a new value is set clear the list of people who
-      @readers = []
-      # Notifies dependent signals of the change
-      # While simultaneously collecting list of affected observers
-      # Adds its own observers to the list
-      # Then recursively updates its dependents
-      # The final observer list is return to the caller to trigger
-      for observer in @observers when observer?
-        observerList.push(observer) if observer not in observerList
-      # Need to make a copy of the list since the child evalutaes reach back and modify the dependent list
-      for dependency in @dependents[...] when dependency? and dependency not in @readers
-        dependency.evaluate(observerList, errorList)
-      return observerList
 
     # Life of a read
-    #   check to see who is asking
-    #   register them as a dependent
-    #   register self and their dependency
-    #   return value
+    # - check to see who is asking
+    # - register them as a dependent
+    # - register self and their dependency
+    # - return value
     read: ->
+
       # check the global stack for the most recent dependent being evaluated
       # assume this is the caller and set it as a dependent
       dependent = dependencyStack[dependencyStack.length - 1]
-      # Register that they have read the current form and do not need to be notified
-      @readers.push(dependent) if dependent? and dependent not in @readers
+
       # If its a signal or observer dependency register it accordingly
-      # symmetrically register itself as a dependency for cleaning dependencies later
+      # symmetrically register itself as a dependency for clearing later
       if dependent? and dependent.dependencyType is SIGNAL
         @dependents.push dependent if dependent not in @dependents
         dependent.dependencies.push this if this not in dependent.dependencies
+
       else if dependent? and dependent.dependencyType is OBSERVER
         @observers.push dependent if dependent not in @observers
         dependent.observees.push this if this not in dependent.observees
+
+      # If the signal has an error then reading from causes another error
       if @error
         signalError = new Error('Reading from corrupted Signal', @error)
         throw signalError
+
       else return @value
 
     # Life of a write
-    #   new definition is set
-    #   execute new definition if necessary and establish dependencies
-    #   delete/configure convenience methods
-    #   recursively evaluate dependents while collecting observers
-    #   notify observers
+    # - set the new definition
+    # - configure convenience methods
+    # - execute new definition if necessary and establish dependencies
+    # - recursively evaluate dependents while collecting observers
+    # - notify observers
     write: (newDefinition)->
+
       @definition = newDefinition
-      # Set the special array methods if the definition is an array or an object
-      # Essentially providing convenience mutator methods which automatically trigger revaluation
-      if @definition instanceof Array then for methodName in ARRAY_METHODS
-        do (methodName)=>
-          signalInterface[methodName] = =>
-            output = @definition[methodName].apply(@definition, arguments)
-            @write(@definition)
-            return output
-      else delete signalInterface[methodName] for methodName in ARRAY_METHODS
-      if @definition instanceof Object
-        signalInterface.set = (key, value)=>
-          @definition[key] = value
-          @write(@definition)
-      else delete signalInterface.set
-      # Propagate the changes and collect back the observers and errors
-      observerList = []
-      errorList = []
-      @evaluate(observerList, errorList)
-      for observer in observerList[...] # Copy the list since the trigger might modify it
+
+      # Propagate changes
+      dependencyQueue = [this] # Queue of dependent signals to update
+      observerList = [] # Simultaneously collect dependent observers
+      bindingList = []
+      errorList = [] # Consolidate errors caused by the propagation
+
+      # Breadth first propagation of the changes to dependents
+      while dependencyQueue.length >= 1
+        target = dependencyQueue.shift()
+        if target?
+
+          # Evaluate the current signal
+          # If an error occurs, collect it and keep propagating
+          # A conslidated error will be thrown at the end of propagation
+          try target.evaluate()
+          catch error then errorList.push error
+
+          # Build the propagation queue
+          for dependent in target.dependents when dependent?
+            dependencyQueue.push dependent unless dependent in dependencyQueue
+
+          # Collect the observer list
+          for observer in target.observers when observer?
+            observerList.push observer unless observer in observerList
+
+          # Collect the bindings
+          for binding in target.bindings when binding?
+            bindingList.push binding unless binding in bindingList
+
+      # Once signal propagation has completed, then do observer propagation
+      # This ensures that observers only see a consistent state of the signals
+      for observer in observerList
         try observer.trigger()
         catch error then errorList.push error
-      # Report the total errors caused as a single compound error
+
+      for binding in bindingList
+        try binding()
+        catch error then errorList.push error
+
+      # If any errors occured during propagation then consolidate and throw them
       if errorList.length is 1 then throw errorList[0]
       else if errorList.length > 1
-        throw new CompoundError( errorList.length + " errors due to signal write", errorList)
+        errorMessage = errorList.length + " errors due to signal write"
+        throw new CompoundError(errorMessage, errorList)
+
+      # Return the written value on a write, just as a normal variable does
       return @value
+
+    bind: (bindee)->
+      bindings.push bindee unless bindee in bindings
 
   # The interface function returned to the user to utilize the signal
   # This is done to abstract away the messiness of how the signals work
+  # Should contain no additional functionality and be purely syntactic sugar
   signalInterface = (newDefinition)->
+
     # An empty call is treated as a read
     if arguments.length is 0 then signalCore.read()
-    # A non empty call is treated as a write
-    else signalCore.write(newDefinition)
 
-  # Creation path - basically just initializing with the first definition
-  signalCore.write(definition)
+    # A non empty call is treated as a write
+    else
+
+      # Set convenience methods
+      if newDefinition instanceof Object
+        signalInterface.set = (key, value)->
+          output = newDefinition[key] = value
+          signalCore.write(newDefinition)
+          return output
+      else
+        delete signalInterface.set
+
+      if newDefinition instanceof Array
+        signalInterface.push = ->
+          output = newDefinition.push.apply(newDefinition, arguments)
+          signalCore.write(newDefinition)
+          return output
+        signalInterface.pop = ->
+          output = newDefinition.pop.apply(newDefinition, arguments)
+          signalCore.write(newDefinition)
+          return output
+        signalInterface.shift = ->
+          output = newDefinition.shift.apply(newDefinition, arguments)
+          signalCore.write(newDefinition)
+          return output
+        signalInterface.unshift = ->
+          output = newDefinition.unshift.apply(newDefinition, arguments)
+          signalCore.write(newDefinition)
+          return output
+        signalInterface.reverse = ->
+          output = newDefinition.reverse.apply(newDefinition, arguments)
+          signalCore.write(newDefinition)
+          return output
+        signalInterface.sort = ->
+          output = newDefinition.sort.apply(newDefinition, arguments)
+          signalCore.write(newDefinition)
+          return output
+        signalInterface.splice = ->
+          output = newDefinition.splice.apply(newDefinition, arguments)
+          signalCore.write(newDefinition)
+          return output
+      else
+        delete signalInterface.push
+        delete signalInterface.pop
+        delete signalInterface.shift
+        delete signalInterface.unshift
+        delete signalInterface.reverse
+        delete signalInterface.sort
+        delete signalInterface.splice
+
+      # Once convenience methods are set on the interface
+      signalCore.write(newDefinition)
+
+  # Initialize with the full write path and return the interface
+  signalInterface(definition)
   return signalInterface
 
 # Observers represent responses to signal changes
@@ -177,8 +237,8 @@ global.Signal = (definition)->
 global.Observer = (response)->
 
   observerCore =
-    response: null
     dependencyType: OBSERVER
+    response: null
     observees: []
 
     # Activate the observer as well as reconfigure dependencies
