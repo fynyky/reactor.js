@@ -50,16 +50,18 @@ global.Signal = (definition)->
 
     # Sets the signal's value based on the definition
     # Also establishes dependencies if necessary
+    # - Clear previous dependencies
+    # - Put self on stack, rerun definition, pop self off
     update: ->
 
       # clear old dependencies and errors
       for dependency in @dependencies
         dependentIndex = dependency.dependents.indexOf this
-        dependency.dependents.splice(dependentIndex, 1)
+        dependency.dependents[dependentIndex] = null
       @dependencies = []
-      @error = null
 
       # if definition is a function then execute it for the value
+      @error = null
       if @definition instanceof Function
         dependencyStack.push this
         try @value = @definition()
@@ -83,7 +85,10 @@ global.Signal = (definition)->
       # symmetrically register dependent/dependency relationship
       dependent = dependencyStack[dependencyStack.length - 1]
       if dependent?
-        @dependents.push dependent if dependent not in @dependents
+        if dependent not in @dependents
+          firstNullIndex = @dependents.indexOf null
+          if firstNullIndex >= 0 then @dependents[firstNullIndex] = dependent
+          else @dependents.push dependent
         dependent.dependencies.push this if this not in dependent.dependencies
 
       # If signal has an error then its value is invalid
@@ -121,7 +126,7 @@ global.Signal = (definition)->
         catch error then errorList.push error
 
         # Build the propagation queue
-        for dependent in target.dependents
+        for dependent in target.dependents when dependent?
           if dependent.dependencyType is SIGNAL
             dependencyQueue.push dependent unless dependent in dependencyQueue
           else if dependent.dependencyType is OBSERVER
@@ -227,7 +232,7 @@ global.Observer = (definition)->
       # clear old dependencies and errors
       for dependency in @dependencies
         dependentIndex = dependency.dependents.indexOf this
-        dependency.dependents.splice(dependentIndex, 1)
+        dependency.dependents[dependentIndex] = null
       @dependencies = []
 
       # if definition is a function then execute it for the value
@@ -272,3 +277,36 @@ class CompoundError extends Error
     return this
 
 global.CompoundError = CompoundError
+
+# Set polyfill until ECMAScript 6 gets adopted
+class CustomSet
+
+  elements = []
+
+  constructor: ->
+    Object.defineProperty(this, 'size', {
+      get: -> elements.length
+    })
+
+  add: (value)->
+    elements.push value unless value in elements
+    return this
+
+  clear: ->
+    elements = []
+    return
+
+  delete: (value)->
+    valueIndex = elements.indexOf value
+    if valueIndex >= 0
+      elements.splice(valueIndex, 1)
+      return true
+    else
+      return false
+
+  has: (value)->
+    return value in elements
+
+  forEach: (callback)->
+    callback(element) for element in elements
+    return
