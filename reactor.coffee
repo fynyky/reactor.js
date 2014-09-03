@@ -45,8 +45,8 @@ global.Signal = (definition)->
     definition: null
     value: null
     error: null
-    dependencies: [] # Signals which this uses in its definition
-    dependents: [] # Signals which use this in their definitions
+    dependents: [] # Things which rely on this Signal
+    dependencies: [] # Things this Signal relies on
 
     # Sets the signal's value based on the definition
     # Also establishes dependencies if necessary
@@ -55,7 +55,7 @@ global.Signal = (definition)->
       # clear old dependencies and errors
       for dependency in @dependencies
         dependentIndex = dependency.dependents.indexOf this
-        dependency.dependents[dependentIndex] = null
+        dependency.dependents.splice(dependentIndex, 1)
       @dependencies = []
       @error = null
 
@@ -113,23 +113,19 @@ global.Signal = (definition)->
       # Breadth first propagation of the changes to dependents
       while dependencyQueue.length >= 1
         target = dependencyQueue.shift()
-        if target?
 
-          # update the current signal
-          # If an error occurs, collect it and keep propagating
-          # A conslidated error will be thrown at the end of propagation
-          try target.update()
-          catch error then errorList.push error
+        # update the current signal
+        # If an error occurs, collect it and keep propagating
+        # A conslidated error will be thrown at the end of propagation
+        try target.update()
+        catch error then errorList.push error
 
-          # Build the propagation queue
-          for dependent in target.dependents when dependent?
-
-            if dependent.dependencyType is SIGNAL
-              dependencyQueue.push dependent unless dependent in dependencyQueue
-
-            else if dependent.dependencyType is OBSERVER
-              observerList.push dependent unless dependent in observerList
-
+        # Build the propagation queue
+        for dependent in target.dependents
+          if dependent.dependencyType is SIGNAL
+            dependencyQueue.push dependent unless dependent in dependencyQueue
+          else if dependent.dependencyType is OBSERVER
+            observerList.push dependent unless dependent in observerList
 
       # Once signal propagation has completed, then do observer propagation
       # This ensures that observers only see a consistent state of the signals
@@ -211,44 +207,46 @@ global.Signal = (definition)->
   signalInterface(definition)
   return signalInterface
 
-# Observers represent responses to signal changes
+# Observers represent definitions to signal changes
 # They are defined in a manner similar to Signals
 # The primary differences of observers are
 # - they have no value to read
 # - they cannot be observed themselves
 # - they are notified only after signals have all been updated
 # to remove an observer - just set its value to null
-global.Observer = (response)->
+global.Observer = (definition)->
 
   observerCore =
     dependencyType: OBSERVER
-    response: null
+    definition: null
     dependencies: []
 
     # Activate the observer as well as reconfigure dependencies
     # The observer equivalent of update
     update: ->
-    # clear old dependencies
+      # clear old dependencies and errors
       for dependency in @dependencies
-        observerIndex = dependency.dependencies.indexOf this
-        dependency.dependents[observerIndex] = null
+        dependentIndex = dependency.dependents.indexOf this
+        dependency.dependents.splice(dependentIndex, 1)
       @dependencies = []
-      # do initial update and establish dependencies
-      if response instanceof Function
+
+      # if definition is a function then execute it for the value
+      if definition instanceof Function
         dependencyStack.push this
-        try @response()
+        try @definition()
         finally dependencyStack.pop()
 
-    # configure the new response and do
-    write: (newResponse)->
-      @response = newResponse
+    # configure the new definition and do
+    write: (newdefinition)->
+      @definition = newdefinition
       @update()
 
+
   # abstraction to hide the ugliness of how observers work
-  observerInterface = (newResponse)-> write(newResponse)
+  observerInterface = (newdefinition)-> write(newdefinition)
 
   # Creation path - basically identical to the signal creation path
-  observerCore.write(response)
+  observerCore.write(definition)
   return observerInterface
 
 

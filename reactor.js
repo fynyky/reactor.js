@@ -20,15 +20,15 @@
       definition: null,
       value: null,
       error: null,
-      dependencies: [],
       dependents: [],
+      dependencies: [],
       update: function() {
         var dependency, dependentIndex, error, _i, _len, _ref;
         _ref = this.dependencies;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           dependency = _ref[_i];
           dependentIndex = dependency.dependents.indexOf(this);
-          dependency.dependents[dependentIndex] = null;
+          dependency.dependents.splice(dependentIndex, 1);
         }
         this.dependencies = [];
         this.error = null;
@@ -73,26 +73,22 @@
         errorList = [];
         while (dependencyQueue.length >= 1) {
           target = dependencyQueue.shift();
-          if (target != null) {
-            try {
-              target.update();
-            } catch (_error) {
-              error = _error;
-              errorList.push(error);
-            }
-            _ref = target.dependents;
-            for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-              dependent = _ref[_i];
-              if (dependent != null) {
-                if (dependent.dependencyType === SIGNAL) {
-                  if (__indexOf.call(dependencyQueue, dependent) < 0) {
-                    dependencyQueue.push(dependent);
-                  }
-                } else if (dependent.dependencyType === OBSERVER) {
-                  if (__indexOf.call(observerList, dependent) < 0) {
-                    observerList.push(dependent);
-                  }
-                }
+          try {
+            target.update();
+          } catch (_error) {
+            error = _error;
+            errorList.push(error);
+          }
+          _ref = target.dependents;
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            dependent = _ref[_i];
+            if (dependent.dependencyType === SIGNAL) {
+              if (__indexOf.call(dependencyQueue, dependent) < 0) {
+                dependencyQueue.push(dependent);
+              }
+            } else if (dependent.dependencyType === OBSERVER) {
+              if (__indexOf.call(observerList, dependent) < 0) {
+                observerList.push(dependent);
               }
             }
           }
@@ -188,39 +184,39 @@
     return signalInterface;
   };
 
-  global.Observer = function(response) {
+  global.Observer = function(definition) {
     var observerCore, observerInterface;
     observerCore = {
       dependencyType: OBSERVER,
-      response: null,
+      definition: null,
       dependencies: [],
       update: function() {
-        var dependency, observerIndex, _i, _len, _ref;
+        var dependency, dependentIndex, _i, _len, _ref;
         _ref = this.dependencies;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           dependency = _ref[_i];
-          observerIndex = dependency.dependencies.indexOf(this);
-          dependency.dependents[observerIndex] = null;
+          dependentIndex = dependency.dependents.indexOf(this);
+          dependency.dependents.splice(dependentIndex, 1);
         }
         this.dependencies = [];
-        if (response instanceof Function) {
+        if (definition instanceof Function) {
           dependencyStack.push(this);
           try {
-            return this.response();
+            return this.definition();
           } finally {
             dependencyStack.pop();
           }
         }
       },
-      write: function(newResponse) {
-        this.response = newResponse;
+      write: function(newdefinition) {
+        this.definition = newdefinition;
         return this.update();
       }
     };
-    observerInterface = function(newResponse) {
-      return write(newResponse);
+    observerInterface = function(newdefinition) {
+      return write(newdefinition);
     };
-    observerCore.write(response);
+    observerCore.write(definition);
     return observerInterface;
   };
 
