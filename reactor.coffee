@@ -45,8 +45,8 @@ global.Signal = (definition)->
     definition: null
     value: null
     error: null
-    dependents: [] # Things which rely on this Signal
-    dependencies: [] # Things this Signal relies on
+    dependents: new PseudoSet() # Things which rely on this Signal
+    dependencies: new PseudoSet() # Things this Signal relies on
 
     # Sets the signal's value based on the definition
     # Also establishes dependencies if necessary
@@ -55,10 +55,8 @@ global.Signal = (definition)->
     update: ->
 
       # clear old dependencies and errors
-      for dependency in @dependencies
-        dependentIndex = dependency.dependents.indexOf this
-        dependency.dependents[dependentIndex] = null
-      @dependencies = []
+      @dependencies.forEach (dependency)=> dependency.dependents.delete this
+      @dependencies.clear()
 
       # if definition is a function then execute it for the value
       @error = null
@@ -85,11 +83,8 @@ global.Signal = (definition)->
       # symmetrically register dependent/dependency relationship
       dependent = dependencyStack[dependencyStack.length - 1]
       if dependent?
-        if dependent not in @dependents
-          firstNullIndex = @dependents.indexOf null
-          if firstNullIndex >= 0 then @dependents[firstNullIndex] = dependent
-          else @dependents.push dependent
-        dependent.dependencies.push this if this not in dependent.dependencies
+        @dependents.add(dependent)
+        dependent.dependencies.add(this)
 
       # If signal has an error then its value is invalid
       # Throw another error when read to notify any readers
@@ -107,7 +102,6 @@ global.Signal = (definition)->
     # - recursively update dependents while collecting observers
     # - notify observers
     write: (newDefinition)->
-
       @definition = newDefinition
 
       # Propagate changes
@@ -126,7 +120,7 @@ global.Signal = (definition)->
         catch error then errorList.push error
 
         # Build the propagation queue
-        for dependent in target.dependents when dependent?
+        target.dependents.forEach (dependent)->
           if dependent.dependencyType is SIGNAL
             dependencyQueue.push dependent unless dependent in dependencyQueue
           else if dependent.dependencyType is OBSERVER
@@ -224,16 +218,14 @@ global.Observer = (definition)->
   observerCore =
     dependencyType: OBSERVER
     definition: null
-    dependencies: []
+    dependencies: new PseudoSet()
 
     # Activate the observer as well as reconfigure dependencies
     # The observer equivalent of update
     update: ->
       # clear old dependencies and errors
-      for dependency in @dependencies
-        dependentIndex = dependency.dependents.indexOf this
-        dependency.dependents[dependentIndex] = null
-      @dependencies = []
+      @dependencies.forEach (dependency)=> dependency.dependents.delete this
+      @dependencies.clear()
 
       # if definition is a function then execute it for the value
       if definition instanceof Function
@@ -257,6 +249,7 @@ global.Observer = (definition)->
 
 # Custom Error class to consolidate multiple errors together
 class CompoundError extends Error
+  global.CompoundError = CompoundError
   constructor: (message, errorArray)->
 
     # Build the message to display all the component errors
@@ -276,37 +269,31 @@ class CompoundError extends Error
 
     return this
 
-global.CompoundError = CompoundError
-
-# Set polyfill until ECMAScript 6 gets adopted
-class CustomSet
-
-  elements = []
-
+# Halfass implementation of Set until ECMAScript 6 gets adopted
+class PseudoSet
   constructor: ->
-    Object.defineProperty(this, 'size', {
-      get: -> elements.length
-    })
 
-  add: (value)->
-    elements.push value unless value in elements
-    return this
-
-  clear: ->
     elements = []
-    return
 
-  delete: (value)->
-    valueIndex = elements.indexOf value
-    if valueIndex >= 0
-      elements.splice(valueIndex, 1)
-      return true
-    else
-      return false
+    @add = (value)->
+      elements.push value unless value in elements
+      return this
 
-  has: (value)->
-    return value in elements
+    @clear = ->
+      elements = []
+      return
 
-  forEach: (callback)->
-    callback(element) for element in elements
-    return
+    @delete = (value)->
+      valueIndex = elements.indexOf value
+      if valueIndex >= 0
+        elements.splice(valueIndex, 1)
+        return true
+      else
+        return false
+
+    @has =  (value)->
+      return value in elements
+
+    @forEach =  (callback)->
+      callback(element) for element in elements
+      return
