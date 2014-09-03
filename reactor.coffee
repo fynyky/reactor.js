@@ -7,7 +7,7 @@ OBSERVER = "OBSERVER"
 global = exports ? this
 
 # Global stack to automatically track dependencies
-# - When a signal is evaluated, it first puts itself on the dependency stack
+# - When a signal is updated, it first puts itself on the dependency stack
 # - When a signal is read, it checks the top of the stack to see who is reading
 # - The reader gets added as a dependent of the readee
 # - The readee gets added as a dependency of the reader
@@ -18,18 +18,18 @@ dependencyStack = []
 # - Read a signal by calling it with no arguments
 # - Write to a signal by calling it with the desired value as an argument
 # - Define a signal by calling it with a function as an argument
-# - This means the value is the function's output instead of the function itself
-#-------------------------------------------------------------------------------
+# - This set the value as the function's output instead of the function itself
+#------------------------------------------------------------------------------
 # If a signal reads other signals in it's definition, it is dependent on them
 # - Signals automatically track what other signals they depend on
 # - If any dependencies get updated, the dependent gets updated as well
-#-------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 # Signals should NOT have any external effects
 # - It should only read other values and return its own value
 # - For external effects, use observers instead
-#-------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 # To "destory" a signal, just set its definition to null
-#-------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 # Signals are made up of 2 main parts
 # - The core: The properties & methods which lets signals work
 # - The interface: The function returned to the user to use
@@ -47,16 +47,14 @@ global.Signal = (definition)->
     error: null
     dependencies: [] # Signals which this uses in its definition
     dependents: [] # Signals which use this in their definitions
-    observers: [] # Observers which use this in their triggers
-    bindings: []
 
     # Sets the signal's value based on the definition
     # Also establishes dependencies if necessary
-    evaluate: ->
+    update: ->
 
       # clear old dependencies and errors
       for dependency in @dependencies
-        dependentIndex = dependency.dependents.indexOf(this)
+        dependentIndex = dependency.dependents.indexOf this
         dependency.dependents[dependentIndex] = null
       @dependencies = []
       @error = null
@@ -75,37 +73,33 @@ global.Signal = (definition)->
 
     # Life of a read
     # - check to see who is asking
-    # - register them as a dependent
-    # - register self and their dependency
-    # - return value
+    # - register them as a dependent and register self as their dependency
+    # - throw an error if signal value is invalid
+    # - otherwise return value
     read: ->
 
-      # check the global stack for the most recent dependent being evaluated
+      # check the global stack for the most recent dependent being updated
       # assume this is the caller and set it as a dependent
+      # symmetrically register dependent/dependency relationship
       dependent = dependencyStack[dependencyStack.length - 1]
-
-      # If its a signal or observer dependency register it accordingly
-      # symmetrically register itself as a dependency for clearing later
-      if dependent? and dependent.dependencyType is SIGNAL
+      if dependent?
         @dependents.push dependent if dependent not in @dependents
         dependent.dependencies.push this if this not in dependent.dependencies
 
-      else if dependent? and dependent.dependencyType is OBSERVER
-        @observers.push dependent if dependent not in @observers
-        dependent.observees.push this if this not in dependent.observees
-
-      # If the signal has an error then reading from causes another error
+      # If signal has an error then its value is invalid
+      # Throw another error when read to notify any readers
       if @error
-        signalError = new Error('Reading from corrupted Signal', @error)
+        signalError = new Error('Reading from corrupted Signal')
         throw signalError
 
+      # If there are no problems, return the value like a normal variable would
       else return @value
 
     # Life of a write
     # - set the new definition
     # - configure convenience methods
     # - execute new definition if necessary and establish dependencies
-    # - recursively evaluate dependents while collecting observers
+    # - recursively update dependents while collecting observers
     # - notify observers
     write: (newDefinition)->
 
@@ -114,7 +108,6 @@ global.Signal = (definition)->
       # Propagate changes
       dependencyQueue = [this] # Queue of dependent signals to update
       observerList = [] # Simultaneously collect dependent observers
-      bindingList = []
       errorList = [] # Consolidate errors caused by the propagation
 
       # Breadth first propagation of the changes to dependents
@@ -122,32 +115,26 @@ global.Signal = (definition)->
         target = dependencyQueue.shift()
         if target?
 
-          # Evaluate the current signal
+          # update the current signal
           # If an error occurs, collect it and keep propagating
           # A conslidated error will be thrown at the end of propagation
-          try target.evaluate()
+          try target.update()
           catch error then errorList.push error
 
           # Build the propagation queue
           for dependent in target.dependents when dependent?
-            dependencyQueue.push dependent unless dependent in dependencyQueue
 
-          # Collect the observer list
-          for observer in target.observers when observer?
-            observerList.push observer unless observer in observerList
+            if dependent.dependencyType is SIGNAL
+              dependencyQueue.push dependent unless dependent in dependencyQueue
 
-          # Collect the bindings
-          for binding in target.bindings when binding?
-            bindingList.push binding unless binding in bindingList
+            else if dependent.dependencyType is OBSERVER
+              observerList.push dependent unless dependent in observerList
+
 
       # Once signal propagation has completed, then do observer propagation
       # This ensures that observers only see a consistent state of the signals
       for observer in observerList
-        try observer.trigger()
-        catch error then errorList.push error
-
-      for binding in bindingList
-        try binding()
+        try observer.update()
         catch error then errorList.push error
 
       # If any errors occured during propagation then consolidate and throw them
@@ -158,9 +145,6 @@ global.Signal = (definition)->
 
       # Return the written value on a write, just as a normal variable does
       return @value
-
-    bind: (bindee)->
-      bindings.push bindee unless bindee in bindings
 
   # The interface function returned to the user to utilize the signal
   # This is done to abstract away the messiness of how the signals work
@@ -239,17 +223,17 @@ global.Observer = (response)->
   observerCore =
     dependencyType: OBSERVER
     response: null
-    observees: []
+    dependencies: []
 
     # Activate the observer as well as reconfigure dependencies
-    # The observer equivalent of evaluate
-    trigger: ->
-    # clear old observees
-      for observee in @observees
-        observerIndex = observee.observers.indexOf this
-        observee.observers[observerIndex] = null
-      @observees = []
-      # do initial trigger and establish dependencies
+    # The observer equivalent of update
+    update: ->
+    # clear old dependencies
+      for dependency in @dependencies
+        observerIndex = dependency.dependencies.indexOf this
+        dependency.dependents[observerIndex] = null
+      @dependencies = []
+      # do initial update and establish dependencies
       if response instanceof Function
         dependencyStack.push this
         try @response()
@@ -258,7 +242,7 @@ global.Observer = (response)->
     # configure the new response and do
     write: (newResponse)->
       @response = newResponse
-      @trigger()
+      @update()
 
   # abstraction to hide the ugliness of how observers work
   observerInterface = (newResponse)-> write(newResponse)
@@ -271,6 +255,8 @@ global.Observer = (response)->
 # Custom Error class to consolidate multiple errors together
 class CompoundError extends Error
   constructor: (message, errorArray)->
+
+    # Build the message to display all the component errors
     @errors = errorArray
     for error in @errors
       errorDescription = error.stack ? error.toString()

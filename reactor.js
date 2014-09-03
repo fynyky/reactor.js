@@ -22,9 +22,7 @@
       error: null,
       dependencies: [],
       dependents: [],
-      observers: [],
-      bindings: [],
-      evaluate: function() {
+      update: function() {
         var dependency, dependentIndex, error, _i, _len, _ref;
         _ref = this.dependencies;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
@@ -52,40 +50,32 @@
       read: function() {
         var dependent, signalError;
         dependent = dependencyStack[dependencyStack.length - 1];
-        if ((dependent != null) && dependent.dependencyType === SIGNAL) {
+        if (dependent != null) {
           if (__indexOf.call(this.dependents, dependent) < 0) {
             this.dependents.push(dependent);
           }
           if (__indexOf.call(dependent.dependencies, this) < 0) {
             dependent.dependencies.push(this);
           }
-        } else if ((dependent != null) && dependent.dependencyType === OBSERVER) {
-          if (__indexOf.call(this.observers, dependent) < 0) {
-            this.observers.push(dependent);
-          }
-          if (__indexOf.call(dependent.observees, this) < 0) {
-            dependent.observees.push(this);
-          }
         }
         if (this.error) {
-          signalError = new Error('Reading from corrupted Signal', this.error);
+          signalError = new Error('Reading from corrupted Signal');
           throw signalError;
         } else {
           return this.value;
         }
       },
       write: function(newDefinition) {
-        var binding, bindingList, dependencyQueue, dependent, error, errorList, errorMessage, observer, observerList, target, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _m, _ref, _ref1, _ref2;
+        var dependencyQueue, dependent, error, errorList, errorMessage, observer, observerList, target, _i, _j, _len, _len1, _ref;
         this.definition = newDefinition;
         dependencyQueue = [this];
         observerList = [];
-        bindingList = [];
         errorList = [];
         while (dependencyQueue.length >= 1) {
           target = dependencyQueue.shift();
           if (target != null) {
             try {
-              target.evaluate();
+              target.update();
             } catch (_error) {
               error = _error;
               errorList.push(error);
@@ -94,44 +84,23 @@
             for (_i = 0, _len = _ref.length; _i < _len; _i++) {
               dependent = _ref[_i];
               if (dependent != null) {
-                if (__indexOf.call(dependencyQueue, dependent) < 0) {
-                  dependencyQueue.push(dependent);
-                }
-              }
-            }
-            _ref1 = target.observers;
-            for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
-              observer = _ref1[_j];
-              if (observer != null) {
-                if (__indexOf.call(observerList, observer) < 0) {
-                  observerList.push(observer);
-                }
-              }
-            }
-            _ref2 = target.bindings;
-            for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
-              binding = _ref2[_k];
-              if (binding != null) {
-                if (__indexOf.call(bindingList, binding) < 0) {
-                  bindingList.push(binding);
+                if (dependent.dependencyType === SIGNAL) {
+                  if (__indexOf.call(dependencyQueue, dependent) < 0) {
+                    dependencyQueue.push(dependent);
+                  }
+                } else if (dependent.dependencyType === OBSERVER) {
+                  if (__indexOf.call(observerList, dependent) < 0) {
+                    observerList.push(dependent);
+                  }
                 }
               }
             }
           }
         }
-        for (_l = 0, _len3 = observerList.length; _l < _len3; _l++) {
-          observer = observerList[_l];
+        for (_j = 0, _len1 = observerList.length; _j < _len1; _j++) {
+          observer = observerList[_j];
           try {
-            observer.trigger();
-          } catch (_error) {
-            error = _error;
-            errorList.push(error);
-          }
-        }
-        for (_m = 0, _len4 = bindingList.length; _m < _len4; _m++) {
-          binding = bindingList[_m];
-          try {
-            binding();
+            observer.update();
           } catch (_error) {
             error = _error;
             errorList.push(error);
@@ -144,11 +113,6 @@
           throw new CompoundError(errorMessage, errorList);
         }
         return this.value;
-      },
-      bind: function(bindee) {
-        if (__indexOf.call(bindings, bindee) < 0) {
-          return bindings.push(bindee);
-        }
       }
     };
     signalInterface = function(newDefinition) {
@@ -229,16 +193,16 @@
     observerCore = {
       dependencyType: OBSERVER,
       response: null,
-      observees: [],
-      trigger: function() {
-        var observee, observerIndex, _i, _len, _ref;
-        _ref = this.observees;
+      dependencies: [],
+      update: function() {
+        var dependency, observerIndex, _i, _len, _ref;
+        _ref = this.dependencies;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          observee = _ref[_i];
-          observerIndex = observee.observers.indexOf(this);
-          observee.observers[observerIndex] = null;
+          dependency = _ref[_i];
+          observerIndex = dependency.dependencies.indexOf(this);
+          dependency.dependents[observerIndex] = null;
         }
-        this.observees = [];
+        this.dependencies = [];
         if (response instanceof Function) {
           dependencyStack.push(this);
           try {
@@ -250,7 +214,7 @@
       },
       write: function(newResponse) {
         this.response = newResponse;
-        return this.trigger();
+        return this.update();
       }
     };
     observerInterface = function(newResponse) {
