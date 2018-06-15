@@ -15,7 +15,7 @@ describe('Signal', function() {
       const numberSignal = Signal(123456789);
       const stringSignal = Signal("foo");
       const arraySignal = Signal([]);
-      return objectSignal = Signal({});
+      objectSignal = Signal({});
   })
 );
 
@@ -29,7 +29,7 @@ describe('Signal', function() {
       numberSignal();
       stringSignal();
       arraySignal();
-      return objectSignal();
+      objectSignal();
     });
 
     it('should return the initial value when read', function() {
@@ -44,17 +44,17 @@ describe('Signal', function() {
       assert.equal(numberSignal(), 123456789);
       assert.equal(stringSignal(), "foo");
       assert.equal(arraySignal(), arrayValue);
-      return assert.equal(objectSignal(), objectValue);
+      assert.equal(objectSignal(), objectValue);
     });
 
-    return it('should be readable multiple times without changing the value', function() {
+    it('should be readable multiple times without changing the value', function() {
       const aValue = 123456789;
       const a = Signal(123456789);
       assert.equal(a(), 123456789);
       assert.equal(a(), 123456789);
       assert.equal(a(), 123456789);
       assert.equal(a(), 123456789);
-      return assert.equal(a(), 123456789);
+      assert.equal(a(), 123456789);
     });
   });
 
@@ -68,7 +68,7 @@ describe('Signal', function() {
       numberSignal(987654321);
       stringSignal("bar");
       arraySignal([]);
-      return objectSignal({});
+      objectSignal({});
     });
 
     it('should return the written value on write', function() {
@@ -83,10 +83,10 @@ describe('Signal', function() {
       assert.equal(numberSignal(newNumberValue), newNumberValue);
       assert.equal(stringSignal(newStringValue), newStringValue);
       assert.equal(arraySignal(newArrayValue), newArrayValue);
-      return assert.equal(objectSignal(newObjectValue), newObjectValue);
+      assert.equal(objectSignal(newObjectValue), newObjectValue);
     });
 
-    return it('should return the new value on subsequent reads', function() {
+    it('should return the new value on subsequent reads', function() {
       const numberSignal = Signal(123456789);
       const stringSignal = Signal("foo");
       const arraySignal = Signal(["a", "b", "c"]);
@@ -102,7 +102,7 @@ describe('Signal', function() {
       assert.equal(numberSignal(), newNumberValue);
       assert.equal(stringSignal(), newStringValue);
       assert.equal(arraySignal(), newArrayValue);
-      return assert.equal(objectSignal(), newObjectValue);
+      assert.equal(objectSignal(), newObjectValue);
     });
   });
 
@@ -112,27 +112,27 @@ describe('Signal', function() {
     it("should initialize a dependent signal without error", function() {
       let b;
       const a = Signal(1);
-      return b = Signal(() => a() + 1);
+      b = Signal(() => a() + 1);
     });
 
     it("should initialize a dependent signal with the correct value", function() {
       const a = Signal(1);
       const b = Signal(() => a() + 1);
-      return assert.equal(b(), 2);
+      assert.equal(b(), 2);
     });
 
     it('should propagate changes to a dependent signal', function() {
       const a = Signal(1);
       const b = Signal(() => a() + 1);
       a(2);
-      return assert.equal(b(), 3);
+      assert.equal(b(), 3);
     });
 
     it('should initialize multiple dependent signals without error', function() {
       let c;
       const a = Signal(1);
       const b = Signal(() => a() + 1);
-      return c = Signal(() => a() + 2);
+      c = Signal(() => a() + 2);
     });
 
     it('should initialize multiple dependent signals with the correct values', function() {
@@ -141,7 +141,7 @@ describe('Signal', function() {
       const c = Signal(() => a() + 2);
       assert.equal(a(), 1);
       assert.equal(b(), 2);
-      return assert.equal(c(), 3);
+      assert.equal(c(), 3);
     });
 
     it('should propagate changes to multiple dependent signals', function() {
@@ -151,7 +151,7 @@ describe('Signal', function() {
       a(2);
       assert.equal(a(), 2);
       assert.equal(b(), 3);
-      return assert.equal(c(), 4);
+      assert.equal(c(), 4);
     });
 
     it('should initialize sequential dependencies without error', function() {
@@ -159,7 +159,7 @@ describe('Signal', function() {
       const a = Signal(1);
       const b = Signal(() => a() + 1);
       const c = Signal(() => b() + 1);
-      return d = Signal(() => c() + 1);
+      d = Signal(() => c() + 1);
     });
 
     it('should initialize sequential dependencies with the correct values', function() {
@@ -170,7 +170,7 @@ describe('Signal', function() {
       assert.equal(a(), 1);
       assert.equal(b(), 2);
       assert.equal(c(), 3);
-      return assert.equal(d(), 4);
+      assert.equal(d(), 4);
     });
 
     it('should propagate changes to sequential dependencies', function() {
@@ -182,14 +182,14 @@ describe('Signal', function() {
       assert.equal(a(), 10);
       assert.equal(b(), 11);
       assert.equal(c(), 12);
-      return assert.equal(d(), 13);
+      assert.equal(d(), 13);
     });
 
     it('should initialize convergent dependencies without error', function() {
       let c;
       const a = Signal(1);
       const b = Signal(2);
-      return c = Signal(() => a() + b());
+      c = Signal(() => a() + b());
     });
 
     it('should initialize convergent dependencies with the correct value', function() {
@@ -198,7 +198,7 @@ describe('Signal', function() {
       const c = Signal(() => a() + b());
       assert.equal(a(), 1);
       assert.equal(b(), 2);
-      return assert.equal(c(), 3);
+      assert.equal(c(), 3);
     });
 
     it('should propagate changes to convergent dependencies', function() {
@@ -212,7 +212,7 @@ describe('Signal', function() {
       b(3);
       assert.equal(a(), 7);
       assert.equal(b(), 3);
-      return assert.equal(c(), 10);
+      assert.equal(c(), 10);
     });
 
     it("should break unneeded dependencies after manual redefinition", function() {
@@ -228,7 +228,7 @@ describe('Signal', function() {
       assert.equal(b(), 3);
       a(7);
       assert.equal(a(), 7);
-      return assert.equal(b(), 3);
+      assert.equal(b(), 3);
     });
 
     it("should dynamically determine dependencies", function() {
@@ -250,16 +250,16 @@ describe('Signal', function() {
       c("hello again");
       assert.equal(triggerCount, 4); // now trigger on c's update
       b("hi again");
-      return assert.equal(triggerCount, 4);
+      assert.equal(triggerCount, 4);
     }); // no triggers on b's update anymore
 
-    return it("should only propagate changes to signals which have not seen the value already", function() {
+    it("should only propagate changes to signals which have not seen the value already", function() {
       let triggerCount = 0;
       const a = Signal(1);
       const b = Signal(() => a() + 1);
       const c = Signal(function() {
         a() + b();
-        return triggerCount += 1;
+        triggerCount += 1;
       });
       a(2);
       // c should only be evaluatated twice
@@ -267,15 +267,15 @@ describe('Signal', function() {
       // second when a propagates to b which propagates to c
       // since c reads a after being notified by b
       // a does not need to propagate to c again
-      return assert.equal(triggerCount, 2);
+      assert.equal(triggerCount, 2);
     });
   });
 
-  return describe("Array and Object convenience methods", function() {
+  describe("Array and Object convenience methods", function() {
 
     it("should be able to call object set without error", function() {
       const aSignal = Signal({});
-      return aSignal.set("foo", 1);
+      aSignal.set("foo", 1);
     });
 
     it("should have its value using object set", function() {
@@ -283,18 +283,18 @@ describe('Signal', function() {
       aSignal.set("foo", 1);
       assert.equal(JSON.stringify(aSignal()), '{"foo":1}');
       aSignal.set("bar", 2);
-      return assert.equal(JSON.stringify(aSignal()), '{"foo":1,"bar":2}');
+      assert.equal(JSON.stringify(aSignal()), '{"foo":1,"bar":2}');
     });
 
     it("should not have set on non object signals`", function() {
       const aSignal = Signal(1);
-      return assert.equal(aSignal.set, undefined);
+      assert.equal(aSignal.set, undefined);
     });
 
     it("should remove set once signal is no longer object", function() {
       const aSignal = Signal({});
       aSignal(1);
-      return assert.equal(aSignal.set, undefined);
+      assert.equal(aSignal.set, undefined);
     });
 
     it("should propagate the value when using the object set convenience method", function() {
@@ -302,7 +302,7 @@ describe('Signal', function() {
       const bSignal = Signal(() => `Serialized: ${JSON.stringify(aSignal())}`);
       assert.equal(JSON.stringify(aSignal()), "{}");
       aSignal.set("foo", 1);
-      return assert.equal(bSignal(), 'Serialized: {"foo":1}');
+      assert.equal(bSignal(), 'Serialized: {"foo":1}');
     });
 
     it("should call array mutator convenience methods without error", function() {
@@ -313,7 +313,7 @@ describe('Signal', function() {
       arraySignal.shift();
       arraySignal.sort((x,y)=> x(-y));
       arraySignal.reverse();
-      return arraySignal.splice(0, 0, "x");
+      arraySignal.splice(0, 0, "x");
     });
 
     it("should modify the array correctly when using array convenience methods", function() {
@@ -380,10 +380,10 @@ describe('Signal', function() {
       controlOutput = controlArray.splice(1,1,"hello there");
       signalOutput = arraySignal.splice(1,1,"hello there");
       assert.equal(JSON.stringify(arraySignal()), JSON.stringify(controlArray));
-      return assert.equal(JSON.stringify(controlOutput), JSON.stringify(signalOutput));
+      assert.equal(JSON.stringify(controlOutput), JSON.stringify(signalOutput));
     });
 
-    return it("should propagate changes when using array convenience methods", function() {
+    it("should propagate changes when using array convenience methods", function() {
       const arraySignal = Signal([]);
       const dependentSignal = Signal(() => JSON.stringify(arraySignal));
       arraySignal.push("x");
@@ -416,7 +416,7 @@ describe('Signal', function() {
       arraySignal.reverse();
       assert.equal(dependentSignal(), JSON.stringify(arraySignal));
       arraySignal.splice(1,1,"hello there");
-      return assert.equal(dependentSignal(), JSON.stringify(arraySignal));
+      assert.equal(dependentSignal(), JSON.stringify(arraySignal));
     });
   });
 });
@@ -425,13 +425,13 @@ describe("Observer", function() {
 
   it("should initialize a blank observer without error", function() {
     let anObserver;
-    return anObserver = Observer(function() {});
+    anObserver = Observer(function() {});
   });
 
   it("should initialize an observer which reads a signal without error", function() {
     let anObserver;
     const aSignal = Signal(1);
-    return anObserver = Observer(() => aSignal());
+    anObserver = Observer(() => aSignal());
   });
 
   it("should trigger an observer on evaluation", function() {
@@ -439,7 +439,7 @@ describe("Observer", function() {
     let anExternalValue = null;
     assert.equal(anExternalValue, null);
     const anObserver = Observer(() => anExternalValue = aSignal());
-    return assert.equal(anExternalValue, 1);
+    assert.equal(anExternalValue, 1);
   });
 
   it("should trigger the observer when a signal is updated", function() {
@@ -447,7 +447,7 @@ describe("Observer", function() {
     let anExternalValue = null;
     const anObserver = Observer(() => anExternalValue = aSignal());
     aSignal(2);
-    return assert.equal(anExternalValue, 2);
+    assert.equal(anExternalValue, 2);
   });
 
   it("should trigger the observer when a signal is updated multiple times", function() {
@@ -479,16 +479,16 @@ describe("Observer", function() {
     cSignal(7);
     assert.equal(anExternalValue, "5674");
     dSignal(8);
-    return assert.equal(anExternalValue, "5678");
+    assert.equal(anExternalValue, "5678");
   });
 
-  return it("should write to another signal without building a dependency", function() {
+  it("should write to another signal without building a dependency", function() {
     let triggerCount = 0;
     const aSignal = Signal(1);
     const bSignal = Signal(2);
     const anObserver = Observer(function() {
       triggerCount += 1;
-      return bSignal(aSignal());
+      bSignal(aSignal());
     });
     assert.equal(triggerCount, 1);
     assert.equal(bSignal(), 1);
@@ -497,7 +497,7 @@ describe("Observer", function() {
     assert.equal(bSignal(), 3);
     bSignal(4);
     assert.equal(triggerCount, 2); // trigger count should stay the same since b was written not read
-    return assert.equal(bSignal(), 4);
+    assert.equal(bSignal(), 4);
   });
 });
 
@@ -529,7 +529,7 @@ describe('Error Handling', function() {
     throw new Error("no error when errors expected");
   });
 
-  return it("should throw an error even if only observers are affected", function() {
+  it("should throw an error even if only observers are affected", function() {
     const sourceSignal = Signal(1);
     const errorfulObserver = Observer(function() {
       if (sourceSignal() > 2) { throw new RangeError("source too big!");
