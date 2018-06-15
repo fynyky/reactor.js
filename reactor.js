@@ -141,11 +141,11 @@ global.Signal = function(definition) {
         target.dependents.forEach(function(dependent) {
           if (dependent.dependencyType === SIGNAL) {
             if (!dependencyQueue.includes(dependent)) {
-              return dependencyQueue.push(dependent);
+              dependencyQueue.push(dependent);
             }
           } else if (dependent.dependencyType === OBSERVER) {
             if (!observerList.includes(dependent)) {
-              return observerList.push(dependent);
+              observerList.push(dependent);
             }
           }
         });
