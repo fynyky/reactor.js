@@ -45,8 +45,8 @@ global.Signal = function(definition){
     definition: null,
     value: null,
     error: null,
-    dependents: new PseudoSet(), // Things which rely on this Signal
-    dependencies: new PseudoSet(), // Things this Signal relies on
+    dependents: new Set(), // Things which rely on this Signal
+    dependencies: new Set(), // Things this Signal relies on
 
     // Sets the signal's value based on the definition
     // Also establishes dependencies if necessary
@@ -244,7 +244,7 @@ global.Observer = function(definition){
   const observerCore = {
     dependencyType: OBSERVER,
     definition: null,
-    dependencies: new PseudoSet(),
+    dependencies: new Set(),
 
     // Activate the observer as well as reconfigure dependencies
     // The observer equivalent of update
@@ -293,36 +293,3 @@ class CompoundError extends Error {
   }
 }
 global.CompoundError = CompoundError;
-
-// Halfass implementation of Set until ECMAScript 6 gets adopted
-class PseudoSet {
-  constructor() {
-
-    let elements = [];
-
-    this.add = function(value){
-      if (!elements.includes(value)) { elements.push(value); }
-      return this;
-    };
-
-    this.clear = function() {
-      elements = [];
-    };
-
-    this.delete = function(value){
-      const valueIndex = elements.indexOf(value);
-      if (valueIndex >= 0) {
-        elements.splice(valueIndex, 1);
-        return true;
-      } else {
-        return false;
-      }
-    };
-
-    this.has =  value => elements.includes(value);
-
-    this.forEach =  function(callback){
-      for (let element of elements) { callback(element); }
-    };
-  }
-}
