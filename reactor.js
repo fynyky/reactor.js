@@ -13,6 +13,8 @@ const global =
 // - The reader gets added as a dependent of the readee
 // - The readee gets added as a dependency of the reader
 // - When the signal evaluation is done, the signal pops itself off the stack
+// The stack is used to track the latest signal caller automaticaly
+// Using a stack allows nested signals to function correctly
 const dependencyStack = [];
 
 // Signals are functions representing values
@@ -62,6 +64,7 @@ global.Signal = function(definition) {
       this.error = null;
       if (this.definition instanceof Function) {
         dependencyStack.push(this);
+        console.log("dependencyStack", dependencyStack.length);
         try {
           return (this.value = this.definition());
         } catch (error1) {

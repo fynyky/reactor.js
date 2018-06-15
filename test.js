@@ -261,6 +261,35 @@ describe("Signal", function() {
       // a does not need to propagate to c again
       assert.equal(triggerCount, 2);
     });
+
+    it("should correctly assign dependencies for nested signal definitions", function() {
+      let outerUpdates = 0;
+      let innerUpdates = 0;
+      const a = Signal("a");
+      const b = Signal("b");
+      const c = Signal("c");
+      const outer = Signal(() => {
+        outerUpdates += 1;
+        let outerValue = [a()];
+        let inner = Signal(() => {
+          innerUpdates += 1;
+          return b();
+        });
+        outerValue.push(inner);
+        outerValue.push(c());
+        return outerValue;
+      }); 
+      assert.equal(outerUpdates, 1);
+      assert.equal(innerUpdates, 1);
+      // Should trigger an inner update but not an outer update
+      b("B");
+      assert.equal(outerUpdates, 1);
+      assert.equal(innerUpdates, 2);
+      // Should trigger an outer update and an inner update
+      c("C");
+      assert.equal(outerUpdates, 2);
+      assert.equal(innerUpdates, 3);
+    });
   });
 
   describe("Array and Object convenience methods", function() {
