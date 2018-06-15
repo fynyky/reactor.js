@@ -403,5 +403,5 @@ Installation and use
 --------------------
 Tests are stored in `test.coffee` and compiled to `test.js` to be run using Mocha.
 
-To install Mocha just run `npm install -g mocha`
-To run the tests run `mocha -R spec`
+To install Mocha just run `npm install`
+To run the tests run `npm test`
