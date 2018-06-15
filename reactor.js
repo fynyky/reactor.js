@@ -1,7 +1,5 @@
 /*
  * decaffeinate suggestions:
- * DS001: Remove Babel/TypeScript constructor workaround
- * DS101: Remove unnecessary use of Array.from
  * DS102: Remove unnecessary code created because of implicit returns
  * DS207: Consider shorter variations of null checks
  * DS208: Avoid top-level this
@@ -137,16 +135,16 @@ global.Signal = function(definition){
         // Build the propagation queue
         target.dependents.forEach(function(dependent){
           if (dependent.dependencyType === SIGNAL) {
-            if (!Array.from(dependencyQueue).includes(dependent)) { return dependencyQueue.push(dependent); }
+            if (!dependencyQueue.includes(dependent)) { return dependencyQueue.push(dependent); }
           } else if (dependent.dependencyType === OBSERVER) {
-            if (!Array.from(observerList).includes(dependent)) { return observerList.push(dependent); }
+            if (!observerList.includes(dependent)) { return observerList.push(dependent); }
           }
         });
       }
 
       // Once signal propagation has completed, then do observer propagation
       // This ensures that observers only see a consistent state of the signals
-      for (let observer of Array.from(observerList)) {
+      for (let observer of observerList) {
         try { observer.update(); }
         catch (error2) { error = error2; errorList.push(error); }
       }
@@ -292,7 +290,7 @@ class CompoundError extends Error {
   constructor(message, errorArray){
     // Build the message to display all the component errors
     const errors = errorArray;
-    for (let error of Array.from(errors)) {
+    for (let error of errors) {
       const errorDescription = error.stack != null ? error.stack : error.toString();
       message = message + '\n' + errorDescription;
     }
@@ -310,7 +308,7 @@ class PseudoSet {
     let elements = [];
 
     this.add = function(value){
-      if (!Array.from(elements).includes(value)) { elements.push(value); }
+      if (!elements.includes(value)) { elements.push(value); }
       return this;
     };
 
@@ -328,10 +326,10 @@ class PseudoSet {
       }
     };
 
-    this.has =  value=> Array.from(elements).includes(value);
+    this.has =  value => elements.includes(value);
 
     this.forEach =  function(callback){
-      for (let element of Array.from(elements)) { callback(element); }
+      for (let element of elements) { callback(element); }
     };
   }
 }
