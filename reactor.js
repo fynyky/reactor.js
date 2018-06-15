@@ -64,7 +64,6 @@ global.Signal = function(definition) {
       this.error = null;
       if (this.definition instanceof Function) {
         dependencyStack.push(this);
-        console.log("dependencyStack", dependencyStack.length);
         try {
           return (this.value = this.definition());
         } catch (error) {
