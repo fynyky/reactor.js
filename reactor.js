@@ -4,7 +4,8 @@ const OBSERVER = "OBSERVER";
 
 // In Node.js, Reactor is packaged into a module
 // In the browser, Reactor is bound directly to the window namespace
-const global = typeof exports !== 'undefined' && exports !== null ? exports : this;
+const global =
+  typeof exports !== "undefined" && exports !== null ? exports : this;
 
 // Global stack to automatically track dependencies
 // - When a signal is updated, it first puts itself on the dependency stack
@@ -33,13 +34,11 @@ const dependencyStack = [];
 // Signals are made up of 2 main parts
 // - The core: The properties & methods which lets signals work
 // - The interface: The function returned to the user to use
-global.Signal = function(definition){
-
+global.Signal = function(definition) {
   // The "guts" of a signal containing properties and methods
   // All actual functionality & state should be built into the core
   // Should be completely agnostic to syntactic sugar
   const signalCore = {
-
     // Properties tracking the state of the signal
     dependencyType: SIGNAL,
     definition: null,
@@ -53,25 +52,30 @@ global.Signal = function(definition){
     // - Clear previous dependencies
     // - Put self on stack, rerun definition, pop self off
     update() {
-
       // clear old dependencies and errors
-      this.dependencies.forEach(dependency=> dependency.dependents.delete(this));
+      this.dependencies.forEach(dependency =>
+        dependency.dependents.delete(this)
+      );
       this.dependencies.clear();
 
       // if definition is a function then execute it for the value
       this.error = null;
       if (this.definition instanceof Function) {
         dependencyStack.push(this);
-        try { return this.value = this.definition(); }
-        catch (error1) {
+        try {
+          return (this.value = this.definition());
+        } catch (error1) {
           const error = error1;
           this.error = error;
           throw error;
+        } finally {
+          dependencyStack.pop();
         }
-        finally {dependencyStack.pop(); }
 
-      // For non-functions the value is just definition
-      } else { return this.value = this.definition; }
+        // For non-functions the value is just definition
+      } else {
+        return (this.value = this.definition);
+      }
     },
 
     // Life of a read
@@ -80,7 +84,6 @@ global.Signal = function(definition){
     // - throw an error if signal value is invalid
     // - otherwise return value
     read() {
-
       // check the global stack for the most recent dependent being updated
       // assume this is the caller and set it as a dependent
       // symmetrically register dependent/dependency relationship
@@ -93,11 +96,13 @@ global.Signal = function(definition){
       // If signal has an error then its value is invalid
       // Throw another error when read to notify any readers
       if (this.error) {
-        const signalError = new Error('Reading from corrupted Signal');
+        const signalError = new Error("Reading from corrupted Signal");
         throw signalError;
 
       // If there are no problems, return the value like a normal variable would
-      } else { return this.value; }
+      } else {
+        return this.value;
+      }
     },
 
     // Life of a write
@@ -106,7 +111,7 @@ global.Signal = function(definition){
     // - execute new definition if necessary and establish dependencies
     // - recursively update dependents while collecting observers
     // - notify observers
-    write(newDefinition){
+    write(newDefinition) {
       let error;
       this.definition = newDefinition;
 
@@ -122,15 +127,23 @@ global.Signal = function(definition){
         // update the current signal
         // If an error occurs, collect it and keep propagating
         // A conslidated error will be thrown at the end of propagation
-        try { target.update(); }
-        catch (error1) { error = error1; errorList.push(error); }
+        try {
+          target.update();
+        } catch (error1) {
+          error = error1;
+          errorList.push(error);
+        }
 
         // Build the propagation queue
-        target.dependents.forEach(function(dependent){
+        target.dependents.forEach(function(dependent) {
           if (dependent.dependencyType === SIGNAL) {
-            if (!dependencyQueue.includes(dependent)) { return dependencyQueue.push(dependent); }
+            if (!dependencyQueue.includes(dependent)) {
+              return dependencyQueue.push(dependent);
+            }
           } else if (dependent.dependencyType === OBSERVER) {
-            if (!observerList.includes(dependent)) { return observerList.push(dependent); }
+            if (!observerList.includes(dependent)) {
+              return observerList.push(dependent);
+            }
           }
         });
       }
@@ -138,12 +151,18 @@ global.Signal = function(definition){
       // Once signal propagation has completed, then do observer propagation
       // This ensures that observers only see a consistent state of the signals
       for (let observer of observerList) {
-        try { observer.update(); }
-        catch (error2) { error = error2; errorList.push(error); }
+        try {
+          observer.update();
+        } catch (error2) {
+          error = error2;
+          errorList.push(error);
+        }
       }
 
-      // If any errors occured during propagation then consolidate and throw them
-      if (errorList.length === 1) { throw errorList[0];
+      // If any errors occured during propagation 
+      // consolidate and throw them
+      if (errorList.length === 1) {
+        throw errorList[0];
       } else if (errorList.length > 1) {
         const errorMessage = errorList.length + " errors due to signal write";
         throw new CompoundError(errorMessage, errorList);
@@ -157,17 +176,16 @@ global.Signal = function(definition){
   // The interface function returned to the user to utilize the signal
   // This is done to abstract away the messiness of how the signals work
   // Should contain no additional functionality and be purely syntactic sugar
-  var signalInterface = function(newDefinition){
-
+  var signalInterface = function(newDefinition) {
     // An empty call is treated as a read
-    if (arguments.length === 0) { return signalCore.read();
+    if (arguments.length === 0) {
+      return signalCore.read();
 
-    // A non empty call is treated as a write
+      // A non empty call is treated as a write
     } else {
-
       // Set convenience methods
       if (newDefinition instanceof Object) {
-        signalInterface.set = function(key, value){
+        signalInterface.set = function(key, value) {
           const output = (newDefinition[key] = value);
           signalCore.write(newDefinition);
           return output;
@@ -239,8 +257,7 @@ global.Signal = function(definition){
 // - they cannot be observed themselves
 // - they are notified only after signals have all been updated
 // to remove an observer - just set its value to null
-global.Observer = function(definition){
-
+global.Observer = function(definition) {
   const observerCore = {
     dependencyType: OBSERVER,
     definition: null,
@@ -250,44 +267,48 @@ global.Observer = function(definition){
     // The observer equivalent of update
     update() {
       // clear old dependencies and errors
-      this.dependencies.forEach(dependency=> dependency.dependents.delete(this));
+      this.dependencies.forEach(dependency =>
+        dependency.dependents.delete(this)
+      );
       this.dependencies.clear();
 
       // if definition is a function then execute it for the value
       if (definition instanceof Function) {
         dependencyStack.push(this);
-        try { return this.definition(); }
-        finally {dependencyStack.pop(); }
+        try {
+          return this.definition();
+        } finally {
+          dependencyStack.pop();
+        }
       }
     },
 
     // configure the new definition and do
-    write(newdefinition){
+    write(newdefinition) {
       this.definition = newdefinition;
       return this.update();
     }
   };
 
-
   // abstraction to hide the ugliness of how observers work
-  const observerInterface = newdefinition=> write(newdefinition);
+  const observerInterface = newdefinition => write(newdefinition);
 
   // Creation path - basically identical to the signal creation path
   observerCore.write(definition);
   return observerInterface;
 };
 
-
 // Custom Error class to consolidate multiple errors together
 class CompoundError extends Error {
-  constructor(message, errorArray){
+  constructor(message, errorArray) {
     // Build the message to display all the component errors
     const errors = errorArray;
     for (let error of errors) {
-      const errorDescription = error.stack != null ? error.stack : error.toString();
-      message = message + '\n' + errorDescription;
+      const errorDescription =
+        error.stack != null ? error.stack : error.toString();
+      message = message + "\n" + errorDescription;
     }
-    super(message)
+    super(message);
     this.name = this.constructor.name;
     return this;
   }
