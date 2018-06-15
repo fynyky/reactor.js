@@ -67,8 +67,7 @@ global.Signal = function(definition) {
         console.log("dependencyStack", dependencyStack.length);
         try {
           return (this.value = this.definition());
-        } catch (error1) {
-          const error = error1;
+        } catch (error) {
           this.error = error;
           throw error;
         } finally {
@@ -115,7 +114,6 @@ global.Signal = function(definition) {
     // - recursively update dependents while collecting observers
     // - notify observers
     write(newDefinition) {
-      let error;
       this.definition = newDefinition;
 
       // Propagate changes
@@ -132,8 +130,7 @@ global.Signal = function(definition) {
         // A conslidated error will be thrown at the end of propagation
         try {
           target.update();
-        } catch (error1) {
-          error = error1;
+        } catch (error) {
           errorList.push(error);
         }
 
@@ -156,8 +153,7 @@ global.Signal = function(definition) {
       for (let observer of observerList) {
         try {
           observer.update();
-        } catch (error2) {
-          error = error2;
+        } catch (error) {
           errorList.push(error);
         }
       }
