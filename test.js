@@ -72,6 +72,24 @@ describe("Signal", () => {
 
 describe("Reactor", () => {
   it("should initialize without error", () => new Reactor());
+  it("should write without error", () => {
+    const reactor = new Reactor();
+    reactor.foo = "bar";
+  });
+  it("should read without error", () => {
+    const reactor = new Reactor();
+    reactor.foo = "bar";
+    assert.equal(reactor.foo, "bar");
+  });
+  it("should initialize with existing object without error", () => {
+    new Reactor({});
+  });
+  it("should read from existing object without error", () => {
+    const reactor = new Reactor({
+      foo: "bar"
+    });
+    assert.equal(reactor.foo, "bar");
+  });
 });
 
 describe("Definition", () => {
@@ -135,5 +153,23 @@ describe("Signal Definition", () => {
   })
 });
 
+describe("Reactor Definition", () => {
+  it("should set definition without error", () => {
+    const reactor = new Reactor();
+    reactor.foo = define(() => "bar");
+  })
+  it("should get definition return value", () => {
+    const reactor = new Reactor();
+    reactor.foo = define(() => "bar");
+    assert.equal(reactor.foo, "bar");
+  })
+  it("should be able to overide definition", () => {
+    const reactor = new Reactor();
+    reactor.foo = define(() => "bar");
+    assert.equal(reactor.foo, "bar");
+    reactor.foo = 2;
+    assert.equal(reactor.foo, 2);
+  })
+});
 
 

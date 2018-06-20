@@ -76,7 +76,20 @@ class Reactor {
 
     const reactorCore = {
       get(property) { return source[property]; },
-      set(property, value) { return source[property] = value; }
+      set(property, value) { 
+        if (value instanceof Definition) {
+          return Object.defineProperty(source, property, {
+            get: value.definition,
+            set(setterValue) {
+              delete source[property];
+              source[property] = setterValue;
+            },
+            configurable: true,
+            enumerable: true
+          });
+        }
+        return source[property] = value;
+      }
     };
 
     const reactorInterface = new Proxy(source, {
