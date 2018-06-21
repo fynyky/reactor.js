@@ -60,20 +60,20 @@ describe("Signal", () => {
     const signal = new Signal(value);
     assert.equal(value, signal());
   });
-  it("should read initialized object value", () => {
+  it("should not read initialized object value", () => {
     const value = {};
     const signal = new Signal(value);
-    assert.equal(value, signal());
+    assert.notEqual(value, signal());
   });
-  it("should read initialized array value", () => {
+  it("should not read initialized array value", () => {
     const value = [];
     const signal = new Signal(value);
-    assert.equal(value, signal());
+    assert.notEqual(value, signal());
   });
-  it("should read initialized function value", () => {
+  it("should not read initialized function value", () => {
     const value = () => {};
     const signal = new Signal(value);
-    assert.equal(value, signal());
+    assert.notEqual(value, signal());
   });
 });
 
