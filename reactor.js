@@ -17,6 +17,9 @@ const global =
 // Using a stack allows nested signals to function correctly
 const dependencyStack = [];
 
+// Map of the external interface to the internal core for debugging
+const coreExtractor = new WeakMap();
+global.coreExtractor = coreExtractor;
 
 
 class Definition {
@@ -32,7 +35,6 @@ const define = (definition) => new Definition(definition);
 global.define = define;
 
 
-
 class Signal {
   constructor(value) {
 
@@ -41,17 +43,37 @@ class Signal {
       // Signal state
       value: null,
       definition: null,
+      dependents: new Set(),
 
       read() {
-        if (this.definition) return this.definition();
-        return this.value;
+        const dependent = dependencyStack[dependencyStack.length - 1];
+        if (dependent) {
+          this.dependents.add(dependent);
+          dependent.dependencies.add(this);
+        }
+        // return the appropriate static or calculated value
+        let output = this.definition ? this.definition() : this.value;
+        // // Wrap the output in a reactor if it's an object
+        // try { output = new Reactor(output) }
+        // catch(error) {
+        //   if (error.name = "TypeError") return output;
+        //   throw error;
+        // }
+        return output;
       },
 
       write(value) {
+        // Save the new value/definition
         this.definition = null;
         this.value = null;
         if (value instanceof Definition) this.definition = value.definition;
         else this.value = value;
+        // Trigger dependents
+        // Need to do an array copy to avoid an infinite loop
+        // Triggering a dependent will remove it from the dependent set
+        // Then re-add it when it is execute
+        // This will cause the iterator to trigger again
+        Array.from(this.dependents).forEach(dependent => dependent.trigger())
       }
 
     };
@@ -60,7 +82,7 @@ class Signal {
       if (arguments.length === 0) return signalCore.read();
       return signalCore.write(value);
     };
-
+    coreExtractor.set(signalInterface, signalCore);
     signalInterface(value);
     return signalInterface;
   }
@@ -75,7 +97,15 @@ class Reactor {
     if (arguments.length === 0) source = {};    
 
     const reactorCore = {
-      get(property) { return source[property]; },
+      accessorSignals: {},
+      get(property) {
+        // Instead of reading the property directly
+        // We read it through a trivial Signal to get dependency tracking
+        this.accessorSignals[property] = this.accessorSignals[property]
+          ? this.accessorSignals[property]
+          : new Signal(define(() => source[property]));
+        return this.accessorSignals[property](); 
+      },
       set(property, value) { 
         if (value instanceof Definition) {
           return Object.defineProperty(source, property, {
@@ -88,7 +118,14 @@ class Reactor {
             enumerable: true
           });
         }
-        return source[property] = value;
+        // Save the final return value for consistency with a transparent set 
+        const returnValue = (source[property] = value);
+        // Force dependencies to trigger before returning
+        // Hack to do this by "redefining" the signal to the same thing
+        if (this.accessorSignals[property]) {
+          this.accessorSignals[property](define(() => source[property]));
+        }
+        return returnValue;
       }
     };
 
@@ -100,12 +137,13 @@ class Reactor {
         return reactorCore.set(property, value)
       }
     });
-
+    coreExtractor.set(reactorInterface, reactorCore);
     return reactorInterface;
-
   }
 }
 global.Reactor = Reactor;
+
+
 
 class Observer {
   constructor(execute) {
@@ -130,10 +168,14 @@ class Observer {
     }
     // public interace to hide the ugliness of how observers work
     const observerInterface = this;
+    observerCore.trigger();
+    coreExtractor.set(observerInterface, observerCore);
     return observerInterface;
   }
 }
 global.Observer = Observer;
+
+
 
 // Custom Error class to consolidate multiple errors together
 class CompoundError extends Error {

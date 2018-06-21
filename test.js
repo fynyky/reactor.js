@@ -1,5 +1,12 @@
 const assert = require("assert");
-const { Signal, Reactor, define, Observer, CompoundError } = require("./reactor");
+const { 
+  Signal, 
+  Reactor, 
+  define, 
+  Observer, 
+  CompoundError,
+  coreExtractor
+} = require("./reactor");
 
 describe("Signal", () => {
   // Initialization 
@@ -229,5 +236,55 @@ describe("Observer", () => {
     })
   });
 });
+
+describe("Observering", () => {
+  it("should trigger on initialization", () => {
+    let tracker = 0;
+    const observer = new Observer(() => tracker = 1);
+    assert.equal(tracker, 1);
+  });
+  it("should trigger on Signal dependency write", () => {
+    let tracker = 0;
+    const signal = new Signal(1);
+    const observer = new Observer(() => (tracker = signal()));
+    signal(2);
+    assert.equal(tracker, 2);
+  });
+  it("should trigger once per Signal dependency write", () => {
+    let counter = 0;
+    const signal = new Signal("foo");
+    const observer = new Observer(() => {
+      signal();
+      counter += 1;
+    });
+    assert.equal(counter, 1);
+    signal("bar");
+    assert.equal(counter, 2);
+    signal("foo");
+    assert.equal(counter, 3);
+  });
+  it("should trigger on Reactor dependency write", () => {
+    let tracker = 0;
+    const reactor = new Reactor();
+    reactor.foo = 1;
+    const observer = new Observer(() => (tracker = reactor.foo));
+    reactor.foo = 2;
+    assert.equal(tracker, 2);
+  });
+  it("should trigger once per Reactor dependency write", () => {
+    let counter = 0;
+    const reactor = new Reactor();
+    reactor.foo = "foo";
+    const observer = new Observer(() => {
+      counter += 1;
+      reactor.foo;
+    });
+    assert.equal(counter, 1);
+    reactor.foo = "bar";
+    assert.equal(counter, 2);
+    reactor.foo = "foo";
+    assert.equal(counter, 3);
+  });
+})
 
 
