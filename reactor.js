@@ -107,6 +107,33 @@ class Reactor {
 }
 global.Reactor = Reactor;
 
+class Observer {
+  constructor(execute) {
+    if (typeof execute !== "function") {
+      throw new TypeError("Cannot create observer with a non-function");
+    }
+    // Internal engine for how observers work
+    const observerCore = {
+      dependencies: new Set(),
+      // Trigger the observer and find dependencies
+      trigger() {
+        // clear old dependencies
+        this.dependencies.forEach(dependency =>
+          dependency.dependents.delete(this)
+        );
+        this.dependencies.clear();
+        // Execute the observed function after setting the dependency stack
+        dependencyStack.push(this);
+        try { execute(); }
+        finally { dependencyStack.pop(); }
+      }
+    }
+    // public interace to hide the ugliness of how observers work
+    const observerInterface = this;
+    return observerInterface;
+  }
+}
+global.Observer = Observer;
 
 // Custom Error class to consolidate multiple errors together
 class CompoundError extends Error {
