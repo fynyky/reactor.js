@@ -54,12 +54,11 @@ class Signal {
         // return the appropriate static or calculated value
         let output = this.definition ? this.definition() : this.value;
         // // Wrap the output in a reactor if it's an object
-        // try { output = new Reactor(output) }
-        // catch(error) {
-        //   if (error.name = "TypeError") return output;
-        //   throw error;
-        // }
-        return output;
+        try { return new Reactor(output); }
+        catch(error) {
+          if (error.name === "TypeError") return output;
+          throw error;
+        }
       },
 
       write(value) {

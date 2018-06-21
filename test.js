@@ -286,5 +286,3 @@ describe("Observering", () => {
     assert.equal(counter, 3);
   });
 })
-
-
