@@ -44,6 +44,7 @@ class Signal {
       value: null,
       definition: null,
       dependents: new Set(),
+      reactorCache: new WeakMap(),
 
       read() {
         const dependent = dependencyStack[dependencyStack.length - 1];
@@ -54,7 +55,17 @@ class Signal {
         // return the appropriate static or calculated value
         let output = this.definition ? this.definition() : this.value;
         // // Wrap the output in a reactor if it's an object
-        try { return new Reactor(output); }
+        try { 
+          // Check to see if we've wrapped this object before
+          // This allows consistency of dependencies with repeated read calls
+          let reactor = this.reactorCache.get(output);
+          if (reactor) return reactor;
+          // If not then wrap and store it for future retrieves
+          reactor = new Reactor(output);
+          this.reactorCache.set(output, reactor);
+          return reactor
+        }
+        // TypeError means it was not an object
         catch(error) {
           if (error.name === "TypeError") return output;
           throw error;
@@ -121,19 +132,38 @@ class Reactor {
         const returnValue = (source[property] = value);
         // Force dependencies to trigger before returning
         // Hack to do this by "redefining" the signal to the same thing
+        this.trigger(property)
+        return returnValue;
+      },
+      trigger(property) {
         if (this.accessorSignals[property]) {
           this.accessorSignals[property](define(() => source[property]));
         }
-        return returnValue;
+      }, 
+      defineProperty(target, property, descriptor) {
+        const value = Reflect.defineProperty(target, property, descriptor);
+        this.trigger(property);
+        return value;
+      }, 
+      deleteProperty(target, property, descriptor) {
+        const value = Reflect.deleteProperty(target, property);
+        this.trigger(property);
+        return value;
       }
     };
 
     const reactorInterface = new Proxy(source, {
       get(target, property, receiver) { 
-        return reactorCore.get(property)
+        return reactorCore.get(property);
       },
       set(target, property, value, receiver) { 
-        return reactorCore.set(property, value)
+        return reactorCore.set(property, value);
+      },
+      defineProperty(target, property, descriptor) {
+        return reactorCore.defineProperty(target, property, descriptor);
+      },
+      deleteProperty(target, property) {
+        return reactorCore.deleteProperty(target, property);
       }
     });
     coreExtractor.set(reactorInterface, reactorCore);

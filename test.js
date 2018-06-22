@@ -285,4 +285,16 @@ describe("Observering", () => {
     reactor.foo = "foo";
     assert.equal(counter, 3);
   });
+  it("should trigger on nested Reactor dependency write", () => {
+    let tracker = 0;
+    const reactor = new Reactor({
+      foo: {
+        bar: "baz"
+      }
+    });
+    const observer = new Observer(() => (tracker = reactor.foo.bar));
+    assert.equal(tracker, "baz");
+    reactor.foo.bar = "moo";
+    assert.equal(tracker, "moo");
+  });
 })
