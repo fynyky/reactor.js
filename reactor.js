@@ -135,11 +135,6 @@ class Reactor {
         this.trigger(property)
         return returnValue;
       },
-      trigger(property) {
-        if (this.accessorSignals[property]) {
-          this.accessorSignals[property](define(() => source[property]));
-        }
-      }, 
       defineProperty(target, property, descriptor) {
         const value = Reflect.defineProperty(target, property, descriptor);
         this.trigger(property);
@@ -149,6 +144,11 @@ class Reactor {
         const value = Reflect.deleteProperty(target, property);
         this.trigger(property);
         return value;
+      },
+      trigger(property) {
+        if (this.accessorSignals[property]) {
+          this.accessorSignals[property](define(() => source[property]));
+        }
       }
     };
 

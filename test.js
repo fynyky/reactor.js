@@ -97,6 +97,20 @@ describe("Reactor", () => {
     });
     assert.equal(reactor.foo, "bar");
   });
+  it("should defineProperty without error", () => {
+    const reactor = new Reactor();
+    Object.defineProperty(reactor, "foo", {
+      get() { return "bar"; }
+    });
+    assert.equal(reactor.foo, "bar");
+  });
+  it("should deleteProperty without error", () => {
+    const reactor = new Reactor({
+      foo: "bar"
+    });
+    delete reactor.foo;
+    assert.equal(reactor.foo, undefined);
+  });
 });
 
 describe("Definition", () => {
@@ -182,6 +196,17 @@ describe("Reactor Definition", () => {
     assert.equal(reactor.foo, "bar");
     reactor.foo = 2;
     assert.equal(reactor.foo, 2);
+  })
+  it("should fail to write after Object.defineProperty non-writable", () => {
+    const reactor = new Reactor();
+    Object.defineProperty(reactor, "foo", {
+      value: "bar",
+      writable: false
+    });
+    assert.throws(() => (reactor.foo = "baz"), {
+      name: "TypeError",
+      message: "Cannot assign to read only property 'foo' of object '#<Object>'"
+    });
   })
 });
 
@@ -296,5 +321,25 @@ describe("Observering", () => {
     assert.equal(tracker, "baz");
     reactor.foo.bar = "moo";
     assert.equal(tracker, "moo");
+  });
+  it("should trigger on defineProperty", () => {
+    let tracker = 0;
+    const reactor = new Reactor({
+      foo: "bar"
+    });
+    const observer = new Observer(() => (tracker = reactor.foo));
+    Object.defineProperty(reactor, "foo", {
+      get() { return "baz"; }
+    })
+    assert.equal(tracker, "baz");
+  });
+  it("should trigger on deleteProperty", () => {
+    let tracker = 0;
+    const reactor = new Reactor({
+      foo: "bar"
+    });
+    const observer = new Observer(() => (tracker = reactor.foo));
+    delete reactor.foo;
+    assert.equal(tracker, undefined);
   });
 })
