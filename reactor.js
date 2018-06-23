@@ -108,31 +108,31 @@ class Reactor {
 
     const reactorCore = {
       accessorSignals: {},
-      get(property) {
+      get(target, property, receiver) {
         // Instead of reading the property directly
         // We read it through a trivial Signal to get dependency tracking
         this.accessorSignals[property] = this.accessorSignals[property]
           ? this.accessorSignals[property]
-          : new Signal(define(() => source[property]));
+          : new Signal(define(() => Reflect.get(target, property, receiver)));
         return this.accessorSignals[property](); 
       },
-      set(property, value) { 
+      set(target, property, value, receiver) { 
+        // Save the final return value for consistency with a transparent set 
+        let returnValue;
         if (value instanceof Definition) {
-          return Object.defineProperty(source, property, {
+          returnValue = Reflect.defineProperty(target, property, {
             get: value.definition,
             set(setterValue) {
-              delete source[property];
-              source[property] = setterValue;
+              delete target[property];
+              target[property] = setterValue;
             },
             configurable: true,
             enumerable: true
           });
+          this.trigger(property);
+        } else {
+          returnValue = Reflect.set(target, property, value, receiver);
         }
-        // Save the final return value for consistency with a transparent set 
-        const returnValue = (source[property] = value);
-        // Force dependencies to trigger before returning
-        // Hack to do this by "redefining" the signal to the same thing
-        this.trigger(property)
         return returnValue;
       },
       defineProperty(target, property, descriptor) {
@@ -145,6 +145,8 @@ class Reactor {
         this.trigger(property);
         return value;
       },
+      // Force dependencies to trigger
+      // Hack to do this by "redefining" the signal to the same thing
       trigger(property) {
         if (this.accessorSignals[property]) {
           this.accessorSignals[property](define(() => source[property]));
@@ -154,10 +156,10 @@ class Reactor {
 
     const reactorInterface = new Proxy(source, {
       get(target, property, receiver) { 
-        return reactorCore.get(property);
+        return reactorCore.get(target, property, receiver);
       },
       set(target, property, value, receiver) { 
-        return reactorCore.set(property, value);
+        return reactorCore.set(target, property, value, receiver);
       },
       defineProperty(target, property, descriptor) {
         return reactorCore.defineProperty(target, property, descriptor);

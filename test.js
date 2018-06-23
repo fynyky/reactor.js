@@ -197,16 +197,14 @@ describe("Reactor Definition", () => {
     reactor.foo = 2;
     assert.equal(reactor.foo, 2);
   })
-  it("should fail to write after Object.defineProperty non-writable", () => {
+  it("should silently fail write after defineProperty non-writable", () => {
     const reactor = new Reactor();
     Object.defineProperty(reactor, "foo", {
       value: "bar",
       writable: false
     });
-    assert.throws(() => (reactor.foo = "baz"), {
-      name: "TypeError",
-      message: "Cannot assign to read only property 'foo' of object '#<Object>'"
-    });
+    reactor.foo = "baz";
+    assert.equal(reactor.foo, "bar");
   })
 });
 
@@ -309,6 +307,13 @@ describe("Observering", () => {
     assert.equal(counter, 2);
     reactor.foo = "foo";
     assert.equal(counter, 3);
+  });
+  it("should trigger on Reactor dependency write", () => {
+    let tracker = 0;
+    const reactor = new Reactor();
+    const observer = new Observer(() => (tracker = reactor.foo));
+    reactor.foo = define(() => "foo");
+    assert.equal(tracker, "foo");
   });
   it("should trigger on nested Reactor dependency write", () => {
     let tracker = 0;
