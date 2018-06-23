@@ -30,44 +30,78 @@ class Definition {
 const define = (definition) => new Definition(definition);
 global.define = define;
 
-
+// Signals are functions representing values
+// - Read a signal by calling it with no arguments
+// - Write to a signal by calling it with the desired value as an argument
+// - Define a "getter" signal by calling it with a definition as an argument
+// When a Signal is read by an Observer it saves that Observer as a dependent
+// When a Signal is written to it automatically triggers dependents
+// When a Signal returns an object it is automatically wrapped in a Reactor
+// -----------------------------------------------------------------------------
+// Examples
+// let a = new Signal(1)          Initializes it with value 1
+// a()                            Returns 1
+// a(2)                           Sets the value to 2 
+// a(define(() => Date.now()))    Sets a dynamic getter instead of static value 
 class Signal {
+  // Signals are made up of 2 main parts
+  // - The core: The properties & methods which lets signals work
+  // - The interface: The function returned to the user to use
   constructor(value) {
 
+    // The "guts" of a signal containing properties and methods
+    // All actual functionality & state should be built into the core
+    // Should be completely agnostic to syntactic sugar
     const signalCore = {
 
       // Signal state
-      value: null,
-      definition: null,
-      dependents: new Set(),
-      reactorCache: new WeakMap(),
+      value: null, // The set static value if defined
+      definition: null, // The getter method if defined
+      dependents: new Set(), // The Observers which rely on this Signal
+      reactorCache: new WeakMap(), // Cache of objects to their reactor proxies
+                                   // Allows for consistent dependency tracking
+                                   // across multiple reads of the same object 
 
+      // Life of a read
+      // - check to see who is asking
+      // - register them as a dependent and register self as their dependency
+      // - return the appropriate static or dynamic value
+      // - wrap the result in a Reactor if its an object
       read() {
+        // Check the global stack for the most recent observer being updated
+        // Assume this is the caller and set it as a dependent
+        // Symmetrically register dependent/dependency relationship
         const dependent = dependencyStack[dependencyStack.length - 1];
         if (dependent) {
           this.dependents.add(dependent);
           dependent.dependencies.add(this);
         }
-        // return the appropriate static or calculated value
+        // Return the appropriate static or calculated value
         let output = this.definition ? this.definition() : this.value;
-        // // Wrap the output in a reactor if it's an object
+        // Wrap the output in a Reactor if it's an object
         try { 
           // Check to see if we've wrapped this object before
           // This allows consistency of dependencies with repeated read calls
           let reactor = this.reactorCache.get(output);
           if (reactor) return reactor;
-          // If not then wrap and store it for future retrieves
+          // If not then wrap and store it for future reads
           reactor = new Reactor(output);
           this.reactorCache.set(output, reactor);
-          return reactor
+          return reactor;
         }
-        // TypeError means it was not an object
+        // Assume TypeError means it was not an object
+        // In that case just return the plain output
         catch(error) {
           if (error.name === "TypeError") return output;
           throw error;
         }
       },
 
+      // Life of a write
+      // - If the new value is a Definition then save it as a getter
+      // - Otherwise just store the provided value
+      // - Trigger any dependent Observers while collecting errors thrown
+      // - Throw a CompoundError if necessary
       write(value) {
         // Save the new value/definition
         this.definition = null;
@@ -80,6 +114,8 @@ class Signal {
         // Then re-add it when it is execute
         // This will cause the iterator to trigger again
         const errorList = [];
+        // If an error occurs, collect it and keep going
+        // A conslidated error will be thrown at the end of propagation
         Array.from(this.dependents).forEach(dependent => {
           try { dependent.trigger(); }
           catch(error) { errorList.push(error); }
@@ -96,8 +132,13 @@ class Signal {
 
     };
 
+    // The interface function returned to the user to utilize the signal
+    // This is done to abstract away the messiness of how the signals work
+    // Should contain no additional functionality and be purely syntactic sugar
     const signalInterface = function(value) {
+      // An empty call is treated as a read
       if (arguments.length === 0) return signalCore.read();
+      // A non empty call is treated as a write
       return signalCore.write(value);
     };
     coreExtractor.set(signalInterface, signalCore);
