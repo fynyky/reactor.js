@@ -383,6 +383,42 @@ describe("Observering", () => {
     delete reactor.foo;
     assert.equal(tracker, undefined);
   });
+  it("should be able to stop", () => {
+    let tracker = null;
+    let counter = 0;
+    const signal = new Signal("foo");
+    const observer = new Observer(() => {
+      counter += 1;
+      tracker = signal()
+    });
+    assert.equal(tracker, "foo");
+    assert.equal(counter, 1);
+    signal("bar");
+    assert.equal(tracker, "bar");
+    assert.equal(counter, 2);
+    observer.stop();
+    signal("moo");
+    assert.equal(tracker, "bar");
+    assert.equal(counter, 2);
+  });
+  it("should be able to start after stopping", () => {
+    let tracker = null;
+    let counter = 0;
+    const signal = new Signal("foo");
+    const observer = new Observer(() => {
+      counter += 1;
+      tracker = signal()
+    });
+    assert.equal(tracker, "foo");
+    assert.equal(counter, 1);
+    observer.stop();
+    signal("moo");
+    assert.equal(tracker, "foo");
+    assert.equal(counter, 1);
+    observer.start();
+    assert.equal(tracker, "moo");
+    assert.equal(counter, 2);
+  });
 })
 
 // it.only("test", () => {

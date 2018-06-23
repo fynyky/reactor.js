@@ -191,12 +191,14 @@ class Observer {
     const observerCore = {
       dependencies: new Set(),
       // Trigger the observer and find dependencies
-      trigger() {
-        // clear old dependencies
+      clearDependencies() {
         this.dependencies.forEach(dependency =>
           dependency.dependents.delete(this)
         );
         this.dependencies.clear();
+      },
+      trigger() {
+        this.clearDependencies();
         // Execute the observed function after setting the dependency stack
         dependencyStack.push(this);
         try { execute(); }
@@ -205,6 +207,12 @@ class Observer {
     }
     // public interace to hide the ugliness of how observers work
     const observerInterface = this;
+    observerInterface.stop = () => {
+      observerCore.clearDependencies();
+    };
+    observerInterface.start = () => {
+      observerCore.trigger();
+    };
     observerCore.trigger();
     coreExtractor.set(observerInterface, observerCore);
     return observerInterface;
