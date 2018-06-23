@@ -190,6 +190,7 @@ class Observer {
     // Internal engine for how observers work
     const observerCore = {
       running: true,
+      triggering: false,
       dependencies: new Set(),
       // Trigger the observer and find dependencies
       clearDependencies() {
@@ -199,12 +200,23 @@ class Observer {
         this.dependencies.clear();
       },
       trigger() {
-        this.clearDependencies();
+        // Avoid infinite loops by throwing an error if we
+        // try to trigger an already triggering observer
+        if (this.triggering) {
+          throw new ObserverLoopError(
+            "observer attempted to activate itself while already executing"
+          );
+        }
         // Execute the observed function after setting the dependency stack
         if (this.running) {
+          this.clearDependencies();
           dependencyStack.push(this);
+          this.triggering = true;
           try { execute(); }
-          finally { dependencyStack.pop(); }
+          finally { 
+            dependencyStack.pop(); 
+            this.triggering = false;
+          }
         }
       },
       stop() {
@@ -230,6 +242,14 @@ class Observer {
 global.Observer = Observer;
 
 
+class ObserverLoopError extends Error {
+  constructor(...args) {
+    super(...args);
+    this.name = this.constructor.name;
+    return this;
+  }
+}
+global.ObserverLoopError = ObserverLoopError
 
 // Custom Error class to consolidate multiple errors together
 class CompoundError extends Error {

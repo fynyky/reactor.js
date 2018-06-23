@@ -5,6 +5,7 @@ const {
   define, 
   Observer, 
   CompoundError,
+  ObserverLoopError,
   coreExtractor
 } = require("./reactor");
 
@@ -439,5 +440,25 @@ describe("Observering", () => {
     observer.start();
     assert.equal(tracker, "moo");
     assert.equal(counter, 2);
+  });
+  it("should not infinite loop", () => {
+    let tracker = null;
+    let counter = 0;
+    const signal = new Signal("foo");
+    assert.throws(
+      () => {
+        const observer = new Observer(() => {
+          counter += 1;
+          tracker = signal();
+          if (counter < 100) signal("bar");
+        });
+      },
+      { 
+        name: "ObserverLoopError",
+        message: "observer attempted to activate itself while already executing"
+      }
+    )
+    assert.equal(tracker, "foo");
+    assert.equal(counter, 1);
   });
 })
