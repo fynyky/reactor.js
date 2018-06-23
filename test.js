@@ -419,32 +419,25 @@ describe("Observering", () => {
     assert.equal(tracker, "moo");
     assert.equal(counter, 2);
   });
+  it("should start idempotently", () => {
+    let tracker = null;
+    let counter = 0;
+    const signal = new Signal("foo");
+    const observer = new Observer(() => {
+      counter += 1;
+      tracker = signal()
+    });
+    assert.equal(tracker, "foo");
+    assert.equal(counter, 1);
+    observer.stop();
+    signal("moo");
+    assert.equal(tracker, "foo");
+    assert.equal(counter, 1);
+    observer.start();
+    assert.equal(tracker, "moo");
+    assert.equal(counter, 2);
+    observer.start();
+    assert.equal(tracker, "moo");
+    assert.equal(counter, 2);
+  });
 })
-
-// it.only("test", () => {
-//   let source = {}
-//   let a = new Proxy(source, {
-//     set(target, property, value, receiver) {
-//       if (target === receiver) {
-//         console.log("target matches receiver");
-//         return Reflect.set(target, property, "moo", receiver);
-//       } else {
-//         console.log("target", target);
-//         console.log("receiver", receiver);
-//         console.log("target === receiver", target === receiver);
-//         console.log("target === source", target === source);
-//         console.log("proxy === receiver", a === receiver);
-//       }
-//       return Reflect.set(target, property, value, receiver);
-//     }, 
-//     defineProperty(target, property, description) {
-//       console.log("defining");
-//       Reflect.set(target, property, description);
-//     }
-//   });
-//   a.foo = "bar"
-//   let b = Object.create(a);
-//   b.quu = "mux";
-//   console.log("a", a);
-//   console.log("b", b);
-// });

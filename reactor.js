@@ -189,6 +189,7 @@ class Observer {
     }
     // Internal engine for how observers work
     const observerCore = {
+      running: true,
       dependencies: new Set(),
       // Trigger the observer and find dependencies
       clearDependencies() {
@@ -200,19 +201,27 @@ class Observer {
       trigger() {
         this.clearDependencies();
         // Execute the observed function after setting the dependency stack
-        dependencyStack.push(this);
-        try { execute(); }
-        finally { dependencyStack.pop(); }
+        if (this.running) {
+          dependencyStack.push(this);
+          try { execute(); }
+          finally { dependencyStack.pop(); }
+        }
+      },
+      stop() {
+        this.running = false;
+        this.clearDependencies();
+      },
+      start() {
+        if (!this.running) {
+          this.running = true;
+          this.trigger();
+        }
       }
     }
     // public interace to hide the ugliness of how observers work
     const observerInterface = this;
-    observerInterface.stop = () => {
-      observerCore.clearDependencies();
-    };
-    observerInterface.start = () => {
-      observerCore.trigger();
-    };
+    observerInterface.stop = () => observerCore.stop();
+    observerInterface.start = () => observerCore.start();
     observerCore.trigger();
     coreExtractor.set(observerInterface, observerCore);
     return observerInterface;
