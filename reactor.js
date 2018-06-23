@@ -118,9 +118,8 @@ class Reactor {
       },
       set(target, property, value, receiver) { 
         // Save the final return value for consistency with a transparent set 
-        let returnValue;
         if (value instanceof Definition) {
-          returnValue = Reflect.defineProperty(target, property, {
+          const returnValue = Reflect.defineProperty(target, property, {
             get: value.definition,
             set(setterValue) {
               delete target[property];
@@ -130,10 +129,9 @@ class Reactor {
             enumerable: true
           });
           this.trigger(property);
-        } else {
-          returnValue = Reflect.set(target, property, value, receiver);
+          return returnValue;
         }
-        return returnValue;
+        return Reflect.set(target, property, value, receiver);
       },
       defineProperty(target, property, descriptor) {
         const value = Reflect.defineProperty(target, property, descriptor);
