@@ -1,7 +1,3 @@
-// Constants
-const SIGNAL = "SIGNAL";
-const OBSERVER = "OBSERVER";
-
 // In Node.js, Reactor is packaged into a module
 // In the browser, Reactor is bound directly to the window namespace
 const global =
@@ -83,7 +79,19 @@ class Signal {
         // Triggering a dependent will remove it from the dependent set
         // Then re-add it when it is execute
         // This will cause the iterator to trigger again
-        Array.from(this.dependents).forEach(dependent => dependent.trigger())
+        const errorList = [];
+        Array.from(this.dependents).forEach(dependent => {
+          try { dependent.trigger(); }
+          catch(error) { errorList.push(error); }
+        });
+        // If any errors occured during propagation 
+        // consolidate and throw them
+        if (errorList.length === 1) {
+          throw errorList[0];
+        } else if (errorList.length > 1) {
+          const errorMessage = errorList.length + " errors due to signal write";
+          throw new CompoundError(errorMessage, errorList);
+        }
       }
 
     };

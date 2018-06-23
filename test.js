@@ -461,4 +461,26 @@ describe("Observering", () => {
     assert.equal(tracker, "foo");
     assert.equal(counter, 1);
   });
+  it("should throw observer error from signal update", () => {
+    const signal = new Signal(1);
+    const observer = new Observer(() => {
+      if (signal() > 1) throw new Error("dummy error");
+    });
+    assert.throws(() => signal(2), {
+      name: "Error",
+      message: "dummy error"
+    });
+  });
+  it("should throw compound error if multiple observer errors", () => {
+    const signal = new Signal(1);
+    const observer1 = new Observer(() => {
+      if (signal() > 1) throw new Error("dummy error 1");
+    });
+    const observer2 = new Observer(() => {
+      if (signal() > 1) throw new Error("dummy error 2");
+    });
+    assert.throws(() => signal(2), {
+      name: "CompoundError"
+    });
+  });
 })
