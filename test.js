@@ -483,4 +483,21 @@ describe("Observering", () => {
       name: "CompoundError"
     });
   });
+  it("should observe array methods", () => {
+    let counter = 0;
+    let tracker;
+    const reactor = new Reactor([]);
+    const observer = new Observer(() => {
+      counter += 1;
+      tracker = reactor[0];
+    });
+    assert.equal(counter, 1);
+    assert.equal(tracker, undefined);
+    reactor.push("foo");
+    assert.equal(counter, 2);
+    assert.equal(tracker, "foo");
+    reactor.unshift("bar");
+    assert.equal(counter, 3);
+    assert.equal(tracker, "bar");
+  });
 })
