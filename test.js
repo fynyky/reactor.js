@@ -348,3 +348,31 @@ describe("Observering", () => {
     assert.equal(tracker, undefined);
   });
 })
+
+// it.only("test", () => {
+//   let source = {}
+//   let a = new Proxy(source, {
+//     set(target, property, value, receiver) {
+//       if (target === receiver) {
+//         console.log("target matches receiver");
+//         return Reflect.set(target, property, "moo", receiver);
+//       } else {
+//         console.log("target", target);
+//         console.log("receiver", receiver);
+//         console.log("target === receiver", target === receiver);
+//         console.log("target === source", target === source);
+//         console.log("proxy === receiver", a === receiver);
+//       }
+//       return Reflect.set(target, property, value, receiver);
+//     }, 
+//     defineProperty(target, property, description) {
+//       console.log("defining");
+//       Reflect.set(target, property, description);
+//     }
+//   });
+//   a.foo = "bar"
+//   let b = Object.create(a);
+//   b.quu = "mux";
+//   console.log("a", a);
+//   console.log("b", b);
+// });

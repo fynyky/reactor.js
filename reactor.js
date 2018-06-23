@@ -116,32 +116,40 @@ class Reactor {
           : new Signal(define(() => Reflect.get(target, property, receiver)));
         return this.accessorSignals[property](); 
       },
-      set(target, property, value, receiver) { 
-        // Save the final return value for consistency with a transparent set 
-        if (value instanceof Definition) {
-          const returnValue = Reflect.defineProperty(target, property, {
-            get: value.definition,
-            set(setterValue) {
-              delete target[property];
-              target[property] = setterValue;
-            },
-            configurable: true,
-            enumerable: true
-          });
-          this.trigger(property);
-          return returnValue;
-        }
-        return Reflect.set(target, property, value, receiver);
-      },
       defineProperty(target, property, descriptor) {
-        const value = Reflect.defineProperty(target, property, descriptor);
+        // Automatically transform definitions into getter methods
+        if (descriptor.value instanceof Definition) {
+          let newDescriptor = { 
+            get: descriptor.value.definition,
+            // Copy the prexisting configurable and enumerable properties
+            // Default to true if undefined
+            configurable: (descriptor.configurable === undefined
+              ? true
+              : descriptor.configurable
+            ),
+            enumerable: (descriptor.enumerable === undefined
+              ? true
+              : descriptor.enumerable
+            )
+          };
+          // Translate the writable property into the existence of a setter
+          // Default to true
+          if (descriptor.writable || descriptor.writable === undefined) {
+            newDescriptor.set = (value) => {
+              delete target[property];
+              target[property] = value;
+            }; 
+          }
+          descriptor = newDescriptor;
+        };
+        const didSucceed = Reflect.defineProperty(target, property, descriptor);
         this.trigger(property);
-        return value;
+        return didSucceed;
       }, 
       deleteProperty(target, property, descriptor) {
-        const value = Reflect.deleteProperty(target, property);
+        const didSucceed = Reflect.deleteProperty(target, property);
         this.trigger(property);
-        return value;
+        return didSucceed;
       },
       // Force dependencies to trigger
       // Hack to do this by "redefining" the signal to the same thing
@@ -155,9 +163,6 @@ class Reactor {
     const reactorInterface = new Proxy(source, {
       get(target, property, receiver) { 
         return reactorCore.get(target, property, receiver);
-      },
-      set(target, property, value, receiver) { 
-        return reactorCore.set(target, property, value, receiver);
       },
       defineProperty(target, property, descriptor) {
         return reactorCore.defineProperty(target, property, descriptor);
