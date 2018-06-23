@@ -123,6 +123,9 @@ class Reactor {
             get: descriptor.value.definition,
             // Copy the prexisting configurable and enumerable properties
             // Default to true if undefined
+            // Apparent bug in v8 where you are unable to modify 
+            // the descriptor with it false
+            // https://bugs.chromium.org/p/v8/issues/detail?id=7884
             configurable: (descriptor.configurable === undefined
               ? true
               : descriptor.configurable

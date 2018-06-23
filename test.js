@@ -104,6 +104,15 @@ describe("Reactor", () => {
     });
     assert.equal(reactor.foo, "bar");
   });
+  it("should silently fail write after defineProperty non-writable", () => {
+    const reactor = new Reactor();
+    Object.defineProperty(reactor, "foo", {
+      value: "bar",
+      writable: false
+    });
+    reactor.foo = "baz";
+    assert.equal(reactor.foo, "bar");
+  });
   it("should deleteProperty without error", () => {
     const reactor = new Reactor({
       foo: "bar"
@@ -197,15 +206,42 @@ describe("Reactor Definition", () => {
     reactor.foo = 2;
     assert.equal(reactor.foo, 2);
   })
-  it("should silently fail write after defineProperty non-writable", () => {
+  it("should be able to set definition as non-writable", () => {
     const reactor = new Reactor();
     Object.defineProperty(reactor, "foo", {
-      value: "bar",
+      value: define(() => "bar"),
       writable: false
     });
-    reactor.foo = "baz";
+    assert.equal(reactor.foo, "bar");
+    reactor.foo = 2;
     assert.equal(reactor.foo, "bar");
   })
+  it("should set definition as enumerable by default", () => {
+    const reactor = new Reactor();
+    reactor.foo = define(() => "bar");
+    assert.equal(Object.keys(reactor).length, 1);
+  })
+  it("should be able to set definition as non-enumerable", () => {
+    const reactor = new Reactor();
+    Object.defineProperty(reactor, "foo", {
+      value: define(() => "bar"),
+      enumerable: false
+    });
+    assert.equal(Object.keys(reactor).length, 0);
+  });
+  // Temporarily disabled test since this seems fundamentally impossible
+  // due to implementation where you cannot reconfigure the descriptor in a trap
+  // if configurable is set to false. 
+  // File bug here https://bugs.chromium.org/p/v8/issues/detail?id=7884
+  // it("should be able to set definition as non-configurable", () => {
+  //   const reactor = new Reactor();
+  //   Object.defineProperty(reactor, "foo", {
+  //     value: define(() => "bar"),
+  //     configurable: false
+  //   });
+  //   delete reactor.foo;
+  //   assert.equal(reactor.foo, "bar")
+  // });
 });
 
 describe("Observer", () => {
