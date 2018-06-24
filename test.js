@@ -9,35 +9,35 @@ const {
 
 describe("Signal", () => {
 
-  it("should initialize without error", () => {
+  it("initializes without error", () => {
     new Signal(true);
     new Signal(false);
     new Signal(null);
     new Signal(undefined);
     new Signal(1);
     new Signal(0);
-    new Signal(-1);
     new Signal("a");
+    new Signal("");
     new Signal(Symbol());
     new Signal({});
     new Signal([]);
     new Signal(() => {});
   });
 
-  it("Should read back initialized primitives without error", () => {
+  it("reads back initialized primitives without error", () => {
     assert.equal(new Signal(true)(), true)
     assert.equal(new Signal(false)(), false)
     assert.equal(new Signal(null)(), null)
     assert.equal(new Signal(undefined)(), undefined)
     assert.equal(new Signal(1)(), 1)
     assert.equal(new Signal(0)(), 0)
-    assert.equal(new Signal(-1)(), -1)
     assert.equal(new Signal("a")(), "a")
+    assert.equal(new Signal("")(), "")
     const symbol = Symbol();
     assert.equal(new Signal(symbol)(), symbol)
   });
 
-  it("should read back initialized objects as Reactors", () => {
+  it("reads back initialized objects as Reactors", () => {
     const objectSignal = new Signal({});
     assert.notEqual(coreExtractor.get(objectSignal()), undefined);
     const arraySignal = new Signal([]);
@@ -46,7 +46,7 @@ describe("Signal", () => {
     assert.notEqual(coreExtractor.get(functionSignal()), undefined);
   });
 
-  it("should write without error", () => {
+  it("writes without error", () => {
     const signal = new Signal();
     signal(true);
     signal(false);
@@ -54,15 +54,15 @@ describe("Signal", () => {
     signal(undefined);
     signal(1);
     signal(0);
-    signal(-1);
     signal("a");
+    signal("");
     signal(Symbol());
     signal({});
     signal([]);
     signal(() => {});
   });
 
-  it("should return written values on write", () => {
+  it("returns written values on write", () => {
     const signal = new Signal();
     assert.equal(signal(true), true);
     assert.equal(signal(false), false);
@@ -70,48 +70,89 @@ describe("Signal", () => {
     assert.equal(signal(undefined), undefined);
     assert.equal(signal(1), 1);
     assert.equal(signal(0), 0);
-    assert.equal(signal(-1), -1);
     assert.equal(signal("a"), "a");
+    assert.equal(signal(""), "");
     const symbol = Symbol();
     assert.equal(signal(symbol), symbol);
     const object = {};
     assert.equal(signal(object), object);
     const array = [];
     assert.equal(signal(array), array);
-    const func = Symbol();
+    const func = () => {};
     assert.equal(signal(func), func);
   });  
 
 });
 
 describe("Reactor", () => {
-  it("should initialize without error", () => new Reactor());
-  it("should write without error", () => {
+  it("initializes without error", () => new Reactor());
+  it("initializes exsting object without error", () => new Reactor({}));
+  it("fails to initialize with non-object", () => { 
+    assert.throws(() => new Reactor(true), {
+      name: "TypeError",
+      message: "Cannot create proxy with a non-object as target or handler"
+    });
+    assert.throws(() => new Reactor(false), {
+      name: "TypeError",
+      message: "Cannot create proxy with a non-object as target or handler"
+    });
+    assert.throws(() => new Reactor(null), {
+      name: "TypeError",
+      message: "Cannot create proxy with a non-object as target or handler"
+    });
+    assert.throws(() => new Reactor(undefined), {
+      name: "TypeError",
+      message: "Cannot create proxy with a non-object as target or handler"
+    });
+    assert.throws(() => new Reactor(1), {
+      name: "TypeError",
+      message: "Cannot create proxy with a non-object as target or handler"
+    });
+    assert.throws(() => new Reactor(0), {
+      name: "TypeError",
+      message: "Cannot create proxy with a non-object as target or handler"
+    });
+    assert.throws(() => new Reactor("a"), {
+      name: "TypeError",
+      message: "Cannot create proxy with a non-object as target or handler"
+    });
+    assert.throws(() => new Reactor(""), {
+      name: "TypeError",
+      message: "Cannot create proxy with a non-object as target or handler"
+    });
+    assert.throws(() => new Reactor(Symbol()), {
+      name: "TypeError",
+      message: "Cannot create proxy with a non-object as target or handler"
+    });
+  });
+
+  it("writes without error", () => {
     const reactor = new Reactor();
     reactor.foo = "bar";
   });
-  it("should read without error", () => {
+
+  it("reads without error", () => {
     const reactor = new Reactor();
     reactor.foo = "bar";
     assert.equal(reactor.foo, "bar");
   });
-  it("should initialize with existing object without error", () => {
-    new Reactor({});
-  });
-  it("should read from existing object without error", () => {
+
+  it("reads from existing object without error", () => {
     const reactor = new Reactor({
       foo: "bar"
     });
     assert.equal(reactor.foo, "bar");
   });
-  it("should defineProperty without error", () => {
+
+  it("can defineProperty without error", () => {
     const reactor = new Reactor();
     Object.defineProperty(reactor, "foo", {
       get() { return "bar"; }
     });
     assert.equal(reactor.foo, "bar");
   });
-  it("should silently fail write after defineProperty non-writable", () => {
+
+  it("silently fails write after defineProperty non-writable", () => {
     const reactor = new Reactor();
     Object.defineProperty(reactor, "foo", {
       value: "bar",
@@ -120,13 +161,27 @@ describe("Reactor", () => {
     reactor.foo = "baz";
     assert.equal(reactor.foo, "bar");
   });
-  it("should deleteProperty without error", () => {
+
+  it("fails write after defineProperty non-writable if 'use strict'", () => {
+    "use strict";
+    const reactor = new Reactor();
+    Object.defineProperty(reactor, "foo", {
+      value: "bar",
+      writable: false
+    });
+    assert.throws(() => (reactor.foo = "baz"), {
+      name: "TypeError"
+    });
+  });
+  
+  it("can deleteProperty without error", () => {
     const reactor = new Reactor({
       foo: "bar"
     });
     delete reactor.foo;
     assert.equal(reactor.foo, undefined);
   });
+
 });
 
 describe("Definition", () => {
