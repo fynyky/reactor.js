@@ -13,9 +13,12 @@ const global =
 // Using a stack allows nested signals to function correctly
 const dependencyStack = [];
 
-// Map of the external interface to the internal core for debugging
+// Allows "protected" variables by letting Signals/Reactors/Observers unwrap
+// each others interfaces to access internal core variables
+// In the constructor of each of them, they will map their external interfaces
+// to their internal cores
 const coreExtractor = new WeakMap();
-global.coreExtractor = coreExtractor;
+
 
 
 // Definition is a shell class to identify dynamically calculated variables
@@ -63,7 +66,7 @@ class Signal {
   // Signals are made up of 2 main parts
   // - The core: The properties & methods which lets signals work
   // - The interface: The function returned to the user to use
-  constructor(value) {
+  constructor(initialValue) {
 
     // The "guts" of a Signal containing properties and methods
     // All actual functionality & state should be built into the core
@@ -71,8 +74,7 @@ class Signal {
     const signalCore = {
 
       // Signal state
-      value: null, // The set static value if defined
-      definition: null, // The getter method if defined
+      value: null, // The set value
       dependents: new Set(), // The Observers which rely on this Signal
       reactorCache: new WeakMap(), // Cache of objects to their reactor proxies
                                    // Allows for consistent dependency tracking
@@ -93,7 +95,9 @@ class Signal {
           dependent.dependencies.add(this);
         }
         // Return the appropriate static or calculated value
-        let output = this.definition ? this.definition() : this.value;
+        let output = (this.value instanceof Definition) 
+          ? this.value.definition() 
+          : this.value;
         // Wrap the output in a Reactor if it's an object
         try { 
           // Check to see if we've wrapped this object before
@@ -118,12 +122,9 @@ class Signal {
       // - Otherwise just store the provided value
       // - Trigger any dependent Observers while collecting errors thrown
       // - Throw a CompoundError if necessary
-      write(value) {
+      write(newValue) {
         // Save the new value/definition
-        this.definition = null;
-        this.value = null;
-        if (value instanceof Definition) this.definition = value.definition;
-        else this.value = value;
+        this.value = newValue;
         // Trigger dependents
         // Need to do an array copy to avoid an infinite loop
         // Triggering a dependent will remove it from the dependent set
@@ -158,8 +159,9 @@ class Signal {
       return signalCore.write(value);
     };
     coreExtractor.set(signalInterface, signalCore);
-    signalInterface(value);
+    signalInterface(initialValue);
     return signalInterface;
+
   }
 };
 global.Signal = Signal;
@@ -174,34 +176,42 @@ global.Signal = Signal;
 // When a Reactor property is read by an Observer it saves it as a dependent
 // When a Reactor property is updated it automatically notifies dependents
 class Reactor {
-  constructor(source) {
+  constructor(initializedSource) {
 
     // The source is the internal proxied object
     // If no source is provided then provide a new default object
-    if (arguments.length === 0) source = {};    
+    if (arguments.length === 0) initializedSource = {};    
 
     // The "guts" of a Reactor containing properties and methods
     // All actual functionality & state should be built into the core
     // Should be completely agnostic to syntactic sugar
     const reactorCore = {
+      source: initializedSource,
 
       // Instead of reading a property directly
       // Reactor properties are read through a trivial Signal
       // This handles dependency tracking and sub-object Reactor wrapping
       // Accessor Signals need to be stored to allow persistent dependencies
       accessorSignals: {},
-      get(target, property, receiver) {
+      get(property, receiver) {
         this.accessorSignals[property] = this.accessorSignals[property]
           ? this.accessorSignals[property]
-          : new Signal(define(() => Reflect.get(target, property, receiver)));
-        return this.accessorSignals[property](); 
+          : new Signal();
+        // Need to reach into the signal to reset its definition each time
+        // This enables it to adapt to the changing receiver
+        // Otherwise it would always use the first receiver which got it
+        const signalCore = coreExtractor.get(this.accessorSignals[property]);
+        signalCore.value = define(
+          () => Reflect.get(this.source, property, receiver)
+        );
+        return signalCore.read();
       },
 
       // Notifies dependents of the defined property
       // Also translates Definitions sets into getter methods
       // We trap defineProperty instead of set because it avoids the ambiguity
       // of access through the prototype chain
-      defineProperty(target, property, descriptor) {
+      defineProperty(property, descriptor) {
         // Automatically transform a Definition set into a getter
         // Identical to calling Object.defineProperty with a getter directly
         // This is just syntactic sugar and does not provide new functionality
@@ -226,30 +236,34 @@ class Reactor {
           // Default to true
           if (descriptor.writable || descriptor.writable === undefined) {
             newDescriptor.set = (value) => {
-              delete target[property];
-              target[property] = value;
+              delete this.source[property];
+              this.source[property] = value;
             }; 
           }
           descriptor = newDescriptor;
         };
-        const didSucceed = Reflect.defineProperty(target, property, descriptor);
+        const didSucceed = Reflect.defineProperty(
+          this.source, property, descriptor
+        );
         // Notify dependents before returning
         this.trigger(property);
         return didSucceed;
       }, 
 
       // Transparently delete the property but also notify dependents
-      deleteProperty(target, property, descriptor) {
-        const didSucceed = Reflect.deleteProperty(target, property);
+      deleteProperty(property) {
+        const didSucceed = Reflect.deleteProperty(this.source, property);
         this.trigger(property);
         return didSucceed;
       },
 
       // Force dependencies to trigger
-      // Hack to do this by "redefining" the signal to the same thing
+      // Hack to do this by trivially "redefining" the signal
+      // The proper accessor will be materialized "just in time" on the getter
+      // so it doesn't matter
       trigger(property) {
         if (this.accessorSignals[property]) {
-          this.accessorSignals[property](define(() => source[property]));
+          this.accessorSignals[property](null);
         }
       }
 
@@ -258,19 +272,29 @@ class Reactor {
     // The interface proxy returned to the user to utilize the Reactor
     // This is done to abstract away the messiness of how the Reactors work
     // Should contain no additional functionality and be purely syntactic sugar
-    const reactorInterface = new Proxy(source, {
-      get(target, property, receiver) { 
-        return reactorCore.get(target, property, receiver);
+    const reactorInterface = new Proxy(reactorCore.source, {
+      get(target, property, receiver) {
+        if (target === reactorCore.source) {
+          return reactorCore.get(property, receiver);
+        }
+        throw new Error("Proxy target does not match initialized object");
       },
       defineProperty(target, property, descriptor) {
-        return reactorCore.defineProperty(target, property, descriptor);
+        if (target === reactorCore.source) {
+          return reactorCore.defineProperty(property, descriptor);
+        };
+        throw new Error("Proxy target does not match initialized object");
       },
       deleteProperty(target, property) {
-        return reactorCore.deleteProperty(target, property);
+        if (target === reactorCore.source) {
+          return reactorCore.deleteProperty(property);
+        }
+        throw new Error("Proxy target does not match initialized object");
       }
     });
     coreExtractor.set(reactorInterface, reactorCore);
     return reactorInterface;
+
   }
 }
 global.Reactor = Reactor;

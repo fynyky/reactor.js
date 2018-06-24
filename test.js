@@ -500,4 +500,21 @@ describe("Observering", () => {
     assert.equal(counter, 3);
     assert.equal(tracker, "bar");
   });
+  it("should respect receiver context for prototype inheritors", () => {
+    const reactor = new Reactor();
+    reactor.foo = "bar";
+    Object.defineProperty(reactor, "getFoo", {
+      get() {
+        return this.foo;
+      }
+    })
+    assert.equal(reactor.getFoo, "bar");
+    reactor.foo = "quu";
+    assert.equal(reactor.getFoo, "quu");
+    const inheritor = Object.create(reactor);
+    assert.equal(inheritor.foo, "quu");
+    assert.equal(inheritor.getFoo, "quu");
+    inheritor.foo = "mux"
+    assert.equal(inheritor.getFoo, "mux");
+  });
 })
