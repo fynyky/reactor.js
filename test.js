@@ -328,55 +328,63 @@ describe("Reactor Definition", () => {
 });
 
 describe("Observer", () => {
-  it("should initialize function without error", () => new Observer(() => {}))
-  it("should fail to initialize without argument", () => {
+
+  it("initializes function without error", () => new Observer(() => {}));
+
+  it("fails to initialize with no argument", () => {
     assert.throws((() => new Observer()), {
       name: "TypeError",
       message: "Cannot create observer with a non-function"
     })
-  })
-  it("should fail to initialize with boolean", () => {
+  });
+
+  it("fails to initialize with non-function", () => {
     assert.throws((() => new Observer(true)), {
       name: "TypeError",
       message: "Cannot create observer with a non-function"
-    })
-  });
-  it("should fail to initialize with null", () => {
+    });
+    assert.throws((() => new Observer(false)), {
+      name: "TypeError",
+      message: "Cannot create observer with a non-function"
+    });
     assert.throws((() => new Observer(null)), {
       name: "TypeError",
       message: "Cannot create observer with a non-function"
-    })
-  });
-  it("should fail to initialize with undefined", () => {
+    });
     assert.throws((() => new Observer(undefined)), {
       name: "TypeError",
       message: "Cannot create observer with a non-function"
-    })
-  });
-  it("should fail to initialize with number", () => {
+    });
     assert.throws((() => new Observer(1)), {
       name: "TypeError",
       message: "Cannot create observer with a non-function"
-    })
-  });
-  it("should fail to initialize with string", () => {
+    });
+    assert.throws((() => new Observer(0)), {
+      name: "TypeError",
+      message: "Cannot create observer with a non-function"
+    });
     assert.throws((() => new Observer("a")), {
       name: "TypeError",
       message: "Cannot create observer with a non-function"
-    })
-  });
-  it("should fail to initialize with object", () => {
+    });
+    assert.throws((() => new Observer("")), {
+      name: "TypeError",
+      message: "Cannot create observer with a non-function"
+    });
+    assert.throws((() => new Observer(Symbol())), {
+      name: "TypeError",
+      message: "Cannot create observer with a non-function"
+    });
     assert.throws((() => new Observer({})), {
       name: "TypeError",
       message: "Cannot create observer with a non-function"
-    })
-  });
-  it("should fail to initialize with array", () => {
+    });
     assert.throws((() => new Observer([])), {
       name: "TypeError",
       message: "Cannot create observer with a non-function"
-    })
+    });
   });
+  
 });
 
 describe("Observering", () => {
