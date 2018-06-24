@@ -46,7 +46,7 @@ global.define = define;
 
 
 
-// Signals are functions representing values
+// Signals are observable functions representing values
 // - Read a signal by calling it with no arguments
 // - Write to a signal by calling it with the desired value as an argument
 // - Define a "getter" signal by calling it with a definition as an argument
@@ -65,7 +65,7 @@ class Signal {
   // - The interface: The function returned to the user to use
   constructor(value) {
 
-    // The "guts" of a signal containing properties and methods
+    // The "guts" of a Signal containing properties and methods
     // All actual functionality & state should be built into the core
     // Should be completely agnostic to syntactic sugar
     const signalCore = {
@@ -166,23 +166,45 @@ global.Signal = Signal;
 
 
 
-// Reactors are object proxies which allow 
+// Reactors are observable object proxies
+// - They mostly function transparently passing calls to the internal object
+// - The main difference is that they track and notify Observers automatically
+// - Any object returned from reading a property is itself wrapped in a Reactor
+// - Setting a property as a Defintion converts it into a getter instead
+// When a Reactor property is read by an Observer it saves it as a dependent
+// When a Reactor property is updated it automatically notifies dependents
 class Reactor {
   constructor(source) {
+
+    // The source is the internal proxied object
+    // If no source is provided then provide a new default object
     if (arguments.length === 0) source = {};    
 
+    // The "guts" of a Reactor containing properties and methods
+    // All actual functionality & state should be built into the core
+    // Should be completely agnostic to syntactic sugar
     const reactorCore = {
+
+      // Instead of reading a property directly
+      // Reactor properties are read through a trivial Signal
+      // This handles dependency tracking and sub-object Reactor wrapping
+      // Accessor Signals need to be stored to allow persistent dependencies
       accessorSignals: {},
       get(target, property, receiver) {
-        // Instead of reading the property directly
-        // We read it through a trivial Signal to get dependency tracking
         this.accessorSignals[property] = this.accessorSignals[property]
           ? this.accessorSignals[property]
           : new Signal(define(() => Reflect.get(target, property, receiver)));
         return this.accessorSignals[property](); 
       },
+
+      // Notifies dependents of the defined property
+      // Also translates Definitions sets into getter methods
+      // We trap defineProperty instead of set because it avoids the ambiguity
+      // of access through the prototype chain
       defineProperty(target, property, descriptor) {
-        // Automatically transform definitions into getter methods
+        // Automatically transform a Definition set into a getter
+        // Identical to calling Object.defineProperty with a getter directly
+        // This is just syntactic sugar and does not provide new functionality
         if (descriptor.value instanceof Definition) {
           let newDescriptor = { 
             get: descriptor.value.definition,
@@ -211,14 +233,18 @@ class Reactor {
           descriptor = newDescriptor;
         };
         const didSucceed = Reflect.defineProperty(target, property, descriptor);
+        // Notify dependents before returning
         this.trigger(property);
         return didSucceed;
       }, 
+
+      // Transparently delete the property but also notify dependents
       deleteProperty(target, property, descriptor) {
         const didSucceed = Reflect.deleteProperty(target, property);
         this.trigger(property);
         return didSucceed;
       },
+
       // Force dependencies to trigger
       // Hack to do this by "redefining" the signal to the same thing
       trigger(property) {
@@ -226,8 +252,12 @@ class Reactor {
           this.accessorSignals[property](define(() => source[property]));
         }
       }
+
     };
 
+    // The interface proxy returned to the user to utilize the Reactor
+    // This is done to abstract away the messiness of how the Reactors work
+    // Should contain no additional functionality and be purely syntactic sugar
     const reactorInterface = new Proxy(source, {
       get(target, property, receiver) { 
         return reactorCore.get(target, property, receiver);
