@@ -1,81 +1,87 @@
 const assert = require("assert");
 const { 
+  define, 
   Signal, 
   Reactor, 
-  define, 
-  Observer, 
-  CompoundError,
-  ObserverLoopError,
+  Observer,
   coreExtractor
 } = require("./reactor");
 
 describe("Signal", () => {
-  // Initialization 
-  it("should initialize boolean without error", () => new Signal(true));
-  it("should initialize null without error", () => new Signal(null));
-  it("should initialize undefined without error", () => new Signal(undefined));
-  it("should initialize number without error", () => new Signal(1));
-  it("should initialize string without error", () => new Signal("a"));
-  it("should initialize symbol without error", () => new Signal(Symbol()));
-  it("should initialize object without error", () => new Signal({}));
-  it("should initialize array without error", () => new Signal([]));
-  it("should initialize function without error", () => new Signal(() => {}));
-  // Reading
-  it("should read boolean without error", () => new Signal(true)());
-  it("should read null without error", () => new Signal(null)());
-  it("should read undefined without error", () => new Signal(undefined)());
-  it("should read number without error", () => new Signal(1)());
-  it("should read string without error", () => new Signal("a")());
-  it("should read symbol without error", () => new Signal(Symbol())());
-  it("should read object without error", () => new Signal({})());
-  it("should read array without error", () => new Signal([])());
-  it("should read function without error", () => new Signal(() => {})());
-  // Reading Back
-  it("should read initialized boolean value", () => {
-    const value = true;
-    const signal = new Signal(value);
-    assert.equal(value, signal());
+
+  it("should initialize without error", () => {
+    new Signal(true);
+    new Signal(false);
+    new Signal(null);
+    new Signal(undefined);
+    new Signal(1);
+    new Signal(0);
+    new Signal(-1);
+    new Signal("a");
+    new Signal(Symbol());
+    new Signal({});
+    new Signal([]);
+    new Signal(() => {});
   });
-  it("should read initialized null value", () => {
-    const value = null;
-    const signal = new Signal(value);
-    assert.equal(value, signal());
+
+  it("Should read back initialized primitives without error", () => {
+    assert.equal(new Signal(true)(), true)
+    assert.equal(new Signal(false)(), false)
+    assert.equal(new Signal(null)(), null)
+    assert.equal(new Signal(undefined)(), undefined)
+    assert.equal(new Signal(1)(), 1)
+    assert.equal(new Signal(0)(), 0)
+    assert.equal(new Signal(-1)(), -1)
+    assert.equal(new Signal("a")(), "a")
+    const symbol = Symbol();
+    assert.equal(new Signal(symbol)(), symbol)
   });
-  it("should read initialized undefined value", () => {
-    const value = undefined;
-    const signal = new Signal(value);
-    assert.equal(value, signal());
+
+  it("should read back initialized objects as Reactors", () => {
+    const objectSignal = new Signal({});
+    assert.notEqual(coreExtractor.get(objectSignal()), undefined);
+    const arraySignal = new Signal([]);
+    assert.notEqual(coreExtractor.get(arraySignal()), undefined);
+    const functionSignal = new Signal(() => {});
+    assert.notEqual(coreExtractor.get(functionSignal()), undefined);
   });
-  it("should read initialized number value", () => {
-    const value = 1;
-    const signal = new Signal(value);
-    assert.equal(value, signal());
+
+  it("should write without error", () => {
+    const signal = new Signal();
+    signal(true);
+    signal(false);
+    signal(null);
+    signal(undefined);
+    signal(1);
+    signal(0);
+    signal(-1);
+    signal("a");
+    signal(Symbol());
+    signal({});
+    signal([]);
+    signal(() => {});
   });
-  it("should read initialized string value", () => {
-    const value = "a";
-    const signal = new Signal(value);
-    assert.equal(value, signal());
-  });
-  it("should read initialized symbol value", () => {
-    const value = Symbol();
-    const signal = new Signal(value);
-    assert.equal(value, signal());
-  });
-  it("should not read initialized object value", () => {
-    const value = {};
-    const signal = new Signal(value);
-    assert.notEqual(value, signal());
-  });
-  it("should not read initialized array value", () => {
-    const value = [];
-    const signal = new Signal(value);
-    assert.notEqual(value, signal());
-  });
-  it("should not read initialized function value", () => {
-    const value = () => {};
-    const signal = new Signal(value);
-    assert.notEqual(value, signal());
-  });
+
+  it("should return written values on write", () => {
+    const signal = new Signal();
+    assert.equal(signal(true), true);
+    assert.equal(signal(false), false);
+    assert.equal(signal(null), null);
+    assert.equal(signal(undefined), undefined);
+    assert.equal(signal(1), 1);
+    assert.equal(signal(0), 0);
+    assert.equal(signal(-1), -1);
+    assert.equal(signal("a"), "a");
+    const symbol = Symbol();
+    assert.equal(signal(symbol), symbol);
+    const object = {};
+    assert.equal(signal(object), object);
+    const array = [];
+    assert.equal(signal(array), array);
+    const func = Symbol();
+    assert.equal(signal(func), func);
+  });  
+
 });
 
 describe("Reactor", () => {
