@@ -175,6 +175,20 @@ global.Signal = Signal;
 // - Setting a property as a Defintion converts it into a getter instead
 // When a Reactor property is read by an Observer it saves it as a dependent
 // When a Reactor property is updated it automatically notifies dependents
+// -----------------------------------------------------------------------------
+// Examples
+// let a = new Reactor()          Initializes a new empty Reactor object
+// a.foo = 2
+// a.foo                          Returns 2 as expected
+// a.bar = define(function() {    Sets a dynamic getter using defineProperty
+//   return this.foo;
+// });
+// let b = new Reactor({          Wraps an existing object into a Reactor
+//   quu: "mux"
+//   moo: {
+//     cheese: "banana" 
+//   }
+// })
 class Reactor {
   constructor(initializedSource) {
 
