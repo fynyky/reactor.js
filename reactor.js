@@ -209,9 +209,13 @@ class Reactor {
       // Accessor Signals need to be stored to allow persistent dependencies
       accessorSignals: {},
       get(property, receiver) {
-        this.accessorSignals[property] = this.accessorSignals[property]
-          ? this.accessorSignals[property]
-          : new Signal();
+        this.accessorSignals[property] = 
+          // Need to use hasOwnProperty instead of a normal get to avoid
+          // the basic Object prototype properties 
+          // e.g. constructor
+          this.accessorSignals.hasOwnProperty(property)
+            ? this.accessorSignals[property]
+            : new Signal();
         // Need to reach into the signal to reset its definition each time
         // This enables it to adapt to the changing receiver
         // Otherwise it would always use the first receiver which got it
