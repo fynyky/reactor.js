@@ -314,29 +314,63 @@ class Reactor {
 global.Reactor = Reactor;
 
 
-
+// Observers are functions which automatically track their dependencies
+// They are triggered first on initialization
+// They are automatically retriggered whenever a dependency is updated
+// Observers can be stopped and restarted
+// Starting after stopping causes the Observer to execute again
+// Starting does nothing if an Observer is already running
+// To prevent infinite loops an error is thrown if an Observer triggers itself 
+// -----------------------------------------------------------------------------
+// Examples
+// let a = new Signal(1);
+// let b = new Reactor();
+// b.foo = "bar"
+// let observer = new Observer(() => {        This will trigger whenever
+//   console.log("a is now " + a());          a or b.foo are updated
+//   console.log("b.foois now " + b.foo);
+// })
+// a(2);                                      This will trigger an update
+// 
+// observer.stop();                           This will block triggers
+// b.foo = "cheese"                           No trigger since we stopped it
+// 
+// observer.start();                          Will rerun the function
+//                                            and allow updates again
+// 
+// observer.start();                          Does nothing since already started
 class Observer {
   constructor(execute) {
+
+    // The triggered and observed block of code
     if (typeof execute !== "function") {
       throw new TypeError("Cannot create observer with a non-function");
     }
-    // Internal engine for how observers work
+
+    // Internal engine of an Observer for how it works
+    // All actual functionality & state should be built into the core
+    // Should be completely agnostic to syntactic sugar
     const observerCore = {
-      running: true,
-      triggering: false,
-      dependencies: new Set(),
-      // Trigger the observer and find dependencies
+      running: true, // Whether further triggers and updates are allowed
+      triggering: false, // Whether the block is currently executing
+                         // prevents further triggers
+      dependencies: new Set(), // The Signals the execution block reads from
+                               // at last trigger
+
+      // Symmetrically removes dependencies 
       clearDependencies() {
         this.dependencies.forEach(dependency =>
           dependency.dependents.delete(this)
         );
         this.dependencies.clear();
       },
+
+      // Trigger the execution block and find its dependencies
       trigger() {
         // Avoid infinite loops by throwing an error if we
         // try to trigger an already triggering observer
         if (this.triggering) {
-          throw new ObserverLoopError(
+          throw new LoopError(
             "observer attempted to activate itself while already executing"
           );
         }
@@ -352,37 +386,47 @@ class Observer {
           }
         }
       },
+
+      // Pause the observer preventing further triggers
       stop() {
         this.running = false;
         this.clearDependencies();
       },
+
+      // Restart the observer if it is not already running
       start() {
         if (!this.running) {
           this.running = true;
           this.trigger();
         }
       }
-    }
-    // public interace to hide the ugliness of how observers work
+
+    };
+
+    // Public interace to hide the ugliness of how observers work
     const observerInterface = this;
     observerInterface.stop = () => observerCore.stop();
     observerInterface.start = () => observerCore.start();
-    observerCore.trigger();
     coreExtractor.set(observerInterface, observerCore);
+
+    // Trigger once on initialization
+    observerCore.trigger();
     return observerInterface;
+
   }
 }
 global.Observer = Observer;
 
 
-class ObserverLoopError extends Error {
+// Custom Error class to indicate loops in observer triggering
+class LoopError extends Error {
   constructor(...args) {
     super(...args);
     this.name = this.constructor.name;
     return this;
   }
 }
-global.ObserverLoopError = ObserverLoopError
+global.LoopError = LoopError;
 
 // Custom Error class to consolidate multiple errors together
 class CompoundError extends Error {

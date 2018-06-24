@@ -454,7 +454,7 @@ describe("Observering", () => {
         });
       },
       { 
-        name: "ObserverLoopError",
+        name: "LoopError",
         message: "observer attempted to activate itself while already executing"
       }
     )
