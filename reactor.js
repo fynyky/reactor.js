@@ -18,17 +18,33 @@ const coreExtractor = new WeakMap();
 global.coreExtractor = coreExtractor;
 
 
+// Definition is a shell class to identify dynamically calculated variables
+// Accessed through the "define" function
+// Class itself is not meant
+// -----------------------------------------------------------------------------
+// Examples
+// let a = new Signal(define(() => Date.now()))
+// let b = new Signal(1);
+// b = new Signal(define(() => {
+//   return "hello it is now " + a();
+// }));
+// let c = new Reactor();
+// c.foo = define(() => "the message is " + b());
 class Definition {
   constructor(definition) {
     if (typeof definition === "function") {
       this.definition = definition;
-      return;
+      return this;
     }
     throw new TypeError("Cannot create definition with a non-function");
   }
 }
+// Expose a define "keyword" instead of the class itself
+// This seems nicer syntactic sugar than "new Definition(...)" each time
 const define = (definition) => new Definition(definition);
 global.define = define;
+
+
 
 // Signals are functions representing values
 // - Read a signal by calling it with no arguments
@@ -150,9 +166,9 @@ global.Signal = Signal;
 
 
 
+// Reactors are object proxies which allow 
 class Reactor {
   constructor(source) {
-
     if (arguments.length === 0) source = {};    
 
     const reactorCore = {
