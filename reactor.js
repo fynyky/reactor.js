@@ -18,7 +18,7 @@ const dependencyStack = [];
 // In the constructor of each of them, they will map their external interfaces
 // to their internal cores
 const coreExtractor = new WeakMap();
-
+global.coreExtractor = coreExtractor;
 
 
 // Definition is a shell class to identify dynamically calculated variables
@@ -124,7 +124,7 @@ class Signal {
       // - Throw a CompoundError if necessary
       write(newValue) {
         // Save the new value/definition
-        this.value = newValue;
+        const output = (this.value = newValue);
         // Trigger dependents
         // Need to do an array copy to avoid an infinite loop
         // Triggering a dependent will remove it from the dependent set
@@ -145,6 +145,7 @@ class Signal {
           const errorMessage = errorList.length + " errors due to signal write";
           throw new CompoundError(errorMessage, errorList);
         }
+        return output;
       }
 
     };
@@ -426,7 +427,6 @@ class LoopError extends Error {
     return this;
   }
 }
-global.LoopError = LoopError;
 
 // Custom Error class to consolidate multiple errors together
 class CompoundError extends Error {
@@ -443,4 +443,3 @@ class CompoundError extends Error {
     return this;
   }
 }
-global.CompoundError = CompoundError;
