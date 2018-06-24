@@ -85,8 +85,11 @@ describe("Signal", () => {
 });
 
 describe("Reactor", () => {
+
   it("initializes without error", () => new Reactor());
+  
   it("initializes exsting object without error", () => new Reactor({}));
+  
   it("fails to initialize with non-object", () => { 
     assert.throws(() => new Reactor(true), {
       name: "TypeError",
@@ -185,90 +188,104 @@ describe("Reactor", () => {
 });
 
 describe("Definition", () => {
-  it("should initialize function without error", () => {
-    define(() => {});
-  });
-  it("should fail to initialize without argument", () => {
+
+  it("initializes function without error", () => define(() => {}));
+
+  it("fails to initialize with no argument", () => {
     assert.throws((() => define()), {
       name: "TypeError",
       message: "Cannot create definition with a non-function"
     })
   });
-  it("should fail to initialize with boolean", () => {
+
+  it("fails to initialize with non-function", () => {
     assert.throws((() => define(true)), {
       name: "TypeError",
       message: "Cannot create definition with a non-function"
     })
-  });
-  it("should fail to initialize with null", () => {
+    assert.throws((() => define(false)), {
+      name: "TypeError",
+      message: "Cannot create definition with a non-function"
+    })
     assert.throws((() => define(null)), {
       name: "TypeError",
       message: "Cannot create definition with a non-function"
     })
-  });
-  it("should fail to initialize with undefined", () => {
     assert.throws((() => define(undefined)), {
       name: "TypeError",
       message: "Cannot create definition with a non-function"
     })
-  });
-  it("should fail to initialize with number", () => {
     assert.throws((() => define(1)), {
       name: "TypeError",
       message: "Cannot create definition with a non-function"
     })
-  });
-  it("should fail to initialize with string", () => {
+    assert.throws((() => define(0)), {
+      name: "TypeError",
+      message: "Cannot create definition with a non-function"
+    })
     assert.throws((() => define("a")), {
       name: "TypeError",
       message: "Cannot create definition with a non-function"
     })
-  });
-  it("should fail to initialize with object", () => {
+    assert.throws((() => define("")), {
+      name: "TypeError",
+      message: "Cannot create definition with a non-function"
+    })
+    assert.throws((() => define(Symbol())), {
+      name: "TypeError",
+      message: "Cannot create definition with a non-function"
+    })
     assert.throws((() => define({})), {
       name: "TypeError",
       message: "Cannot create definition with a non-function"
     })
-  });
-  it("should fail to initialize with array", () => {
     assert.throws((() => define([])), {
       name: "TypeError",
       message: "Cannot create definition with a non-function"
     })
   });
+
 });
 
 describe("Signal Definition", () => {
-  it("should initialize definition without error", () => {
+
+  it("initializes definition without error", () => {
     new Signal(define(() => {}));
   })
-  it("should read definition without error", () => {
+
+  it("reads definition without error", () => {
     new Signal(define(() => {}))();
   })
-  it("should read definition return value", () => {
+
+  it("reads definition return value", () => {
     const signal = new Signal(define(() => 2))
     assert.equal(signal(), 2);
   })
+
 });
 
 describe("Reactor Definition", () => {
-  it("should set definition without error", () => {
+
+  it("sets definition without error", () => {
     const reactor = new Reactor();
     reactor.foo = define(() => "bar");
   })
-  it("should get definition return value", () => {
+
+  it("gets definition return value", () => {
     const reactor = new Reactor();
     reactor.foo = define(() => "bar");
     assert.equal(reactor.foo, "bar");
   })
-  it("should be able to overide definition", () => {
+
+  it("can override definition", () => {
     const reactor = new Reactor();
     reactor.foo = define(() => "bar");
     assert.equal(reactor.foo, "bar");
     reactor.foo = 2;
     assert.equal(reactor.foo, 2);
   })
-  it("should be able to set definition as non-writable", () => {
+
+  it("can set definition as non-writable", () => {
     const reactor = new Reactor();
     Object.defineProperty(reactor, "foo", {
       value: define(() => "bar"),
@@ -278,12 +295,14 @@ describe("Reactor Definition", () => {
     reactor.foo = 2;
     assert.equal(reactor.foo, "bar");
   })
-  it("should set definition as enumerable by default", () => {
+
+  it("sets definition as enumerable by default", () => {
     const reactor = new Reactor();
     reactor.foo = define(() => "bar");
     assert.equal(Object.keys(reactor).length, 1);
   })
-  it("should be able to set definition as non-enumerable", () => {
+
+  it("can set definition as non-enumerable", () => {
     const reactor = new Reactor();
     Object.defineProperty(reactor, "foo", {
       value: define(() => "bar"),
@@ -291,11 +310,12 @@ describe("Reactor Definition", () => {
     });
     assert.equal(Object.keys(reactor).length, 0);
   });
+
   // Temporarily disabled test since this seems fundamentally impossible
   // due to implementation where you cannot reconfigure the descriptor in a trap
   // if configurable is set to false. 
   // File bug here https://bugs.chromium.org/p/v8/issues/detail?id=7884
-  // it("should be able to set definition as non-configurable", () => {
+  // it("can set definition as non-configurable", () => {
   //   const reactor = new Reactor();
   //   Object.defineProperty(reactor, "foo", {
   //     value: define(() => "bar"),
@@ -304,6 +324,7 @@ describe("Reactor Definition", () => {
   //   delete reactor.foo;
   //   assert.equal(reactor.foo, "bar")
   // });
+
 });
 
 describe("Observer", () => {
