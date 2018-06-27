@@ -209,6 +209,16 @@ class Reactor {
       // Accessor Signals need to be stored to allow persistent dependencies
       accessorSignals: {},
       get(property, receiver) {
+        // Disable unnecessary wrapping for unmodifiable properties
+        // Needed because Array prototype checking fails if wrapped
+        // Specificaly [].map();
+        const descriptor = Object.getOwnPropertyDescriptor(
+          this.source, property
+        );
+        if (descriptor && !descriptor.writable && !descriptor.configurable ) {
+          return Reflect.get(this.source, property, receiver);
+        }
+        // Lazily instantiate accessor signals
         this.accessorSignals[property] = 
           // Need to use hasOwnProperty instead of a normal get to avoid
           // the basic Object prototype properties 
