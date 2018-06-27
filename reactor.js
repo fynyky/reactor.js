@@ -71,7 +71,7 @@ class Signal {
     // The "guts" of a Signal containing properties and methods
     // All actual functionality & state should be built into the core
     // Should be completely agnostic to syntactic sugar
-    const signalCore = {
+    const signalCore = Object.assign(this, {
 
       // Signal state
       value: null, // The set value
@@ -148,7 +148,7 @@ class Signal {
         return output;
       }
 
-    };
+    });
 
     // The interface function returned to the user to utilize the signal
     // This is done to abstract away the messiness of how the signals work
@@ -200,7 +200,7 @@ class Reactor {
     // The "guts" of a Reactor containing properties and methods
     // All actual functionality & state should be built into the core
     // Should be completely agnostic to syntactic sugar
-    const reactorCore = {
+    const reactorCore = Object.assign(this, {
       source: initializedSource,
 
       // Instead of reading a property directly
@@ -296,7 +296,7 @@ class Reactor {
         }
       }
 
-    };
+    });
 
     // The interface proxy returned to the user to utilize the Reactor
     // This is done to abstract away the messiness of how the Reactors work
@@ -419,9 +419,10 @@ class Observer {
     };
 
     // Public interace to hide the ugliness of how observers work
-    const observerInterface = this;
-    observerInterface.stop = () => observerCore.stop();
-    observerInterface.start = () => observerCore.start();
+    const observerInterface = Object.assign(this, {
+      stop() { return observerCore.stop(); },
+      start() { return observerCore.start(); }
+    });
     coreExtractor.set(observerInterface, observerCore);
 
     // Trigger once on initialization
