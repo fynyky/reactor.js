@@ -37,13 +37,19 @@ describe("Signal", () => {
     assert.equal(new Signal(symbol)(), symbol)
   });
 
-  it.skip("reads back initialized objects as Reactors", () => {
+  it("reads back initialized objects as Reactors", () => {
     const objectSignal = new Signal({});
     assert(Reactors.has(objectSignal()));
     const arraySignal = new Signal([]);
     assert(Reactors.has(arraySignal()));
     const functionSignal = new Signal(() => {});
     assert(Reactors.has(functionSignal()));
+  });
+
+  it("does no rewrap Reactors", () => {
+    const reactor = new Reactor();
+    const reactorSignal = new Signal(reactor);
+    assert.equal(reactor, reactorSignal());
   });
 
   it("writes without error", () => {
