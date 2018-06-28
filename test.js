@@ -315,6 +315,11 @@ describe("Definition", () => {
       assert.equal(Object.keys(reactor).length, 0);
     });
 
+    it("can call map on Array Reactor without error", () => {
+      const reactor = new Reactor(["0", "1", "2"]);
+      reactor.map(x => "this is " + x);
+    });
+
     // Temporarily disabled test since this seems fundamentally impossible
     // due to implementation where you cannot reconfigure the descriptor in a trap
     // if configurable is set to false. 
@@ -560,6 +565,22 @@ describe("Observer", () => {
       assert.equal(innerTracker, "baz");
     });
 
+
+    it("subscribes on generic Object.keys", () => {
+      let counter = 0;
+      let tracker;
+      const reactor = new Reactor({ foo: "bar" });
+      const observer = new Observer(() => {
+        counter += 1;
+        tracker = Object.keys(reactor);
+      });
+      assert.equal(counter, 1);
+      assert.equal(JSON.stringify(tracker), "[\"foo\"]");
+      reactor.moo = "mux";
+      assert.equal(counter, 2);
+      assert.equal(JSON.stringify(tracker), "[\"foo\",\"moo\"]");
+    });
+
   });
 
   describe("Start Stop", () => {
@@ -693,5 +714,6 @@ describe("Observer", () => {
     });
 
   });
+
 
 });

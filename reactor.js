@@ -214,6 +214,7 @@ class Reactor {
     // Should be completely agnostic to syntactic sugar
     const reactorCore = {
       source: initializedSource,
+      selfSignal: new Signal(null),
 
       // Instead of reading a property directly
       // Reactor properties are read through a trivial Signal
@@ -288,6 +289,7 @@ class Reactor {
         );
         // Notify dependents before returning
         this.trigger(property);
+        this.selfSignal(null);
         return didSucceed;
       }, 
 
@@ -295,7 +297,14 @@ class Reactor {
       deleteProperty(property) {
         const didSucceed = Reflect.deleteProperty(this.source, property);
         this.trigger(property);
+        this.selfSignal(null);
         return didSucceed;
+      },
+
+      // Subscribe to the overall reactor by reading the dummy signal
+      ownKeys() {
+        this.selfSignal();
+        return Reflect.ownKeys(this.source);
       },
 
       // Force dependencies to trigger
@@ -330,6 +339,15 @@ class Reactor {
         if (target === reactorCore.source) {
           return reactorCore.deleteProperty(property);
         }
+        throw new Error("Proxy target does not match initialized object");
+      },
+      has(target, key){
+        return Reflect.has(target, key);
+      },
+      ownKeys(target){
+        if (target === reactorCore.source) {
+          return reactorCore.ownKeys();
+        };
         throw new Error("Proxy target does not match initialized object");
       }
     });
