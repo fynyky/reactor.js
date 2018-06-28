@@ -61,6 +61,8 @@ global.define = define;
 // a()                            Returns 1
 // a(2)                           Sets the value to 2 
 // a(define(() => Date.now()))    Sets a dynamic getter instead of static value
+const Signals = new WeakSet();
+global.Signals = Signals;
 class Signal {
   // Signals are made up of 2 main parts
   // - The core: The properties & methods which lets signals work
@@ -160,7 +162,12 @@ class Signal {
       // A non empty call is treated as a write
       return signalCore.write(value);
     };
+
+    // Register the Signal for debugging/typechecking purposes
     coreExtractor.set(signalInterface, signalCore);
+    Signals.add(signalInterface);
+
+    // Initialize with the provided value before returning
     signalInterface(initialValue);
     return signalInterface;
 
