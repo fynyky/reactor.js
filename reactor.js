@@ -61,7 +61,7 @@ global.define = define;
 // let a = new Signal(1)          Initializes it with value 1
 // a()                            Returns 1
 // a(2)                           Sets the value to 2 
-// a(define(() => Date.now()))    Sets a dynamic getter instead of static value 
+// a(define(() => Date.now()))    Sets a dynamic getter instead of static value
 class Signal {
   // Signals are made up of 2 main parts
   // - The core: The properties & methods which lets signals work
@@ -99,12 +99,14 @@ class Signal {
           ? this.value.definition() 
           : this.value;
         // Wrap the output in a Reactor if it's an object
+        // No need to wrap it if its already a Reactor
+        if (Reactors.has(output)) return output;
+        // Check to see if we've wrapped this object before
+        // This allows consistency of dependencies with repeated read calls
+        let reactor = this.reactorCache.get(output);
+        if (reactor) return reactor;
+        // If not then wrap and store it for future reads
         try { 
-          // Check to see if we've wrapped this object before
-          // This allows consistency of dependencies with repeated read calls
-          let reactor = this.reactorCache.get(output);
-          if (reactor) return reactor;
-          // If not then wrap and store it for future reads
           reactor = new Reactor(output);
           this.reactorCache.set(output, reactor);
           return reactor;
@@ -190,6 +192,10 @@ global.Signal = Signal;
 //     cheese: "banana" 
 //   }
 // })
+// WeakSet of all Reactors to check if something is a Reactor
+// Need to implement it this way because you can check instanceof Proxies
+const Reactors = new WeakSet();
+global.Reactors = Reactors;
 class Reactor {
   constructor(initializedSource) {
 
@@ -321,7 +327,9 @@ class Reactor {
         throw new Error("Proxy target does not match initialized object");
       }
     });
+    // Register the reactor for debugging/typechecking purposes
     coreExtractor.set(reactorInterface, reactorCore);
+    Reactors.add(reactorInterface);
     return reactorInterface;
 
   }
