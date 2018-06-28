@@ -71,7 +71,7 @@ class Signal {
     // The "guts" of a Signal containing properties and methods
     // All actual functionality & state should be built into the core
     // Should be completely agnostic to syntactic sugar
-    const signalCore = Object.assign(this, {
+    const signalCore = {
 
       // Signal state
       value: null, // The set value
@@ -150,7 +150,7 @@ class Signal {
         return output;
       }
 
-    });
+    };
 
     // The interface function returned to the user to utilize the signal
     // This is done to abstract away the messiness of how the signals work
@@ -206,7 +206,7 @@ class Reactor {
     // The "guts" of a Reactor containing properties and methods
     // All actual functionality & state should be built into the core
     // Should be completely agnostic to syntactic sugar
-    const reactorCore = Object.assign(this, {
+    const reactorCore = {
       source: initializedSource,
 
       // Instead of reading a property directly
@@ -302,7 +302,7 @@ class Reactor {
         }
       }
 
-    });
+    };
 
     // The interface proxy returned to the user to utilize the Reactor
     // This is done to abstract away the messiness of how the Reactors work
