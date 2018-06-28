@@ -18,7 +18,6 @@ const dependencyStack = [];
 // In the constructor of each of them, they will map their external interfaces
 // to their internal cores
 const coreExtractor = new WeakMap();
-global.coreExtractor = coreExtractor;
 
 
 // Definition is a shell class to identify dynamically calculated variables
