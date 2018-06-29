@@ -566,7 +566,7 @@ describe("Observer", () => {
     });
 
 
-    it("subscribes on generic Object.keys", () => {
+    it("subscribes on Object.keys", () => {
       let counter = 0;
       let tracker;
       const reactor = new Reactor({ foo: "bar" });
@@ -579,6 +579,21 @@ describe("Observer", () => {
       reactor.moo = "mux";
       assert.equal(counter, 2);
       assert.equal(JSON.stringify(tracker), "[\"foo\",\"moo\"]");
+    });
+
+    it("subcribes on in operator", () => {
+      let counter = 0;
+      let tracker;
+      const reactor = new Reactor();
+      const observer = new Observer(() => {
+        counter += 1;
+        tracker = ("foo" in reactor);
+      });
+      assert.equal(counter, 1);
+      assert.equal(tracker, false);
+      reactor.foo = "bar";
+      assert.equal(counter, 2);
+      assert.equal(tracker, true);
     });
 
   });

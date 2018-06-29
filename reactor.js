@@ -220,7 +220,7 @@ class Reactor {
       // Reactor properties are read through a trivial Signal
       // This handles dependency tracking and sub-object Reactor wrapping
       // Accessor Signals need to be stored to allow persistent dependencies
-      accessorSignals: {},
+      getSignals: {},
       get(property, receiver) {
         // Disable unnecessary wrapping for unmodifiable properties
         // Needed because Array prototype checking fails if wrapped
@@ -232,17 +232,17 @@ class Reactor {
           return Reflect.get(this.source, property, receiver);
         }
         // Lazily instantiate accessor signals
-        this.accessorSignals[property] = 
+        this.getSignals[property] = 
           // Need to use hasOwnProperty instead of a normal get to avoid
           // the basic Object prototype properties 
           // e.g. constructor
-          this.accessorSignals.hasOwnProperty(property)
-            ? this.accessorSignals[property]
+          this.getSignals.hasOwnProperty(property)
+            ? this.getSignals[property]
             : new Signal();
         // Need to reach into the signal to reset its definition each time
         // This enables it to adapt to the changing receiver
         // Otherwise it would always use the first receiver which got it
-        const signalCore = coreExtractor.get(this.accessorSignals[property]);
+        const signalCore = coreExtractor.get(this.getSignals[property]);
         signalCore.value = define(
           () => Reflect.get(this.source, property, receiver)
         );
@@ -289,7 +289,6 @@ class Reactor {
         );
         // Notify dependents before returning
         this.trigger(property);
-        this.selfSignal(null);
         return didSucceed;
       }, 
 
@@ -297,8 +296,24 @@ class Reactor {
       deleteProperty(property) {
         const didSucceed = Reflect.deleteProperty(this.source, property);
         this.trigger(property);
-        this.selfSignal(null);
         return didSucceed;
+      },
+
+      // Have a map of dummy Signals to keep track of dependents on has
+      // We don't resuse the get Signals to avoid triggering getters
+      hasSignals: {},
+      has(property) {
+        // Lazily instantiate has signals
+        this.hasSignals[property] = 
+          // Need to use hasOwnProperty instead of a normal get to avoid
+          // the basic Object prototype properties 
+          // e.g. constructor
+          this.hasSignals.hasOwnProperty(property)
+            ? this.hasSignals[property]
+            : new Signal(null);
+        // Read the dummy signal to track dependents
+        this.hasSignals[property]();
+        return Reflect.has(this.source, property);
       },
 
       // Subscribe to the overall reactor by reading the dummy signal
@@ -312,9 +327,9 @@ class Reactor {
       // The proper accessor will be materialized "just in time" on the getter
       // so it doesn't matter
       trigger(property) {
-        if (this.accessorSignals[property]) {
-          this.accessorSignals[property](null);
-        }
+        if (this.getSignals[property]) this.getSignals[property](null);
+        if (this.hasSignals[property]) this.hasSignals[property](null);
+        this.selfSignal(null);
       }
 
     };
@@ -341,8 +356,11 @@ class Reactor {
         }
         throw new Error("Proxy target does not match initialized object");
       },
-      has(target, key){
-        return Reflect.has(target, key);
+      has(target, property){
+        if (target === reactorCore.source) {
+          return reactorCore.has(property);
+        }
+        throw new Error("Proxy target does not match initialized object");
       },
       ownKeys(target){
         if (target === reactorCore.source) {
