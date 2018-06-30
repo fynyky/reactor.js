@@ -4,7 +4,9 @@ const {
   Signal, 
   Reactor, 
   Reactors,
-  Observer
+  Observer,
+  observe,
+  unobserve
 } = require("./reactor");
 
 describe("Signal", () => {
@@ -581,7 +583,7 @@ describe("Observer", () => {
       assert.equal(JSON.stringify(tracker), "[\"foo\",\"moo\"]");
     });
 
-    it("subcribes on in operator", () => {
+    it("subscribes on in operator", () => {
       let counter = 0;
       let tracker;
       const reactor = new Reactor();
@@ -594,6 +596,52 @@ describe("Observer", () => {
       reactor.foo = "bar";
       assert.equal(counter, 2);
       assert.equal(tracker, true);
+    });
+
+    it("subscribes using observe keyword", () => {
+      let counter = 0;
+      let tracker;
+      const signal = new Signal("foo");
+      const observer = observe(() => {
+        counter += 1;
+        tracker = signal();
+      });      
+      assert.equal(counter, 1);
+      assert.equal(tracker, "foo");
+      signal("bar");
+      assert.equal(counter, 2);
+      assert.equal(tracker, "bar");      
+    });
+
+    it("does not subscribe in unobserve block", () => {
+      let outerCounter = 0;
+      let innerCounter = 0;
+      let outerTracker;
+      let innerTracker;
+      const outerSignal = new Signal("foo");
+      const innerSignal = new Signal("bar");
+      const observer = observe(() => {
+        outerCounter += 1;
+        outerTracker = outerSignal();
+        unobserve(() => {
+          innerCounter += 1;
+          innerTracker = innerSignal();
+        });
+      });      
+      assert.equal(outerCounter, 1);
+      assert.equal(innerCounter, 1);
+      assert.equal(outerTracker, "foo");
+      assert.equal(innerTracker, "bar");
+      innerSignal("baz");
+      assert.equal(outerCounter, 1);
+      assert.equal(innerCounter, 1);
+      assert.equal(outerTracker, "foo");
+      assert.equal(innerTracker, "bar");
+      outerSignal("moo");
+      assert.equal(outerCounter, 2);
+      assert.equal(innerCounter, 2);
+      assert.equal(outerTracker, "moo");
+      assert.equal(innerTracker, "baz");      
     });
 
   });

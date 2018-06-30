@@ -482,6 +482,14 @@ class Observer {
   }
 }
 global.Observer = Observer;
+const observe = (execute) => new Observer(execute);
+global.observe = observe;
+const unobserve = (execute) => {
+  const observer = new Observer(execute);
+  observer.stop();
+  return observer;
+};
+global.unobserve = unobserve;
 
 
 // Custom Error class to indicate loops in observer triggering
