@@ -416,6 +416,7 @@ class Observer {
     // All actual functionality & state should be built into the core
     // Should be completely agnostic to syntactic sugar
     const observerCore = {
+      execute: execute,
       running: true, // Whether further triggers and updates are allowed
       triggering: false, // Whether the block is currently executing
                          // prevents further triggers
@@ -444,7 +445,7 @@ class Observer {
           this.clearDependencies();
           dependencyStack.push(this);
           this.triggering = true;
-          try { execute(); }
+          try { this.execute(); }
           finally { 
             dependencyStack.pop(); 
             this.triggering = false;
@@ -469,10 +470,23 @@ class Observer {
     };
 
     // Public interace to hide the ugliness of how observers work
-    const observerInterface = Object.assign(this, {
-      stop() { return observerCore.stop(); },
-      start() { return observerCore.start(); }
-    });
+    const observerInterface = function(execute) {
+      // AN empty call is a manual "one time" trigger of the block
+      if (arguments.length === 0) return observerCore.execute();
+      // A non-empty call is used to redfine the observer 
+      if (typeof execute !== "function") {
+        throw new TypeError("Cannot create observer with a non-function");
+      }
+      // reset all the stuff
+      observerCore.clearDependencies();
+      observerCore.running = true;
+      observerCore.triggering = false;
+      observerCore.execute = execute;
+      observerCore.trigger();
+      return observerInterface;
+    };
+    observerInterface.stop = () => observerCore.stop();
+    observerInterface.start = () => observerCore.start();
     coreExtractor.set(observerInterface, observerCore);
 
     // Trigger once on initialization
