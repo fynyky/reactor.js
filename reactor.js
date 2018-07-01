@@ -404,12 +404,32 @@ global.Reactor = Reactor;
 //                                            and allow updates again
 // 
 // observer.start();                          Does nothing since already started
+const observerRegistry = new Map();
 class Observer {
-  constructor(execute) {
+  constructor(arg1, arg2) {
+
+    // Argument parsing
+    // If only one argument is given then it needs to be an execute block
+    // If 2 are presented then the first one is treated as an override key
+    let execute;
+    let key;
+    if (typeof arg2 === "undefined") {
+      execute = arg1;
+    } else {
+      key = arg1;
+      execute = arg2;
+    }
 
     // The triggered and observed block of code
     if (typeof execute !== "function") {
       throw new TypeError("Cannot create observer with a non-function");
+    }
+
+    // Check to see if there's an existing observer to override
+    // instead of making a new one
+    if (typeof key !== "undefined") {
+      const existingObserver = observerRegistry.get(key);
+      if (existingObserver) return existingObserver(execute);
     }
 
     // Internal engine of an Observer for how it works
@@ -477,7 +497,7 @@ class Observer {
       if (typeof execute !== "function") {
         throw new TypeError("Cannot create observer with a non-function");
       }
-      // reset all the stuff
+      // reset all the core
       observerCore.clearDependencies();
       observerCore.running = true;
       observerCore.triggering = false;
@@ -487,7 +507,12 @@ class Observer {
     };
     observerInterface.stop = () => observerCore.stop();
     observerInterface.start = () => observerCore.start();
+
+    // Register the observer for potential overriding later
     coreExtractor.set(observerInterface, observerCore);
+    if (typeof key !== "undefined") {
+      observerRegistry.set(key, observerInterface);
+    }
 
     // Trigger once on initialization
     observerCore.trigger();
@@ -496,7 +521,7 @@ class Observer {
   }
 }
 global.Observer = Observer;
-const observe = (execute) => new Observer(execute);
+const observe = (arg1, arg2) => new Observer(arg1, arg2);
 global.observe = observe;
 const unobserve = (execute) => {
   const observer = new Observer(execute);

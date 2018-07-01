@@ -678,6 +678,42 @@ describe("Observer", () => {
       assert.equal(firstTracker, "foo");
       assert.equal(secondTracker, "baz");
     });
+
+    it("can override observer using key", () => {
+      let firstCounter = 0;
+      let secondCounter = 0;
+      let firstTracker;
+      let secondTracker;
+      const firstSignal = new Signal("foo");
+      const secondSignal = new Signal("bar");
+      observe("commonKey", () => {
+        firstCounter += 1;
+        firstTracker = firstSignal();
+      });
+      assert.equal(firstCounter, 1);
+      assert.equal(secondCounter, 0);
+      assert.equal(firstTracker, "foo");
+      assert.equal(secondTracker, undefined);
+      observe("commonKey", () => {
+        secondCounter += 1;
+        secondTracker = secondSignal();
+      });
+      assert.equal(firstCounter, 1);
+      assert.equal(secondCounter, 1);
+      assert.equal(firstTracker, "foo");
+      assert.equal(secondTracker, "bar");
+      firstSignal("moo");
+      assert.equal(firstCounter, 1);
+      assert.equal(secondCounter, 1);
+      assert.equal(firstTracker, "foo");
+      assert.equal(secondTracker, "bar");
+      secondSignal("baz")
+      assert.equal(firstCounter, 1);
+      assert.equal(secondCounter, 2);
+      assert.equal(firstTracker, "foo");
+      assert.equal(secondTracker, "baz");
+    });
+
   });
 
   describe("Start Stop", () => {
