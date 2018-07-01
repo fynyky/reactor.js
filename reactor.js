@@ -523,10 +523,15 @@ class Observer {
 global.Observer = Observer;
 const observe = (arg1, arg2) => new Observer(arg1, arg2);
 global.observe = observe;
+// Unobserve is syntactic sugar to create a dummy observer to block the triggers
+// While also returning the contents of the block 
 const unobserve = (execute) => {
-  const observer = new Observer(execute);
+  let output;
+  const observer = new Observer(() => {
+    output = execute();
+  });
   observer.stop();
-  return observer;
+  return output;
 };
 global.unobserve = unobserve;
 

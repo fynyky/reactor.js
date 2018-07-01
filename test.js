@@ -644,6 +644,37 @@ describe("Observer", () => {
       assert.equal(innerTracker, "baz");      
     });
 
+    it("returns output of unobserve block", () => {
+      let outerCounter = 0;
+      let innerCounter = 0;
+      let outerTracker;
+      let innerTracker;
+      const outerSignal = new Signal("foo");
+      const innerSignal = new Signal("bar");
+      const observer = observe(() => {
+        outerCounter += 1;
+        outerTracker = outerSignal();
+        innerTracker = unobserve(() => {
+          innerCounter += 1;
+          return innerSignal();
+        });
+      });      
+      assert.equal(outerCounter, 1);
+      assert.equal(innerCounter, 1);
+      assert.equal(outerTracker, "foo");
+      assert.equal(innerTracker, "bar");
+      innerSignal("baz");
+      assert.equal(outerCounter, 1);
+      assert.equal(innerCounter, 1);
+      assert.equal(outerTracker, "foo");
+      assert.equal(innerTracker, "bar");
+      outerSignal("moo");
+      assert.equal(outerCounter, 2);
+      assert.equal(innerCounter, 2);
+      assert.equal(outerTracker, "moo");
+      assert.equal(innerTracker, "baz");      
+    });
+
     it("can override observer", () => {
       let firstCounter = 0;
       let secondCounter = 0;
