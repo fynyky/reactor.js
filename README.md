@@ -1,35 +1,79 @@
 Reactor.js
 ==========
 
-Reactor is a lightweight library for [reactive programming](http://en.wikipedia.org/wiki/Reactive_programming). It provides reactive variables which automatically update themselves when the things they depend on change. This is similar to how a spreadsheet works, where cells can automatically change their own values in reaction to changes in other cells. 
+Reactor is a lightweight library for [reactive programming](http://en.wikipedia.org/wiki/Reactive_programming). It provides observer blocks that automatically track the reactive variables that they use and get retriggered if any of these variables are updated. This makes it easy to keep a complex data model consistent, or a user interface up to date when a model is changed.
 
 Here's a quick example of what Reactor does:
-
 ```javascript
-var foo = Signal(1);
-var bar = Signal(function(){
-  return foo() + 1;
-});
-var moo = Observer(function(){
-  console.log(bar());
-});
+const reactor = new Reactor({ foo: "bar" });
 
-foo(); // 1
-bar(); // 2
+observe(() => {
+  console.log("foo is ", reactor.foo);
+}); // "foo is bar"
 
-foo(6); // console logs 7
-
-foo(); // 6
-bar(); // 7
+reactor.foo = "moo"; // "foo is moo"
 ```
-
-You declare how a variable should be calculated once, and it automatically recalculates itself when necessary. Observers get notified when the variables they use get updated. This makes it easy to keep a complex data model consistent, and a user interface up to date when a model is changed.
+- You create a reactive object and an `observe` block that reads from that object. 
+- The observe block executes once on initial definition and automatically tracks which reactive properties it is using. 
+- Whenever the reactive property is updated, the observer is notified and executes its observed block again. 
 
 Reactor is designed to be unobtrusive and unopinionated. 
-
 - There is no need to manually declare listeners or bindings. Reactor automatically keeps track of all that for you. 
 - It imposes no particular structure on your code. Any variable can be easily replaced with a reactive one. 
-- There is no need to learn special special syntax or use special classes, objects, or methods.
+- There is no need to learn special syntax or a domain specific language. Reactors behave just like normal objects and you can observe any function.
+
+Summary
+-------
+
+```javascript
+// You can wrap any object in a Reactor
+const reactor = new Reactor({ foo: "bar" });
+
+// Reactors are mostly transparent 
+reactor.foo; // "bar"
+reactor.moo = "mux";
+reactor.moo; // "mux" 
+
+// - They automatically track and notify their dependent observers
+// - Any sub-object is recursively also wrapped in a Reactor
+
+
+
+var dependentSignal = Signal(function(){  // If given a function, the signal's value 
+                                          // is the return value of the function 
+                                          // instead of the function itself
+                                          
+  return numberSignal() + 1;              // Reading from another signal automatically sets it
+                                          // as a dependency
+});                     
+
+var stringSignal("a new string value");   // To update a signal just pass it a new value
+                                          // this automatically updates all 
+                                          // its dependents as well
+
+var arraySignal = Signal([                // Signals can even be arrays or objects
+  stringSignal,                           // which contain other signals
+  booleanSignal,
+  numberSignal
+]);
+
+var alertObserver = Observer(function(){  // Observers are just like signals except:
+  alert(arraySignal().join(","));         // They are updated last
+});                                       // They are only updated once per propagation
+                                          // They cannot be depended on by signals
+
+arraySignal.set(4, "a new value!")        // Convenience method for setting properties 
+                                          // on an Array or Object Signal
+
+arraySignal.push("foo");                  // Convenience methods for updating an array Signal
+arraySignal.pop();
+arraySignal.unshift("bar");
+arraySignal.shift();
+arraySignal.reverse();
+arraySignal.sort();
+arraySignal.splice(1, 2, "not a signal");
+```
+
 
 Overview
 --------
@@ -291,88 +335,6 @@ foo(); // ["a","b","c","d","e"]
 bar(); // "a-b-c-d-e"
 ```
 
-Summary
--------
-
-```javascript
-var stringSignal = Signal("a string");    // Signals can be set to any value
-var booleanSignal = Signal(true);
-var numberSignal = Signal(1);
-
-var dependentSignal = Signal(function(){  // If given a function, the signal's value 
-                                          // is the return value of the function 
-                                          // instead of the function itself
-                                          
-  return numberSignal() + 1;              // Reading from another signal automatically sets it
-                                          // as a dependency
-});                     
-
-var stringSignal("a new string value");   // To update a signal just pass it a new value
-                                          // this automatically updates all 
-                                          // its dependents as well
-
-var arraySignal = Signal([                // Signals can even be arrays or objects
-  stringSignal,                           // which contain other signals
-  booleanSignal,
-  numberSignal
-]);
-
-var alertObserver = Observer(function(){  // Observers are just like signals except:
-  alert(arraySignal().join(","));         // They are updated last
-});                                       // They are only updated once per propagation
-                                          // They cannot be depended on by signals
-
-arraySignal.set(4, "a new value!")        // Convenience method for setting properties 
-                                          // on an Array or Object Signal
-
-arraySignal.push("foo");                  // Convenience methods for updating an array Signal
-arraySignal.pop();
-arraySignal.unshift("bar");
-arraySignal.shift();
-arraySignal.reverse();
-arraySignal.sort();
-arraySignal.splice(1, 2, "not a signal");
-```
-And if you like [Coffeescript](http://coffeescript.org/), Reactor gets even simpler!
-
-```coffeescript
-
-stringSignal = Signal "a string"                # Signals can be set to any value
-booleanSignal = Signal true
-numberSignal = Signal 1
-
-dependentSignal = Signal -> numberSignal() + 1  # If given a function, the signal's value
-                                                # is the return value of the function 
-                                                # instead of the function itself
-                                                # Reading from another signal automatically 
-                                                # sets it as a dependency
-
-stringSignal "a new string value"               # To update a signal just pass it a new value
-                                                # this automatically updates all 
-                                                # its dependents as well
-
-arraySignal = Signal [                          # Signals can even be arrays or objects
-  stringSignal                                  # which contain other signals
-  booleanSignal
-  numberSignal
-]
-
-alertObserver = Observer ->                     # Observers are just like signals except:
-  alert arraySignal().join(",")                 # They are updated last
-                                                # They are only updated once per propagation
-                                                # They cannot be depended on by signals
-                                                
-arraySignal.set 4, "a new value!"               # Convenience method for setting properties 
-                                                # on an object Signal
-
-arraySignal.push "foo"                          # Convenience methods for updating an array Signal      
-arraySignal.pop()
-arraySignal.unshift("bar")
-arraySignal.shift()
-arraySignal.reverse()
-arraySignal.sort()
-arraySignal.splice 1, 2, "not a signal"
-```
 Installation and use
 --------------------
 
