@@ -27,51 +27,67 @@ Summary
 
 ```javascript
 // You can wrap any object in a Reactor
-const reactor = new Reactor({ foo: "bar" });
+// - This lets it automatically track and notify observers
+// - Sub-objects are also wrapped in Reactors recursively
+const reactor = new Reactor({ 
+  foo: "bar",
+  outer: {
+    inner: "value"
+  }
+});
 
-// Reactors are mostly transparent 
+// Reactors mostly transparent, behaving just like a normal object
 reactor.foo; // "bar"
 reactor.moo = "mux";
 reactor.moo; // "mux" 
 
-// - They automatically track and notify their dependent observers
-// - Any sub-object is recursively also wrapped in a Reactor
+// Create an observer by using the "observe" function
+const observer = observe(() => {
+  // Reading from a reactor property automatically saves it as a dependency
+  console.log("reactor.foo is ", reactor.foo);
+});
+
+// Dependency tracking works for sub-objects as well
+const innerObserver = observe(() => {
+  console.log("reactor.outer.inner is ", reactor.outer.inner);
+});
+
+// Updating the property automatically notifies the observer
+reactor.foo = "updated"; // "reactor.foo is updated"
+reactor.outer.inner = "cheese" // "reactor.outer.inner is cheese"
+
+// You can use "unobserve" to avoid particular dependencies in an observer
+// This is useful especially when using array methods that both read and write
+reactor.names = ["Alice", "Bob", "Charles", "David"];
+const partialObserver = observe(() => {
+  if (reactor.foo) {
+    // Unobserve passes through the return value of its block
+    const next = unobserve(() => reactor.names.pop());
+    console.log("next ", next);
+  }
+}); // "next Alice"
+
+reactor.foo = true; // "next Bob"
+reactor.names.push("Elsie"); // Will not trigger the observer
+
+// You can an observer by calling stop()
+partialObserver.stop();
+reactor.foo = true; // Will not trigger since observer is stopped
+
+// You can restart an observer by calling start()
+// This also retriggers the observed block
+partialObserver.start(); // "next Charles"
+
+// Start is idempotent so starting an already started observer has no effect
+partialObserver.start(); // -
+partialObserver.start(); // -
+partialObserver.start(); // -
 
 
-
-var dependentSignal = Signal(function(){  // If given a function, the signal's value 
-                                          // is the return value of the function 
-                                          // instead of the function itself
-                                          
-  return numberSignal() + 1;              // Reading from another signal automatically sets it
-                                          // as a dependency
-});                     
-
-var stringSignal("a new string value");   // To update a signal just pass it a new value
-                                          // this automatically updates all 
-                                          // its dependents as well
-
-var arraySignal = Signal([                // Signals can even be arrays or objects
-  stringSignal,                           // which contain other signals
-  booleanSignal,
-  numberSignal
-]);
-
-var alertObserver = Observer(function(){  // Observers are just like signals except:
-  alert(arraySignal().join(","));         // They are updated last
-});                                       // They are only updated once per propagation
-                                          // They cannot be depended on by signals
-
-arraySignal.set(4, "a new value!")        // Convenience method for setting properties 
-                                          // on an Array or Object Signal
-
-arraySignal.push("foo");                  // Convenience methods for updating an array Signal
-arraySignal.pop();
-arraySignal.unshift("bar");
-arraySignal.shift();
-arraySignal.reverse();
-arraySignal.sort();
-arraySignal.splice(1, 2, "not a signal");
+Observer keys
+Observer loops
+Signals
+define keyword
 ```
 
 
