@@ -101,55 +101,6 @@ reactor.foo = "beep"; // prints "second observer: beep"
 
 ```
 
-
-Overview
---------
-
-Reactor has just 2 components: **signals** and **observers**
-
-- **Signals** are values that are expected to change over time. Signals can depend on each other.
-- **Observers** are functions which are triggered on signal changes.
-
-A signal depends on another signal when it requires the other signal's value to determine its own. Similarly, an observer depends on a signal when it requires that signal's value to determine what to do.
-
-Whenever a signal is updated, it automatically updates all its dependent signals & observers as well. Together, signals and observers form a graph representing the propagation of data throughout the application. Signals sit on the inside of the graph representing the internal data model, while observers are on the edges of the graph affecting external systems.
-
-Here is an example of [simple note list application](http://jsfiddle.net/TjMgh/29/) using Reactor. A signal is used to represent user data while an observer is used to update the html.
-
-```javascript
-// The model is just an array of strings wrapped in a Signal
-noteList = Signal(["sample note", "another sample note"]);
-
-// The code to display the notes is wrapped in an Observer
-// This code is automatically retriggered when the noteList is modified
-Observer(function(){
-  var noteListElement = document.getElementById("noteList");
-  noteListElement.innerHTML = '';
-
-  // "noteList().length" causes a read of noteList
-  // This automatically sets noteList as a dependency of this Observer
-  // When noteList is updated it automatically retriggers the whole code block
-  for (var i = 0; i < noteList().length; i++) {
-    var noteElement = document.createElement("div");
-    noteElement.textContent = noteList()[i];
-    noteListElement.appendChild(noteElement);
-  }
-
-});
-
-// The input only needs to modify the Signal
-// The UI update is automatically handled by the Observer
-var noteInputElement = document.getElementById("noteInput");
-noteInputElement.onkeydown = function(event){
-  if (event.keyCode === 13) {
-    noteList.push(noteInputElement.value);
-    noteInputElement.value = '';
-  }
-};
-```
-
-Reactor adds very little overhead. You use `Signal` and `Observer` to wrap the appropriate variables and code blocks, swap reads and assignments for function calls, and you're good to go!
-
 Comparison to other libraries
 -----------------------------
 
@@ -159,208 +110,245 @@ Compared to Knockout, Reactor does not provide semantic bindings directly to HTM
 
 Compared to Bacon, Reactor does not help to handle event streams.
 
-Signals
--------
+Reactors
+--------
 
-Signal are just values which other signals can depend on. 
+A **Reactor** is an object wrapper which automatically tracks observers that read its properties and notifies these observers when those properties are updated.
 
-Reactor provides a global function called `Signal`. It wraps a given value and returns it as a signal object.
-
+You create a new Reactor by just calling its constructor.
 ```javascript
-var foo = Signal(7);  
+const reactor = new Reactor();
 ```
 
-Signal objects are implemented as functions. To read the value of a signal, call it without any arguments.
-
+You can also wrap an existing object with a Reactor by passing it to the constructor. Changes to the Reactor are passed through to the underlying object.
 ```javascript
-foo(); // returns 7
+const reactor = new Reactor({
+  foo: "bar"
+});
 ```
 
-To change the value of a signal, pass it the new value as an argument.
-
+Reactors behave mostly like plain javascript objects.
 ```javascript
-foo(9); // sets the signal's value to 9
+const reactor = new Reactor({
+  foo: "bar"
+});
+reactor.foo; // "bar"
+
+// You can set and get properties as usual
+reactor.cow = "moo";
+reactor.cow; = "moo"
+
+// defineProperty works normally as well
+Object.defineProperty(reactor, "milk", {
+  get() { return "chocolate"; }
+});
+reactor.milk; // "chocolate"
+
+// delete works too
+delete reactor.foo;
+reactor.foo; // undefined
 ```
 
-Signals can take on any value: numbers, strings, booleans, and even arrays and objects.
+The key difference of Reactors is that they track when one of their properties is read by an observer and will notify that observer when the property is updated.
 
 ```javascript
-foo(2.39232);
-foo("cheese cakes");
-foo(true);
-foo(["x", "y", "z"]);
-foo({"moo": bar});
+const reactor = new Reactor({ foo: "bar" });
+
+observe(() => {
+  console.log("foo is ", reactor.foo);
+}); // prints "foo is bar"
+
+reactor.foo = "moo"; // prints "foo is moo"
+
+Object.defineProperty(reactor, "foo", {
+  get() { return "meow"; }
+}); // prints "foo is meow"
+
+delete reactor.foo; // prints "foo is undefined"
 ```
 
-However, if a signal is given a function, it takes the return value of the function as its value instead of the function itself.
-
+Tracking is property specific so observers will not trigger if a different property is updated
 ```javascript
-var foo = Signal(function(){
-  return 2 * 3;
+const reactor = new Reactor({
+  foo: "bar",
+  moo: "mar"
 });
 
-foo(); // returns 6 instead of the function
+observe(() => {
+  console.log("foo tracker is now", reactor.foo);
+}); // prints "foo tracker is now bar"
+
+observe(() => {
+  console.log("moo tracker is now", reactor.foo);
+}); // prints "moo tracker is now mar"
+
+reactor.foo = "bar2"; // prints "foo tracker is now bar2"
+reactor.moo = "mar2"; // prints "moo tracker is now mar2"
+reactor.goo = "goop"; // does not trigger any observers
 ```
 
-Signals can have their value depend on other signals by using functions. If a different signal is read from within the given function, then that signal will automatically be set as a dependency. This means that when the dependency has been updated, the value of the dependent signal will be updated as well.
-
+If reading a Reactor's property also returns an object, that object is recursively also wrapped in a Reactor before being returned. This allows observers to tracks dependencies in nested objects easily.
 ```javascript
-var foo = Signal(7);
-var bar = Signal(function(){ 
-  return foo() * foo(); // since foo is read here, 
-                        // is is registered as a dependency of bar
+const reactor = new Reactor({
+  outer: {
+    inner: "cake"
+  }
 });
 
-foo(); // returns 7 as expected
-bar(); // returns 49 since it is defined as foo() * foo()
-
-foo(10); // this updates the value of foo
-         // and the value of bar as well
-
-bar(); // returns 100 since it was automatically updated together with foo
+observe(() => {
+  console.log("inner value is ", reactor.outer.inner);
+}); // prints "inner value is cake"
 ```
-
-Notice that there is no need to declare any listeners or bindings. Reactor automatically finds these dependencies in a signal's function definition.
-
-This automatic updating allows signals to be linked together to form more complex dependency graphs. 
-
-```javascript
-var firstName = Signal("Gob");
-var lastName = Signal("Bluth");
-
-// fullName depends on both firstName and lastName
-var fullName = Signal(function(){  
-  return firstName() + " " + lastName();
-});
-
-// barbarianName depends only on firstName
-var barbarianName = Signal(function(){
-  return firstName() + " the Chicken"
-});
-
-// comicTitle depends on barbrianName and fullName and therefore
-// indirectly depending on firstName and lastName
-var comicTitle = Signal(function(){
-  return "He who was once " + fullName() + " is now " + barbarianName();
-});
-
-firstName(); // "Gob"
-lastName(); // "Bluth"
-fullName(); // "Gob Bluth"
-barbarianName(); // "Gob the Chicken"
-comicTitle(); // "He who was once Gob Bluth is now Gob the Chicken"
-
-firstName("Michael"); // updating firstname automatically updates 
-                      // fullName, barbarianName, and comicTitle
-
-firstName(); // "Michael"
-lastName(); // "Bluth"
-fullName(); // "Michael Bluth"
-barbarianName(); // "Michael the Chicken"
-comicTitle(); // "He who was once Michael Bluth is now Michael the Chicken"
-```
-
-As far as possible, signals should only read and avoid having any external effects. This refers to actions such as:
-
-- Modifying the HTML
-- Writing to disk
-- Logging an interaction
-- Triggering an alert
-
-In a complex graph, a changed valued might cascade and cause some dependent signals' definitions to be invoked multiple times before propagation is complete.
-
-In the example above, updating `firstName` first causes both `fullName` and `barbarianName` to update. This causes `comicTitle` to be updated twice. Once when `fullName` is updated, and again when `barbarianName` is updated. This is fine on its own since there are no external effects. 
-
-However, if the definition of `comicTitle` included writing to disk then it would cause problems. Because `comicTitle` is updated twice, it would initiate 2 different writes. Furthermore, the first write would be incorrect as the change propagation would not have completed yet.
-
-For external effects, it is recommended that observers are used instead.
 
 Observers
 ---------
 
-Observers are almost identical to signals except for 3 main differences:
+An **Observer** is a code block that re-executes when one of the reactor propeties it read from is updated.
 
-- They are triggered only after all signals have been updated
-- They are only triggered once per signal update
-- Unlike signals, observers cannot be depended upon
-
-Observers are used for external effects while signals are used for internal state. Signal functions might trigger multiple times before all signals have finished updating. If signals are used for external effects, they could triggered incorrectly and redundantly. Observers are triggered last and only once per update and therefore do not have this problem.
-
-Observers are created in the same way as signals.
-
+Observers are created by using "observe" passing it a function. This function is executed once immediately on creation. 
 ```javascript
-var foo = Signal("random string");
-var bar = Observer(function(){  // Triggers first on creation
-  alert(foo());                 // Reads from foo and alerts "random string"
-});                             // Is automatically registered as a dependent
-                                // and triggers again whenever foo is changed
+observe(() => {
+  console.log("hello world")
+}); // prints "hello world"
 ```
 
-Just like signals, their dependencies are automatically calculated and triggered when the appropriate signal is updated.
-
+When an Observer reads a Reactor's property it gets saved as a dependent. When that property is updated it notifies the observer which re-executes its function. This happens automatically without any need to manually declare dependencies.
 ```javascript
-foo("a new random string"); // triggers bar which
-                            // alerts "a new random string"
+const reactor = new Reactor();
+observe(() => {
+  console.log("reactor.foo is ", reactor.foo);
+}); // prints "reactor.foo is undefined"
+
+reactor.foo = "bar"; // prints "reactor.foo is bar";
 ```
 
-Just like signals, their functions can be updated.
-
-```javascript
-// change bar update the html instead of alerting
-// triggers once immediately after updating
-bar(function(){
-  fooElement = document.getElementById("foo");
-  fooElement.textContent = foo();
+An Observer's dependencies are dynamically determined. Only the dependencies actually read in the last execution of an observer can trigger it again. This means that Reactor reads that are only conditionally used will not trigger the observer unnecessarily.
+```javascipt
+const reactor = new Reactor({
+  a: true,
+  b: "bee",
+  c: "cee"
 });
+observe(() => {
+  if (reactor.a) {
+    console.log("reactor.b is ", reactor.b);
+  } else {
+    console.log("reactor.c is ", reactor.c);
+  }
+}); // prints "reactor.b is bee"
 
-foo("this string will be logged now"); // triggers bar which now
-                                       // logs the string instead
+reactor.b = "boop"; // prints "reactor.b is boop"
+reactor.c = "cat" // does not trigger the observer
+
+reactor.a = false; // prints "reactor.c is cat"
+reactor.b = "blue"; // does not trigger the observer
+reactor.c = "cheese"; // prints "reactor.c is cheese"
 ```
 
-To disable an observer, pass in a null value.
-
+You can stop an observer by just calling "stop()" on the returned observer object. This clears any existing dependencies and prevents triggering. You can restart the observer by just calling "start()". Starting is idempotent so calling "start()" on an already running observer will have no effect.
 ```javascript
-bar(null); // disables the observer 
+const reactor = new Reactor();
+const observer = observe(() => {
+  console.log(reactor.foo);
+}); // prints "undefined"
+
+reactor.foo = "bar"; // prints "bar"
+
+observer.stop();
+
+reactor.foo = "cheese" // does not trigger the observer
+
+observer.start(); // prints "cheese"
+observer.start(); // No effect
+observer.start(); // No effect
+observer.start(); // No effect
+
+reactor.foo = "moo"; // prints "moo"
 ```
 
-Working with Arrays and Objects
--------------------------------
+### Unobserve
 
-When updating Arrays and Objects, you should use Reactor's convenience methods instead of updating the objects directly. This means you should use:
-- `foo.set(key, value)` instead of `foo()[key] = value`
-- `foo.pop()` instead of `foo().pop()`
-- `foo.push(value)` instead of `foo().push(value)`
-- `foo.reverse()` instead of `foo().reverse()`
-- `foo.shift()` instead of `foo().shift()`
-- `foo.unshift(value)` instead of `foo().unshift(value)`
-- `foo.sort(comparison)` instead of `foo().sort(comparison)`
-- `foo.splice(start, length)` instead of `foo().splice(start, length)`
-
-The reason for this is if a signal has an array as its value, directly updating the array will **not** update the signal's dependants. Because the signal object is still representing the same array, it does not detect the change. Instead, using the provided convenience methods does the same update but allows the change to be detected. This applies to objects as well.
-
-
-```javascript
-// foo initialized as a signal with an array as its value
-var foo = Signal(["a", "b", "c"]); 
-
-// bar initialized as a signal whos value depends on foo
-var bar = Signal(function(){ 
-  return foo().join("-");
+Sometimes you might want to read from a Reactor without becoming dependent on it. A common case for this is when using array modification methods. These often also read from the array in order to do the modification.
+```javascipt
+const reactor = new Reactor({
+  ticker: 1
 });
+const taskList = new Reactor(["a", "b", "c", "d"]);
+observe(() => {
+  if (reactor.ticker) {
+    // Even though we only want to modify the array
+    // pop() also reads the length property of the array
+    console.log(taskList.pop()); 
+  }
+}); // prints "d"
 
-foo(); // ["a","b","c"]
-bar(); // "a-b-c"
+reactor.ticker = 2; // prints "c"
 
-// Updating foo's array directly does not trigger an update of bar
-foo().push("d");
-foo(); // ["a","b","c","d"]
-bar(); // "a-b-c"
-
-// Instead, updating using the convenience method does trigger the update of bar
-foo.push("e");
-foo(); // ["a","b","c","d","e"]
-bar(); // "a-b-c-d-e"
+// Pushing modifies an arrays length property
+// Because we incidentally read the length when calling "pop()" 
+// An unwanted dependency was created
+taskList.push("e"); // prints "e" 
 ```
+
+In these cases you can use "unobserve" to shield a block of code from creating dependencies. It takes a function and any reactor properties read inside that function will not be set as dependencies. Unobserve also passes through the return value of its function for syntactic simplicity.
+```javascipt
+const reactor = new Reactor({
+  ticker: 1
+});
+const taskList = new Reactor(["a", "b", "c", "d"]);
+observe(() => {
+  if (reactor.ticker) {
+    console.log(
+      unobserve(() => taskList.pop());
+    ); 
+  }
+}); // prints "d"
+
+reactor.ticker = 2; // prints "c"
+
+taskList.push("e"); // does not trigger the observer
+```
+
+### Overrides
+If you need to dynamically create observers, you often need to clear manually the old observers. Instead of manually stopping and making a new observer, you can just provide the observer a new execution function. 
+```javascipt
+const reactor = new Reactor({ foo: "bar" });
+
+// The returned Observer object is itself a function
+let observerToBeOverriden = observe(() => {
+  console.log(reactor.foo);
+}); // prints "bar"
+
+reactor.foo = "moo"; // prints "moo"
+
+// Passing a new function to the observer object replaces the old function
+observerToBeOverriden(() => {
+  console.log("I am saying", reactor.foo);
+}); // prints "I am saying moo"
+
+reactor.foo = "blep"; // prints "I am saying blep"
+```
+
+You can also pass a key when creating an observer. When any other observer is created with the same key, it overrides the previous observer instead of creating a new one. 
+
+```javascipt
+const reactor = new Reactor({ foo: "bar" });
+
+const firstObserver = observe("fooTracker", () => {
+  console.log("first observer: ", reactor.foo);
+}); // prints "first observer: bar";
+reactor.foo = "moo"; // prints "first observer: moo"
+
+const secondObserver = observe("fooTracker", () => {
+  console.log("second observer: ", reactor.foo);
+}); // prints "second observer: moo";
+reactor.foo = "beep"; // prints "second observer: beep"
+
+firstObserver === secondObserver; // true
+```
+
+The key can be any string, but it can also be an object. This can be useful for associating observers with specific UI elements. Key equality has the same semantics as ES6 Map objects.
+
 
 Installation and use
 --------------------
