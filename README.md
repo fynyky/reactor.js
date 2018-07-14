@@ -9,9 +9,9 @@ const reactor = new Reactor({ foo: "bar" });
 
 observe(() => {
   console.log("foo is ", reactor.foo);
-}); // "foo is bar"
+}); // prints "foo is bar"
 
-reactor.foo = "moo"; // "foo is moo"
+reactor.foo = "moo"; // prints "foo is moo"
 ```
 - You create a reactive object and an `observe` block that reads from that object. 
 - The observe block executes once on initial definition and automatically tracks which reactive properties it is using. 
@@ -36,12 +36,15 @@ const reactor = new Reactor({
   }
 });
 
-// Reactors mostly transparent, behaving just like a normal object
+// Reactors are mostly transparent, behaving just like a normal object
 reactor.foo; // "bar"
 reactor.moo = "mux";
 reactor.moo; // "mux" 
 
-// Create an observer by using the "observe" function
+// Reactors can use "define" to define a getter more conveniently 
+reactor.fooAndMoo = define(() => this.foo)
+
+// Use the "observe" function to create an observer
 const observer = observe(() => {
   // Reading from a reactor property automatically saves it as a dependency
   console.log("reactor.foo is ", reactor.foo);
@@ -53,8 +56,8 @@ const innerObserver = observe(() => {
 });
 
 // Updating the property automatically notifies the observer
-reactor.foo = "updated"; // "reactor.foo is updated"
-reactor.outer.inner = "cheese" // "reactor.outer.inner is cheese"
+reactor.foo = "updated"; // prints "reactor.foo is updated"
+reactor.outer.inner = "cheese" // prints "reactor.outer.inner is cheese"
 
 // You can use "unobserve" to avoid particular dependencies in an observer
 // This is useful especially when using array methods that both read and write
@@ -65,29 +68,37 @@ const partialObserver = observe(() => {
     const next = unobserve(() => reactor.names.pop());
     console.log("next ", next);
   }
-}); // "next Alice"
+}); // prints "next Alice"
 
-reactor.foo = true; // "next Bob"
+reactor.foo = true; // prints "next Bob"
 reactor.names.push("Elsie"); // Will not trigger the observer
 
-// You can an observer by calling stop()
+// You can stop an observer by calling stop()
 partialObserver.stop();
 reactor.foo = true; // Will not trigger since observer is stopped
 
 // You can restart an observer by calling start()
 // This also retriggers the observed block
-partialObserver.start(); // "next Charles"
+partialObserver.start(); // prints "next Charles"
 
-// Start is idempotent so starting an already started observer has no effect
+// Start is idempotent so starting an already running observer has no effect
 partialObserver.start(); // -
 partialObserver.start(); // -
 partialObserver.start(); // -
 
+// You can provide a name to conveniently override old observers
+// This simplifies dynamic observer creation
+reactor.foo = "bar"
+const firstObserver = observe("fooTracker", () => {
+  console.log("first observer: ", reactor.foo);
+}); // prints "first observer: bar";
+reactor.foo = "moo"; // prints "first observer: moo"
 
-Observer keys
-Observer loops
-Signals
-define keyword
+const secondObserver = observe("fooTracker", () => {
+  console.log("second observer: ", reactor.foo);
+}); // prints "second observer: moo";
+reactor.foo = "beep"; // prints "second observer: beep"
+
 ```
 
 

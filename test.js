@@ -193,6 +193,11 @@ describe("Reactor", () => {
     assert.equal(reactor.foo, undefined);
   });
 
+  it("can call map on Array Reactor without error", () => {
+    const reactor = new Reactor(["0", "1", "2"]);
+    reactor.map(x => "this is " + x);
+  });
+
 });
 
 describe("Definition", () => {
@@ -317,10 +322,6 @@ describe("Definition", () => {
       assert.equal(Object.keys(reactor).length, 0);
     });
 
-    it("can call map on Array Reactor without error", () => {
-      const reactor = new Reactor(["0", "1", "2"]);
-      reactor.map(x => "this is " + x);
-    });
 
     // Temporarily disabled test since this seems fundamentally impossible
     // due to implementation where you cannot reconfigure the descriptor in a trap
