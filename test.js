@@ -4,7 +4,6 @@ const {
   Signal, 
   Reactor, 
   Reactors,
-  Observer,
   observe,
   unobserve
 } = require("./reactor");
@@ -341,62 +340,59 @@ describe("Definition", () => {
 
 });
 
-
-
-
 describe("Observer", () => {
 
-  it("initializes function without error", () => new Observer(() => {}));
+  it("initializes function without error", () => observe(() => {}));
 
   it("fails to initialize with no argument", () => {
-    assert.throws((() => new Observer()), {
+    assert.throws((() => observe()), {
       name: "TypeError",
       message: "Cannot create observer with a non-function"
     })
   });
 
   it("fails to initialize with non-function", () => {
-    assert.throws((() => new Observer(true)), {
+    assert.throws((() => observe(true)), {
       name: "TypeError",
       message: "Cannot create observer with a non-function"
     });
-    assert.throws((() => new Observer(false)), {
+    assert.throws((() => observe(false)), {
       name: "TypeError",
       message: "Cannot create observer with a non-function"
     });
-    assert.throws((() => new Observer(null)), {
+    assert.throws((() => observe(null)), {
       name: "TypeError",
       message: "Cannot create observer with a non-function"
     });
-    assert.throws((() => new Observer(undefined)), {
+    assert.throws((() => observe(undefined)), {
       name: "TypeError",
       message: "Cannot create observer with a non-function"
     });
-    assert.throws((() => new Observer(1)), {
+    assert.throws((() => observe(1)), {
       name: "TypeError",
       message: "Cannot create observer with a non-function"
     });
-    assert.throws((() => new Observer(0)), {
+    assert.throws((() => observe(0)), {
       name: "TypeError",
       message: "Cannot create observer with a non-function"
     });
-    assert.throws((() => new Observer("a")), {
+    assert.throws((() => observe("a")), {
       name: "TypeError",
       message: "Cannot create observer with a non-function"
     });
-    assert.throws((() => new Observer("")), {
+    assert.throws((() => observe("")), {
       name: "TypeError",
       message: "Cannot create observer with a non-function"
     });
-    assert.throws((() => new Observer(Symbol())), {
+    assert.throws((() => observe(Symbol())), {
       name: "TypeError",
       message: "Cannot create observer with a non-function"
     });
-    assert.throws((() => new Observer({})), {
+    assert.throws((() => observe({})), {
       name: "TypeError",
       message: "Cannot create observer with a non-function"
     });
-    assert.throws((() => new Observer([])), {
+    assert.throws((() => observe([])), {
       name: "TypeError",
       message: "Cannot create observer with a non-function"
     });
@@ -406,7 +402,7 @@ describe("Observer", () => {
 
     it("triggers once on initialization", () => {
       let counter = 0;
-      const observer = new Observer(() => counter += 1);
+      const observer = observe(() => counter += 1);
       assert.equal(counter, 1);
     });
 
@@ -414,7 +410,7 @@ describe("Observer", () => {
       let counter = 0;
       let tracker;
       const signal = new Signal("foo");
-      const observer = new Observer(() => {
+      const observer = observe(() => {
         counter += 1;
         tracker = signal();
       });
@@ -430,7 +426,7 @@ describe("Observer", () => {
       let counter = 0;
       let tracker;
       const signal = new Signal("foo");
-      const observer = new Observer(() => {
+      const observer = observe(() => {
         counter += 1;
         tracker = signal();
       });
@@ -447,7 +443,7 @@ describe("Observer", () => {
       const reactor = new Reactor({
         foo: "bar"
       });
-      const observer = new Observer(() => {
+      const observer = observe(() => {
         counter += 1;
         tracker = reactor.foo;
       });
@@ -462,7 +458,7 @@ describe("Observer", () => {
       let counter = 0;
       let tracker;
       const reactor = new Reactor();
-      const observer = new Observer(() => {
+      const observer = observe(() => {
         counter += 1;
         tracker = reactor.foo;
       });
@@ -481,7 +477,7 @@ describe("Observer", () => {
           bar: "baz"
         }
       });
-      const observer = new Observer(() => {
+      const observer = observe(() => {
         counter += 1;
         tracker = reactor.foo.bar;
       });
@@ -497,7 +493,7 @@ describe("Observer", () => {
       const reactor = new Reactor({
         foo: "bar"
       });
-      const observer = new Observer(() => (tracker = reactor.foo));
+      const observer = observe(() => (tracker = reactor.foo));
       assert.equal(tracker, "bar");
       Object.defineProperty(reactor, "foo", {
         get() { return "baz"; }
@@ -510,7 +506,7 @@ describe("Observer", () => {
       const reactor = new Reactor({
         foo: "bar"
       });
-      const observer = new Observer(() => (tracker = reactor.foo));
+      const observer = observe(() => (tracker = reactor.foo));
       assert.equal(tracker, "bar");
       delete reactor.foo;
       assert.equal(tracker, undefined);
@@ -520,7 +516,7 @@ describe("Observer", () => {
       let counter = 0;
       let tracker;
       const reactor = new Reactor([]);
-      const observer = new Observer(() => {
+      const observer = observe(() => {
         counter += 1;
         tracker = reactor[0];
       });
@@ -543,11 +539,11 @@ describe("Observer", () => {
       let innerTracker;
       let outerObserver;
       let innerObserver;
-      outerObserver = new Observer(() => {
+      outerObserver = observe(() => {
         outerCounter += 1;
         outerTracker = outerSignal();
         if (innerObserver) innerObserver.stop();
-        innerObserver = new Observer(() => {
+        innerObserver = observe(() => {
           innerCounter += 1;
           innerTracker = innerSignal();
         });
@@ -573,7 +569,7 @@ describe("Observer", () => {
       let counter = 0;
       let tracker;
       const reactor = new Reactor({ foo: "bar" });
-      const observer = new Observer(() => {
+      const observer = observe(() => {
         counter += 1;
         tracker = Object.keys(reactor);
       });
@@ -588,7 +584,7 @@ describe("Observer", () => {
       let counter = 0;
       let tracker;
       const reactor = new Reactor();
-      const observer = new Observer(() => {
+      const observer = observe(() => {
         counter += 1;
         tracker = ("foo" in reactor);
       });
@@ -754,7 +750,7 @@ describe("Observer", () => {
       let counter = 0;
       let tracker;
       const signal = new Signal("foo");
-      const observer = new Observer(() => {
+      const observer = observe(() => {
         counter += 1;
         tracker = signal()
       });
@@ -773,7 +769,7 @@ describe("Observer", () => {
       let counter = 0;
       let tracker = null;
       const signal = new Signal("foo");
-      const observer = new Observer(() => {
+      const observer = observe(() => {
         counter += 1;
         tracker = signal();
       });
@@ -792,7 +788,7 @@ describe("Observer", () => {
       let counter = 0;
       let tracker = null;
       const signal = new Signal("foo");
-      const observer = new Observer(() => {
+      const observer = observe(() => {
         counter += 1;
         tracker = signal();
       });
@@ -819,7 +815,7 @@ describe("Observer", () => {
       let tracker;
       const signal = new Signal("foo");
       assert.throws(() => {
-        const observer = new Observer(() => {
+        const observer = observe(() => {
           counter += 1;
           tracker = signal();
           if (counter < 100) signal("bar");
@@ -834,7 +830,7 @@ describe("Observer", () => {
 
     it("throws an error on a Signal write if there is an Observer error", () => {
       const signal = new Signal(1);
-      const observer = new Observer(() => {
+      const observer = observe(() => {
         if (signal() > 1) throw new Error("dummy error");
       });
       assert.throws(() => signal(2), {
@@ -845,10 +841,10 @@ describe("Observer", () => {
 
     it("throws a CompoundError if there are multiple Observer errors", () => {
       const signal = new Signal(1);
-      const observer1 = new Observer(() => {
+      const observer1 = observe(() => {
         if (signal() > 1) throw new Error("dummy error 1");
       });
-      const observer2 = new Observer(() => {
+      const observer2 = observe(() => {
         if (signal() > 1) throw new Error("dummy error 2");
       });
       assert.throws(() => signal(2), {
@@ -880,5 +876,87 @@ describe("Observer", () => {
 
   });
 
+});
 
+describe("Misc", () => {
+  it.skip("Passes test", () => {
+
+// You can wrap any object in a Reactor
+// - This lets it automatically track and notify observers
+// - Sub-objects are also wrapped in Reactors recursively
+const reactor = new Reactor({ 
+  foo: "bar",
+  outer: {
+    inner: "value"
+  }
+});
+
+// Reactors are mostly transparent, behaving just like a normal object
+reactor.foo; // "bar"
+reactor.moo = "mux";
+reactor.moo; // "mux" 
+
+// Reactors can use "define" to define a getter more conveniently 
+reactor.fooAndMoo = define(() => this.foo)
+
+// Use the "observe" function to create an observer
+const observer = observe(() => {
+  // Reading from a reactor property automatically saves it as a dependency
+  console.log("reactor.foo is ", reactor.foo);
+});
+
+// Dependency tracking works for sub-objects as well
+const innerObserver = observe(() => {
+  console.log("reactor.outer.inner is ", reactor.outer.inner);
+});
+
+// Updating the property automatically notifies the observer
+reactor.foo = "updated"; // prints "reactor.foo is updated"
+reactor.outer.inner = "cheese" // prints "reactor.outer.inner is cheese"
+
+// You can use "unobserve" to avoid particular dependencies in an observer
+// This is useful especially when using array methods that both read and write
+reactor.names = ["Alice", "Bob", "Charles", "David"];
+const partialObserver = observe(() => {
+  console.log("partial observing");
+  if (reactor.foo) {
+    console.log("passed reactor.foo test");
+    // Unobserve passes through the return value of its block
+    const next = unobserve(() => reactor.names.pop());
+    console.log("next ", next);
+  }
+}); // prints "next Alice"
+
+reactor.foo = true; // prints "next Bob"
+reactor.names.push("Elsie"); // Will not trigger the observer
+
+// You can stop an observer by calling stop()
+partialObserver.stop();
+reactor.foo = true; // Will not trigger since observer is stopped
+
+// You can restart an observer by calling start()
+// This also retriggers the observed block
+partialObserver.start(); // prints "next Charles"
+
+// Start is idempotent so starting an already running observer has no effect
+partialObserver.start(); // -
+partialObserver.start(); // -
+partialObserver.start(); // -
+
+// You can provide a name to conveniently override old observers
+// This simplifies dynamic observer creation
+reactor.foo = "bar"
+const firstObserver = observe("fooTracker", () => {
+  console.log("first observer: ", reactor.foo);
+}); // prints "first observer: bar";
+reactor.foo = "moo"; // prints "first observer: moo"
+
+const secondObserver = observe("fooTracker", () => {
+  console.log("second observer: ", reactor.foo);
+}); // prints "second observer: moo";
+reactor.foo = "beep"; // prints "second observer: beep"
+
+
+
+  });
 });

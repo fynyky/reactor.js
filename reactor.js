@@ -406,19 +406,7 @@ global.Reactor = Reactor;
 // observer.start();                          Does nothing since already started
 const observerRegistry = new Map();
 class Observer {
-  constructor(arg1, arg2) {
-
-    // Argument parsing
-    // If only one argument is given then it needs to be an execute block
-    // If 2 are presented then the first one is treated as an override key
-    let execute;
-    let key;
-    if (typeof arg2 === "undefined") {
-      execute = arg1;
-    } else {
-      key = arg1;
-      execute = arg2;
-    }
+  constructor(key, execute, unobserve) {
 
     // The triggered and observed block of code
     if (typeof execute !== "function") {
@@ -427,7 +415,7 @@ class Observer {
 
     // Check to see if there's an existing observer to override
     // instead of making a new one
-    if (typeof key !== "undefined") {
+    if (typeof key !== "undefined" && key !== null) {
       const existingObserver = observerRegistry.get(key);
       if (existingObserver) return existingObserver(execute);
     }
@@ -437,6 +425,8 @@ class Observer {
     // Should be completely agnostic to syntactic sugar
     const observerCore = {
       execute: execute,
+      unobserve, unobserve, // flag on whether this is a unobserve block
+                            // Avoids creating dependencies in that case 
       running: true, // Whether further triggers and updates are allowed
       triggering: false, // Whether the block is currently executing
                          // prevents further triggers
@@ -463,7 +453,8 @@ class Observer {
         // Execute the observed function after setting the dependency stack
         if (this.running) {
           this.clearDependencies();
-          dependencyStack.push(this);
+          if (unobserve) dependencyStack.push(null);
+          else dependencyStack.push(this);
           this.triggering = true;
           try { this.execute(); }
           finally { 
@@ -520,14 +511,27 @@ class Observer {
 
   }
 }
-global.Observer = Observer;
-const observe = (arg1, arg2) => new Observer(arg1, arg2);
+const observe = (arg1, arg2) => {
+  // Argument parsing
+  // If only one argument is given then it needs to be an execute block
+  // If 2 are presented then the first one is treated as an override key
+  let key;
+  let execute;
+  if (typeof arg2 === "undefined") {
+    execute = arg1;
+  } else {
+    key = arg1;
+    execute = arg2;
+  }
+  return new Observer(key, execute);
+};
+
 global.observe = observe;
 // Unobserve is syntactic sugar to create a dummy observer to block the triggers
 // While also returning the contents of the block 
 const unobserve = (execute) => {
   let output;
-  const observer = new Observer(() => {
+  const observer = new Observer(null, () => {
     output = execute();
   });
   observer.stop();
