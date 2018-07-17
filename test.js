@@ -672,6 +672,13 @@ describe("Observer", () => {
       assert.equal(innerTracker, "baz");      
     });
 
+    it("does not self trigger in an unobserve block", () => {
+      const reactor = new Reactor(["a", "b", "c"]);
+      observe(() => {
+        unobserve(() => reactor.pop());
+      });
+    });
+
     it("can override observer", () => {
       let firstCounter = 0;
       let secondCounter = 0;
@@ -878,85 +885,3 @@ describe("Observer", () => {
 
 });
 
-describe("Misc", () => {
-  it.skip("Passes test", () => {
-
-// You can wrap any object in a Reactor
-// - This lets it automatically track and notify observers
-// - Sub-objects are also wrapped in Reactors recursively
-const reactor = new Reactor({ 
-  foo: "bar",
-  outer: {
-    inner: "value"
-  }
-});
-
-// Reactors are mostly transparent, behaving just like a normal object
-reactor.foo; // "bar"
-reactor.moo = "mux";
-reactor.moo; // "mux" 
-
-// Reactors can use "define" to define a getter more conveniently 
-reactor.fooAndMoo = define(() => this.foo)
-
-// Use the "observe" function to create an observer
-const observer = observe(() => {
-  // Reading from a reactor property automatically saves it as a dependency
-  console.log("reactor.foo is ", reactor.foo);
-});
-
-// Dependency tracking works for sub-objects as well
-const innerObserver = observe(() => {
-  console.log("reactor.outer.inner is ", reactor.outer.inner);
-});
-
-// Updating the property automatically notifies the observer
-reactor.foo = "updated"; // prints "reactor.foo is updated"
-reactor.outer.inner = "cheese" // prints "reactor.outer.inner is cheese"
-
-// You can use "unobserve" to avoid particular dependencies in an observer
-// This is useful especially when using array methods that both read and write
-reactor.names = ["Alice", "Bob", "Charles", "David"];
-const partialObserver = observe(() => {
-  console.log("partial observing");
-  if (reactor.foo) {
-    console.log("passed reactor.foo test");
-    // Unobserve passes through the return value of its block
-    const next = unobserve(() => reactor.names.pop());
-    console.log("next ", next);
-  }
-}); // prints "next Alice"
-
-reactor.foo = true; // prints "next Bob"
-reactor.names.push("Elsie"); // Will not trigger the observer
-
-// You can stop an observer by calling stop()
-partialObserver.stop();
-reactor.foo = true; // Will not trigger since observer is stopped
-
-// You can restart an observer by calling start()
-// This also retriggers the observed block
-partialObserver.start(); // prints "next Charles"
-
-// Start is idempotent so starting an already running observer has no effect
-partialObserver.start(); // -
-partialObserver.start(); // -
-partialObserver.start(); // -
-
-// You can provide a name to conveniently override old observers
-// This simplifies dynamic observer creation
-reactor.foo = "bar"
-const firstObserver = observe("fooTracker", () => {
-  console.log("first observer: ", reactor.foo);
-}); // prints "first observer: bar";
-reactor.foo = "moo"; // prints "first observer: moo"
-
-const secondObserver = observe("fooTracker", () => {
-  console.log("second observer: ", reactor.foo);
-}); // prints "second observer: moo";
-reactor.foo = "beep"; // prints "second observer: beep"
-
-
-
-  });
-});

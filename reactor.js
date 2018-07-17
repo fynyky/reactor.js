@@ -533,8 +533,7 @@ const unobserve = (execute) => {
   let output;
   const observer = new Observer(null, () => {
     output = execute();
-  });
-  observer.stop();
+  }, true);
   return output;
 };
 global.unobserve = unobserve;
