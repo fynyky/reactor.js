@@ -19,8 +19,8 @@ reactor.foo = "moo"; // prints "foo is moo"
 
 Reactor is designed to be unobtrusive and unopinionated. 
 - There is no need to manually declare listeners or bindings. Reactor automatically keeps track of all that for you. 
-- It imposes no particular structure on your code. Any variable can be easily replaced with a reactive one. 
-- There is no need to learn special syntax or a domain specific language. Reactors behave just like normal objects and you can observe any function.
+- It imposes no particular structure on your code. Any variable can be easily replaced with a reactive one.
+- There is no need to learn special syntax or a domain specific language. Reactors behave just like normal objects and you can observe any synchronous code.
 
 Summary
 -------
@@ -38,22 +38,20 @@ const reactor = new Reactor({
 
 // Reactors are mostly transparent, behaving just like a normal object
 reactor.foo; // "bar"
-reactor.moo = "mux";
-reactor.moo; // "mux" 
+reactor.name = "Bob";
+reactor.name; // "Bob"
 
-// Reactors can use "define" to define a getter more conveniently 
-reactor.fooAndMoo = define(() => this.foo)
-
-// Use the "observe" function to create an observer
+// Use the "observe" function to create an Observer
+// Observers execute immediately upon creation
 const observer = observe(() => {
-  // Reading from a reactor property automatically saves it as a dependency
+  // Reading from a Reactor property automatically saves it as a dependency
   console.log("reactor.foo is ", reactor.foo);
-});
+}); // prints "reactor.foo is bar"
 
 // Dependency tracking works for sub-objects as well
 const innerObserver = observe(() => {
   console.log("reactor.outer.inner is ", reactor.outer.inner);
-});
+}); // prints "reactor.outer.inner is value"
 
 // Updating the property automatically notifies the observer
 reactor.foo = "updated"; // prints "reactor.foo is updated"
@@ -98,7 +96,7 @@ const secondObserver = observe("fooTracker", () => {
   console.log("second observer: ", reactor.foo);
 }); // prints "second observer: moo";
 reactor.foo = "beep"; // prints "second observer: beep"
-
+                      // First observer has been overriden and does not trigger
 ```
 
 Comparison to other libraries
@@ -270,6 +268,8 @@ reactor.foo = "moo"; // prints "moo"
 
 Sometimes you might want to read from a Reactor without becoming dependent on it. A common case for this is when using array modification methods. These often also read from the array in order to do the modification.
 ```javascipt
+// The following example will throw an error after detecting an observer loop
+
 const reactor = new Reactor({
   ticker: 1
 });
@@ -299,7 +299,7 @@ const taskList = new Reactor(["a", "b", "c", "d"]);
 observe(() => {
   if (reactor.ticker) {
     console.log(
-      unobserve(() => taskList.pop());
+      unobserve(() => taskList.pop())
     ); 
   }
 }); // prints "d"
@@ -310,7 +310,7 @@ taskList.push("e"); // does not trigger the observer
 ```
 
 ### Overrides
-If you need to dynamically create observers, you often need to clear manually the old observers. Instead of manually stopping and making a new observer, you can just provide the observer a new execution function. 
+If you need to dynamically create observers, you often need to manually clear the old observers. Instead of manually stopping and making a new observer, you can just provide the existing observer a new execution function. 
 ```javascipt
 const reactor = new Reactor({ foo: "bar" });
 
