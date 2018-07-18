@@ -1,7 +1,7 @@
 Reactor.js
 ==========
 
-Reactor is a lightweight library for [reactive programming](http://en.wikipedia.org/wiki/Reactive_programming). It provides observer blocks that automatically track the reactive variables that they use and get retriggered if any of these variables are updated. This makes it easy to keep a complex data model consistent, or a user interface up to date when a model is changed.
+Reactor.js is a lightweight library for [reactive programming](http://en.wikipedia.org/wiki/Reactive_programming). It provides observer blocks that automatically track the reactive variables that they use and get retriggered if any of these variables are updated. This makes it easy to keep a complex data model consistent, or a user interface up to date when a model is changed.
 
 Here's a quick example of what Reactor does:
 ```javascript
@@ -350,35 +350,30 @@ firstObserver === secondObserver; // true
 The key can be any string, but it can also be an object. This can be useful for associating observers with specific UI elements. Key equality has the same semantics as ES6 Map objects.
 
 
-Installation and use
+Installation & Use
 --------------------
 
-Download [reactor.js](https://github.com/fynyky/reactor.js/raw/master/reactor.js) and include it in your application. 
-
-Reactor has just 2 components: `Signal` and `Observer`
-- For browsers, they will be bound to window as global objects for use anywhere.
-- For node.js, they will be bound as properties of the exports object to be imported as modules
-
-For [Coffeescript](http://coffeescript.org/) users, you can instead use [reactor.coffee](https://github.com/fynyky/reactor.js/raw/master/reactor.coffee) for your coffeescript workflow.
-
-For [node.js](http://nodejs.org/) users, Reactor.js is also [available on npm](https://npmjs.org/package/reactorjs) by running
+Reactor.js is [available on npm](https://npmjs.org/package/reactorjs). You can install it by running
 ```
 $ npm install reactorjs
 ```
-And importing it into your application by adding
+
+Inside you application you can include the necessary components by running
 ```javascript
-Reactor = require("reactorjs");
-Signal = Reactor.Signal;
-Observer = Reactor.Observer;
-```
-For the lucky people using both coffeescript and node.js: you can just use
-```coffeescript
-{Signal, Observer} = require "reactorjs"
+const { 
+  Reactor, 
+  observe,
+  unobserve
+} = require("reactorjs");
 ```
 
-Installation and use
---------------------
-Tests are stored in `test.coffee` and compiled to `test.js` to be run using Mocha.
+If you want to just use Reactor.js directly without using npm, you can download [Reactor.js](https://github.com/fynyky/reactor.js/raw/master/reactor.js) and include it in your application. When used outside of a module system, Reactor provides the same `Reactor`, `observe`, and `unobserve` components as global objects.
 
-To install Mocha just run `npm install`
-To run the tests run `npm test`
+
+Development & Testing
+---------------------
+Tests are stored in `test.js` to be run using Mocha.
+
+Run `npm install` to install the the dev dependencies.
+
+To run the tests run `npm test`.
