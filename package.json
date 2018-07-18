@@ -1,7 +1,7 @@
 {
   "name": "reactorjs",
   "version": "1.0.0",
-  "description": "Functional reactive programming library",
+  "description": "Simple reactive programming without frameworks",
   "main": "reactor.js",
   "dependencies": {},
   "devDependencies": {
