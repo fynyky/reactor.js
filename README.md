@@ -1,3 +1,5 @@
+Note: Reactor.js is now on version 1.0 which is fundamentally incompatible with its previous incarnation. If you need the previous version refer to the 0.1 branch [here](https://github.com/fynyky/reactor.js/tree/0.1)
+
 Reactor.js
 ==========
 
