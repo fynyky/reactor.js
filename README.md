@@ -61,25 +61,26 @@ reactor.outer.inner = "cheese" // prints "reactor.outer.inner is cheese"
 
 // You can use "unobserve" to avoid particular dependencies in an observer
 // This is useful especially when using array methods that both read and write
+reactor.ticker = 1;
 reactor.names = ["Alice", "Bob", "Charles", "David"];
 const partialObserver = observe(() => {
-  if (reactor.foo) {
+  if (reactor.ticker) {
     // Unobserve passes through the return value of its block
     const next = unobserve(() => reactor.names.pop());
     console.log("next ", next);
   }
-}); // prints "next Alice"
+}); // prints "next David"
 
-reactor.foo = true; // prints "next Bob"
+reactor.ticker += 1; // prints "next Charles"
 reactor.names.push("Elsie"); // Will not trigger the observer
 
 // You can stop an observer by calling stop()
 partialObserver.stop();
-reactor.foo = true; // Will not trigger since observer is stopped
+reactor.ticker += 1;  // Will not trigger since observer is stopped
 
 // You can restart an observer by calling start()
 // This also retriggers the observed block
-partialObserver.start(); // prints "next Charles"
+partialObserver.start(); // prints "next Elsie"
 
 // Start is idempotent so starting an already running observer has no effect
 partialObserver.start(); // -
@@ -88,16 +89,16 @@ partialObserver.start(); // -
 
 // You can provide a name to conveniently override old observers
 // This simplifies dynamic observer creation
-reactor.foo = "bar"
-const firstObserver = observe("fooTracker", () => {
-  console.log("first observer: ", reactor.foo);
-}); // prints "first observer: bar";
-reactor.foo = "moo"; // prints "first observer: moo"
+reactor.counter = 1
+const firstObserver = observe("counterReporter", () => {
+  console.log("first observer: ", reactor.counter);
+}); // prints "first observer: 1";
+reactor.counter += 1 // prints "first observer: 2"
 
-const secondObserver = observe("fooTracker", () => {
-  console.log("second observer: ", reactor.foo);
-}); // prints "second observer: moo";
-reactor.foo = "beep"; // prints "second observer: beep"
+const secondObserver = observe("counterReporter", () => {
+  console.log("second observer: ", reactor.counter);
+}); // prints "second observer: 2";
+reactor.counter += 1; // prints "second observer: 3"
                       // First observer has been overriden and does not trigger
 ```
 
