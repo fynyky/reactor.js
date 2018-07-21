@@ -364,6 +364,56 @@ firstObserver === secondObserver; // true
 
 The key can be any string, but it can also be an object. This can be useful for associating observers with specific UI elements. Key equality has the same semantics as ES6 Map objects.
 
+### Batching
+One problem with automatic watchers is that you might end up with multiple repeated triggering when you're updating a whole lot of information all at once. The following code shows an example where you want to update multiple properties, but each property update prematurely triggers the observer since you are not done updating yet.
+
+```javascript
+const person = new Reactor({ 
+  firstName: "Anakin",
+  lastName: "Skywalker",
+  faction: "Jedi",
+  rank: "Knight"
+});
+
+// This observer tracks multiple properties 
+// and so will be triggered when any of the properties get updated
+const observer = observe(() => {
+  console.log(
+    "I am " +
+    person.firstName + 
+    " " + 
+    person.lastName + 
+    ", " + 
+    person.faction + 
+    " " + 
+    person.rank
+  );
+}); // prints "I am Anakin Skywalker, Jedi Knight"
+
+// The following updates will each trigger the observer even though we only 
+// want to trigger the observer once all the updates are complete
+person.firstName = "Darth"; // prints "I am Darth Skywalker, Jedi Knight"
+person.lastName = "Vader"; // prints "I am Darth Vader, Jedi Knight"
+person.faction = "Sith"; // prints "I am Darth Vader, Sith Knight"
+person.rank = "Lord"; // prints "I am Darth Vader, Sith Lord"
+```
+
+Reactor provides the `batch` keyword, which allows you to batch multiple updates together and only trigger the appropriate observers once at the end of the batch block. So the last part of the previous example can be turned into:
+```javascript
+// batch postpones any observer triggers that originate from inside it
+// Triggers are deduplicated so any observer is triggered at most once
+batch(() => {
+  // None of the following updates will trigger the observer yet
+  person.firstName = "Darth"; 
+  person.lastName = "Vader";
+  person.faction = "Sith";
+  person.rank = "Lord";
+}); // prints "I am Darth Vader, Sith Lord"
+```
+
+This is useful when you are making multiple data updates and want to avoid showing an "incomplete" view of the data to observers.
+
+Note that only the observer triggering is postponed till the end. The actual reactor propertes are updated in place as expected. This means that you can have other logic with read-what-you-write semantics within the observer block working just fine.
 
 Installation & Use
 --------------------
@@ -382,7 +432,7 @@ const {
 } = require("reactorjs");
 ```
 
-If you want to just use Reactor.js directly without using npm, you can download [Reactor.js](https://github.com/fynyky/reactor.js/raw/master/reactor.js) and include it in your application. When used outside of a module system, Reactor provides the same `Reactor`, `observe`, and `unobserve` components as global objects.
+If you want to just use Reactor.js directly without using npm, you can download [Reactor.js](https://github.com/fynyky/reactor.js/raw/master/reactor.js) and include it in your application. When used outside of a module system, Reactor provides the same `Reactor`, `observe`, `unobserve`, and `batch` components as global objects.
 
 
 Development & Testing
