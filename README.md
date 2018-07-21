@@ -106,7 +106,7 @@ reactor.counter += 1; // prints "second observer: 3"
                       // First observer has been overriden and does not trigger
 ```
 
-Comparison to other libraries
+Comparison to Other Libraries
 -----------------------------
 
 Reactor is based on the same reactive principles as [Bacon.js](https://github.com/raimohanska/bacon.js) and [Knockout.js](http://knockoutjs.com/). The main difference is that Reactor is trying to be lightweight and keep the additional syntax and complexity to a minimum. Reactor sets dependencies for you automatically so there is no need to manually set subscriptions/listeners.
