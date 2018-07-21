@@ -1,95 +1,9 @@
 const assert = require("assert");
 const { 
-  define, 
-  Signal, 
   Reactor, 
-  Reactors,
   observe,
   unobserve
 } = require("./reactor");
-
-describe("Signal", () => {
-
-  it("initializes without error", () => {
-    new Signal(true);
-    new Signal(false);
-    new Signal(null);
-    new Signal(undefined);
-    new Signal(1);
-    new Signal(0);
-    new Signal("a");
-    new Signal("");
-    new Signal(Symbol());
-    new Signal({});
-    new Signal([]);
-    new Signal(() => {});
-  });
-
-  it("reads back initialized primitives without error", () => {
-    assert.equal(new Signal(true)(), true)
-    assert.equal(new Signal(false)(), false)
-    assert.equal(new Signal(null)(), null)
-    assert.equal(new Signal(undefined)(), undefined)
-    assert.equal(new Signal(1)(), 1)
-    assert.equal(new Signal(0)(), 0)
-    assert.equal(new Signal("a")(), "a")
-    assert.equal(new Signal("")(), "")
-    const symbol = Symbol();
-    assert.equal(new Signal(symbol)(), symbol)
-  });
-
-  it("reads back initialized objects as Reactors", () => {
-    const objectSignal = new Signal({});
-    assert(Reactors.has(objectSignal()));
-    const arraySignal = new Signal([]);
-    assert(Reactors.has(arraySignal()));
-    const functionSignal = new Signal(() => {});
-    assert(Reactors.has(functionSignal()));
-  });
-
-  it("does no rewrap Reactors", () => {
-    const reactor = new Reactor();
-    const reactorSignal = new Signal(reactor);
-    assert.equal(reactor, reactorSignal());
-  });
-
-  it("writes without error", () => {
-    const signal = new Signal();
-    signal(true);
-    signal(false);
-    signal(null);
-    signal(undefined);
-    signal(1);
-    signal(0);
-    signal("a");
-    signal("");
-    signal(Symbol());
-    signal({});
-    signal([]);
-    signal(() => {});
-  });
-
-  it("returns written values on write", () => {
-    const signal = new Signal();
-    assert.equal(signal(true), true);
-    assert.equal(signal(false), false);
-    assert.equal(signal(null), null);
-    assert.equal(signal(undefined), undefined);
-    assert.equal(signal(1), 1);
-    assert.equal(signal(0), 0);
-    assert.equal(signal("a"), "a");
-    assert.equal(signal(""), "");
-    const symbol = Symbol();
-    assert.equal(signal(symbol), symbol);
-    const object = {};
-    assert.equal(signal(object), object);
-    const array = [];
-    assert.equal(signal(array), array);
-    const func = () => {};
-    assert.equal(signal(func), func);
-  });  
-
-});
 
 describe("Reactor", () => {
 
@@ -199,147 +113,6 @@ describe("Reactor", () => {
 
 });
 
-describe("Definition", () => {
-
-  it("initializes function without error", () => define(() => {}));
-
-  it("fails to initialize with no argument", () => {
-    assert.throws((() => define()), {
-      name: "TypeError",
-      message: "Cannot create definition with a non-function"
-    })
-  });
-
-  it("fails to initialize with non-function", () => {
-    assert.throws((() => define(true)), {
-      name: "TypeError",
-      message: "Cannot create definition with a non-function"
-    })
-    assert.throws((() => define(false)), {
-      name: "TypeError",
-      message: "Cannot create definition with a non-function"
-    })
-    assert.throws((() => define(null)), {
-      name: "TypeError",
-      message: "Cannot create definition with a non-function"
-    })
-    assert.throws((() => define(undefined)), {
-      name: "TypeError",
-      message: "Cannot create definition with a non-function"
-    })
-    assert.throws((() => define(1)), {
-      name: "TypeError",
-      message: "Cannot create definition with a non-function"
-    })
-    assert.throws((() => define(0)), {
-      name: "TypeError",
-      message: "Cannot create definition with a non-function"
-    })
-    assert.throws((() => define("a")), {
-      name: "TypeError",
-      message: "Cannot create definition with a non-function"
-    })
-    assert.throws((() => define("")), {
-      name: "TypeError",
-      message: "Cannot create definition with a non-function"
-    })
-    assert.throws((() => define(Symbol())), {
-      name: "TypeError",
-      message: "Cannot create definition with a non-function"
-    })
-    assert.throws((() => define({})), {
-      name: "TypeError",
-      message: "Cannot create definition with a non-function"
-    })
-    assert.throws((() => define([])), {
-      name: "TypeError",
-      message: "Cannot create definition with a non-function"
-    })
-  });
-
-  describe("Signal", () => {
-
-    it("initializes definition without error", () => {
-      new Signal(define(() => {}));
-    })
-
-    it("reads definition without error", () => {
-      new Signal(define(() => {}))();
-    })
-
-    it("reads definition return value", () => {
-      const signal = new Signal(define(() => 2))
-      assert.equal(signal(), 2);
-    })
-
-  });
-
-  describe("Reactor", () => {
-
-    it("sets definition without error", () => {
-      const reactor = new Reactor();
-      reactor.foo = define(() => "bar");
-    })
-
-    it("gets definition return value", () => {
-      const reactor = new Reactor();
-      reactor.foo = define(() => "bar");
-      assert.equal(reactor.foo, "bar");
-    })
-
-    it("can override definition", () => {
-      const reactor = new Reactor();
-      reactor.foo = define(() => "bar");
-      assert.equal(reactor.foo, "bar");
-      reactor.foo = 2;
-      assert.equal(reactor.foo, 2);
-    })
-
-    it("can set definition as non-writable", () => {
-      const reactor = new Reactor();
-      Object.defineProperty(reactor, "foo", {
-        value: define(() => "bar"),
-        writable: false
-      });
-      assert.equal(reactor.foo, "bar");
-      reactor.foo = 2;
-      assert.equal(reactor.foo, "bar");
-    })
-
-    it("sets definition as enumerable by default", () => {
-      const reactor = new Reactor();
-      reactor.foo = define(() => "bar");
-      assert.equal(Object.keys(reactor).length, 1);
-    })
-
-    it("can set definition as non-enumerable", () => {
-      const reactor = new Reactor();
-      Object.defineProperty(reactor, "foo", {
-        value: define(() => "bar"),
-        enumerable: false
-      });
-      assert.equal(Object.keys(reactor).length, 0);
-    });
-
-
-    // Temporarily disabled test since this seems fundamentally impossible
-    // due to implementation where you cannot reconfigure the descriptor in a trap
-    // if configurable is set to false. 
-    // File bug here https://bugs.chromium.org/p/v8/issues/detail?id=7884
-    // it("can set definition as non-configurable", () => {
-    //   const reactor = new Reactor();
-    //   Object.defineProperty(reactor, "foo", {
-    //     value: define(() => "bar"),
-    //     configurable: false
-    //   });
-    //   delete reactor.foo;
-    //   assert.equal(reactor.foo, "bar")
-    // });
-
-  });
-
-});
-
 describe("Observer", () => {
 
   it("initializes function without error", () => observe(() => {}));
@@ -406,37 +179,6 @@ describe("Observer", () => {
       assert.equal(counter, 1);
     });
 
-    it("triggers once on Signal dependency write", () => {
-      let counter = 0;
-      let tracker;
-      const signal = new Signal("foo");
-      const observer = observe(() => {
-        counter += 1;
-        tracker = signal();
-      });
-      assert.equal(counter, 1);
-      assert.equal(tracker, "foo");
-      signal("bar");
-      assert.equal(counter, 2);
-      assert.equal(tracker, "bar");
-    });
-
-
-    it("triggers once on Signal dependency defined write", () => {
-      let counter = 0;
-      let tracker;
-      const signal = new Signal("foo");
-      const observer = observe(() => {
-        counter += 1;
-        tracker = signal();
-      });
-      assert.equal(counter, 1);
-      assert.equal(tracker, "foo");
-      signal(define(() => "bar"));
-      assert.equal(counter, 2);
-      assert.equal(tracker, "bar");
-    });
-
     it("triggers once on Reactor dependency write", () => {
       let counter = 0;
       let tracker;
@@ -450,21 +192,6 @@ describe("Observer", () => {
       assert.equal(counter, 1);
       assert.equal(tracker, "bar");
       reactor.foo = "mux"
-      assert.equal(counter, 2);
-      assert.equal(tracker, "mux");
-    });
-
-    it("triggers once on Reactor dependency defined write", () => {
-      let counter = 0;
-      let tracker;
-      const reactor = new Reactor();
-      const observer = observe(() => {
-        counter += 1;
-        tracker = reactor.foo;
-      });
-      assert.equal(counter, 1);
-      assert.equal(tracker, undefined);
-      reactor.foo = define(() => "mux");
       assert.equal(counter, 2);
       assert.equal(tracker, "mux");
     });
@@ -531,8 +258,10 @@ describe("Observer", () => {
     });
 
     it("triggers correctly on nested observer definitions", () => {
-      const outerSignal = new Signal("foo");
-      const innerSignal = new Signal("bar");
+      const reactor = new Reactor({
+        outer: "foo",
+        inner: "bar"
+      });
       let outerCounter = 0;
       let innerCounter = 0;
       let outerTracker;
@@ -541,23 +270,23 @@ describe("Observer", () => {
       let innerObserver;
       outerObserver = observe(() => {
         outerCounter += 1;
-        outerTracker = outerSignal();
+        outerTracker = reactor.outer;
         if (innerObserver) innerObserver.stop();
         innerObserver = observe(() => {
           innerCounter += 1;
-          innerTracker = innerSignal();
+          innerTracker = reactor.inner;
         });
       });
       assert.equal(outerCounter, 1);
       assert.equal(outerTracker, "foo");
       assert.equal(innerCounter, 1);
       assert.equal(innerTracker, "bar");
-      innerSignal("baz");
+      reactor.inner = "baz";
       assert.equal(outerCounter, 1);
       assert.equal(outerTracker, "foo");
       assert.equal(innerCounter, 2);
       assert.equal(innerTracker, "baz");
-      outerSignal("moo");
+      reactor.outer ="moo";
       assert.equal(outerCounter, 2);
       assert.equal(outerTracker, "moo");
       assert.equal(innerCounter, 3);
@@ -598,43 +327,45 @@ describe("Observer", () => {
     it("subscribes using observe keyword", () => {
       let counter = 0;
       let tracker;
-      const signal = new Signal("foo");
+      const reactor = new Reactor({ value: "foo"})
       const observer = observe(() => {
         counter += 1;
-        tracker = signal();
+        tracker = reactor.value;
       });      
       assert.equal(counter, 1);
       assert.equal(tracker, "foo");
-      signal("bar");
+      reactor.value = "bar";
       assert.equal(counter, 2);
       assert.equal(tracker, "bar");      
     });
 
     it("does not subscribe in unobserve block", () => {
+      const reactor = new Reactor({
+        outer: "foo",
+        inner: "bar"
+      });
       let outerCounter = 0;
       let innerCounter = 0;
       let outerTracker;
       let innerTracker;
-      const outerSignal = new Signal("foo");
-      const innerSignal = new Signal("bar");
       const observer = observe(() => {
         outerCounter += 1;
-        outerTracker = outerSignal();
+        outerTracker = reactor.outer;
         unobserve(() => {
           innerCounter += 1;
-          innerTracker = innerSignal();
+          innerTracker = reactor.inner;
         });
       });      
       assert.equal(outerCounter, 1);
       assert.equal(innerCounter, 1);
       assert.equal(outerTracker, "foo");
       assert.equal(innerTracker, "bar");
-      innerSignal("baz");
+      reactor.inner = "baz";
       assert.equal(outerCounter, 1);
       assert.equal(innerCounter, 1);
       assert.equal(outerTracker, "foo");
       assert.equal(innerTracker, "bar");
-      outerSignal("moo");
+      reactor.outer = "moo";
       assert.equal(outerCounter, 2);
       assert.equal(innerCounter, 2);
       assert.equal(outerTracker, "moo");
@@ -642,30 +373,32 @@ describe("Observer", () => {
     });
 
     it("returns output of unobserve block", () => {
+      const reactor = new Reactor({
+        outer: "foo",
+        inner: "bar"
+      });
       let outerCounter = 0;
       let innerCounter = 0;
       let outerTracker;
       let innerTracker;
-      const outerSignal = new Signal("foo");
-      const innerSignal = new Signal("bar");
       const observer = observe(() => {
         outerCounter += 1;
-        outerTracker = outerSignal();
+        outerTracker = reactor.outer;
         innerTracker = unobserve(() => {
           innerCounter += 1;
-          return innerSignal();
+          return reactor.inner;
         });
       });      
       assert.equal(outerCounter, 1);
       assert.equal(innerCounter, 1);
       assert.equal(outerTracker, "foo");
       assert.equal(innerTracker, "bar");
-      innerSignal("baz");
+      reactor.inner = "baz";
       assert.equal(outerCounter, 1);
       assert.equal(innerCounter, 1);
       assert.equal(outerTracker, "foo");
       assert.equal(innerTracker, "bar");
-      outerSignal("moo");
+      reactor.outer = "moo";
       assert.equal(outerCounter, 2);
       assert.equal(innerCounter, 2);
       assert.equal(outerTracker, "moo");
@@ -680,15 +413,17 @@ describe("Observer", () => {
     });
 
     it("can override observer", () => {
+      const reactor = new Reactor({
+        first: "foo",
+        second: "bar"
+      });
       let firstCounter = 0;
       let secondCounter = 0;
       let firstTracker;
       let secondTracker;
-      const firstSignal = new Signal("foo");
-      const secondSignal = new Signal("bar");
       const observer = observe(() => {
         firstCounter += 1;
-        firstTracker = firstSignal();
+        firstTracker = reactor.first;
       });
       assert.equal(firstCounter, 1);
       assert.equal(secondCounter, 0);
@@ -696,18 +431,18 @@ describe("Observer", () => {
       assert.equal(secondTracker, undefined);
       observer(() => {
         secondCounter += 1;
-        secondTracker = secondSignal();
+        secondTracker = reactor.second;
       });
       assert.equal(firstCounter, 1);
       assert.equal(secondCounter, 1);
       assert.equal(firstTracker, "foo");
       assert.equal(secondTracker, "bar");
-      firstSignal("moo");
+      reactor.first = "moo";
       assert.equal(firstCounter, 1);
       assert.equal(secondCounter, 1);
       assert.equal(firstTracker, "foo");
       assert.equal(secondTracker, "bar");
-      secondSignal("baz")
+      reactor.second = "baz";
       assert.equal(firstCounter, 1);
       assert.equal(secondCounter, 2);
       assert.equal(firstTracker, "foo");
@@ -715,15 +450,17 @@ describe("Observer", () => {
     });
 
     it("can override observer using key", () => {
+      const reactor = new Reactor({
+        first: "foo",
+        second: "bar"
+      });
       let firstCounter = 0;
       let secondCounter = 0;
       let firstTracker;
       let secondTracker;
-      const firstSignal = new Signal("foo");
-      const secondSignal = new Signal("bar");
       observe("commonKey", () => {
         firstCounter += 1;
-        firstTracker = firstSignal();
+        firstTracker = reactor.first;
       });
       assert.equal(firstCounter, 1);
       assert.equal(secondCounter, 0);
@@ -731,18 +468,18 @@ describe("Observer", () => {
       assert.equal(secondTracker, undefined);
       observe("commonKey", () => {
         secondCounter += 1;
-        secondTracker = secondSignal();
+        secondTracker = reactor.second;
       });
       assert.equal(firstCounter, 1);
       assert.equal(secondCounter, 1);
       assert.equal(firstTracker, "foo");
       assert.equal(secondTracker, "bar");
-      firstSignal("moo");
+      reactor.first = "moo";
       assert.equal(firstCounter, 1);
       assert.equal(secondCounter, 1);
       assert.equal(firstTracker, "foo");
       assert.equal(secondTracker, "bar");
-      secondSignal("baz")
+      reactor.second = "baz";
       assert.equal(firstCounter, 1);
       assert.equal(secondCounter, 2);
       assert.equal(firstTracker, "foo");
@@ -756,18 +493,18 @@ describe("Observer", () => {
     it("can stop observing", () => {
       let counter = 0;
       let tracker;
-      const signal = new Signal("foo");
+      const reactor = new Reactor({ value: "foo" });
       const observer = observe(() => {
         counter += 1;
-        tracker = signal()
+        tracker = reactor.value;
       });
       assert.equal(counter, 1);
       assert.equal(tracker, "foo");
-      signal("bar");
+      reactor.value = "bar";
       assert.equal(counter, 2);
       assert.equal(tracker, "bar");
       observer.stop();
-      signal("moo");
+      reactor.value = "moo";
       assert.equal(counter, 2);
       assert.equal(tracker, "bar");
     });
@@ -775,15 +512,15 @@ describe("Observer", () => {
     it("can start after stopping", () => {
       let counter = 0;
       let tracker = null;
-      const signal = new Signal("foo");
+      const reactor = new Reactor({ value: "foo" });
       const observer = observe(() => {
         counter += 1;
-        tracker = signal();
+        tracker = reactor.value;
       });
       assert.equal(counter, 1);
       assert.equal(tracker, "foo");
       observer.stop();
-      signal("moo");
+      reactor.value = "moo";
       assert.equal(counter, 1);
       assert.equal(tracker, "foo");
       observer.start();
@@ -794,15 +531,15 @@ describe("Observer", () => {
     it("has no effect with repeated starts", () => {
       let counter = 0;
       let tracker = null;
-      const signal = new Signal("foo");
+      const reactor = new Reactor({ value: "foo" });
       const observer = observe(() => {
         counter += 1;
-        tracker = signal();
+        tracker = reactor.value;
       });
       assert.equal(counter, 1);
       assert.equal(tracker, "foo");
       observer.stop();
-      signal("moo");
+      reactor.value = "moo";
       assert.equal(counter, 1);
       assert.equal(tracker, "foo");
       observer.start();
@@ -820,12 +557,12 @@ describe("Observer", () => {
     it("throws an error on an Observer loop", () => {
       let counter = 0;
       let tracker;
-      const signal = new Signal("foo");
+      const reactor = new Reactor({ value: "foo" });
       assert.throws(() => {
         const observer = observe(() => {
           counter += 1;
-          tracker = signal();
-          if (counter < 100) signal("bar");
+          tracker = reactor.value;
+          if (counter < 100) reactor.value = "bar";;
         });
       }, {
         name: "LoopError",
@@ -835,26 +572,26 @@ describe("Observer", () => {
       assert.equal(tracker, "foo");
     });
 
-    it("throws an error on a Signal write if there is an Observer error", () => {
-      const signal = new Signal(1);
+    it("throws an error on a write if there is an Observer error", () => {
+      const reactor = new Reactor({ value: "foo" });
       const observer = observe(() => {
-        if (signal() > 1) throw new Error("dummy error");
+        if (reactor.value > 1) throw new Error("dummy error");
       });
-      assert.throws(() => signal(2), {
+      assert.throws(() => (reactor.value = 2), {
         name: "Error",
         message: "dummy error"
       });
     });
 
     it("throws a CompoundError if there are multiple Observer errors", () => {
-      const signal = new Signal(1);
+      const reactor = new Reactor({ value: 1 });
       const observer1 = observe(() => {
-        if (signal() > 1) throw new Error("dummy error 1");
+        if (reactor.value > 1) throw new Error("dummy error 1");
       });
       const observer2 = observe(() => {
-        if (signal() > 1) throw new Error("dummy error 2");
+        if (reactor.value > 1) throw new Error("dummy error 2");
       });
-      assert.throws(() => signal(2), {
+      assert.throws(() => (reactor.value = 2), {
         name: "CompoundError"
       });
     });
@@ -884,4 +621,3 @@ describe("Observer", () => {
   });
 
 });
-

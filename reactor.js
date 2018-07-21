@@ -44,7 +44,6 @@ class Definition {
 // Expose a define "keyword" instead of the class itself
 // This seems nicer syntactic sugar than "new Definition(...)" each time
 const define = (definition) => new Definition(definition);
-global.define = define;
 
 
 
@@ -62,7 +61,6 @@ global.define = define;
 // a(2)                           Sets the value to 2 
 // a(define(() => Date.now()))    Sets a dynamic getter instead of static value
 const Signals = new WeakSet();
-global.Signals = Signals;
 class Signal {
   // Signals are made up of 2 main parts
   // - The core: The properties & methods which lets signals work
@@ -173,8 +171,6 @@ class Signal {
 
   }
 };
-global.Signal = Signal;
-
 
 
 // Reactors are observable object proxies
@@ -201,7 +197,6 @@ global.Signal = Signal;
 // WeakSet of all Reactors to check if something is a Reactor
 // Need to implement it this way because you can check instanceof Proxies
 const Reactors = new WeakSet();
-global.Reactors = Reactors;
 class Reactor {
   constructor(initializedSource) {
 
