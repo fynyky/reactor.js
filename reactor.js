@@ -19,6 +19,13 @@ const dependencyStack = [];
 // to their internal cores
 const coreExtractor = new WeakMap();
 
+// A batcher is used to postpone observer triggers and batch them together
+// When "batch" is called it adds sets a batcher to this global variable
+// When a Signal is updated it checks if a batcher is set
+// If it is, it adds that observer to this set in stead of triggering it
+// At the end of the exeution, the batch call then calls all the observers 
+// Then clears the batcher again
+let batcher = null;
 
 // Definition is a shell class to identify dynamically calculated variables
 // Accessed through the "define" function
@@ -135,7 +142,10 @@ class Signal {
         // If an error occurs, collect it and keep going
         // A conslidated error will be thrown at the end of propagation
         Array.from(this.dependents).forEach(dependent => {
-          try { dependent.trigger(); }
+          try { 
+            if (batcher) batcher.add(dependent);
+            else dependent.trigger();
+          }
           catch(error) { errorList.push(error); }
         });
         // If any errors occured during propagation 
@@ -520,8 +530,9 @@ const observe = (arg1, arg2) => {
   }
   return new Observer(key, execute);
 };
-
 global.observe = observe;
+
+
 // Unobserve is syntactic sugar to create a dummy observer to block the triggers
 // While also returning the contents of the block 
 const unobserve = (execute) => {
@@ -532,6 +543,26 @@ const unobserve = (execute) => {
   return output;
 };
 global.unobserve = unobserve;
+
+
+// Method for allowing users to batch multiple observer updates together
+const batch = (execute) => {
+  if (batcher === null) {
+    // Set a global batcher so signals know not to trigger observers immediately
+    // Using a set allows the removal of redundant triggering in observers
+    batcher = new Set();
+    // Execute the given block and collect the triggerd observers
+    execute();
+    // Trigger the collected observers
+    const batchedObservers = Array.from(batcher); // Make a copy to freeze it
+    batchedObservers.forEach(observer => observer.trigger());
+    // Clear the batching mode
+    batcher = null;
+  } 
+  // No need to do anything if batching is already taking place
+  else execute();
+};
+global.batch = batch;
 
 
 // Custom Error class to indicate loops in observer triggering

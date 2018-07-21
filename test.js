@@ -2,7 +2,8 @@ const assert = require("assert");
 const { 
   Reactor, 
   observe,
-  unobserve
+  unobserve,
+  batch
 } = require("./reactor");
 
 describe("Reactor", () => {
@@ -109,6 +110,29 @@ describe("Reactor", () => {
   it("can call map on Array Reactor without error", () => {
     const reactor = new Reactor(["0", "1", "2"]);
     reactor.map(x => "this is " + x);
+  });
+
+
+  describe("Misc", () => {
+
+    it("respects receiver context for prototype inheritors", () => {
+      const reactor = new Reactor();
+      reactor.foo = "bar";
+      Object.defineProperty(reactor, "getFoo", {
+        get() {
+          return this.foo;
+        }
+      })
+      assert.equal(reactor.getFoo, "bar");
+      reactor.foo = "quu";
+      assert.equal(reactor.getFoo, "quu");
+      const inheritor = Object.create(reactor);
+      assert.equal(inheritor.foo, "quu");
+      assert.equal(inheritor.getFoo, "quu");
+      inheritor.foo = "mux"
+      assert.equal(inheritor.getFoo, "mux");
+    });
+
   });
 
 });
@@ -486,6 +510,53 @@ describe("Observer", () => {
       assert.equal(secondTracker, "baz");
     });
 
+    it("delays and combines observer triggers when using batch", () => {
+      const reactor = new Reactor({ value: "foo" });
+      let counter = 0;
+      observe(() => {
+        counter += 1;
+        reactor.value;
+      });
+      assert.equal(counter, 1);
+      batch(() => {
+        reactor.value = "bleep";
+        assert.equal(counter, 1);
+        reactor.value = "bloop";
+        assert.equal(counter, 1);
+        reactor.value = "blarp";
+        assert.equal(counter, 1);
+      });
+      assert.equal(counter, 2);
+    });
+
+
+    it("can nest batchers with no consequence", () => {
+      const reactor = new Reactor({ value: "foo" });
+      let counter = 0;
+      observe(() => {
+        counter += 1;
+        reactor.value;
+      });
+      assert.equal(counter, 1);
+      batch(() => {
+        reactor.value = "bleep";
+        assert.equal(counter, 1);
+        reactor.value = "bloop";
+        assert.equal(counter, 1);
+        reactor.value = "blarp";
+        assert.equal(counter, 1);
+        batch(() => {
+          reactor.value = "bink";
+          assert.equal(counter, 1);
+          reactor.value = "bonk";
+          assert.equal(counter, 1);
+          reactor.value = "bup";
+          assert.equal(counter, 1);
+        });
+      });
+      assert.equal(counter, 2);
+    });
+
   });
 
   describe("Start Stop", () => {
@@ -550,6 +621,7 @@ describe("Observer", () => {
       assert.equal(tracker, "moo");
     });
 
+
   });
 
   describe("Error Handling", () => {
@@ -594,28 +666,6 @@ describe("Observer", () => {
       assert.throws(() => (reactor.value = 2), {
         name: "CompoundError"
       });
-    });
-
-  });
-
-  describe("Misc", () => {
-
-    it("respects receiver context for prototype inheritors", () => {
-      const reactor = new Reactor();
-      reactor.foo = "bar";
-      Object.defineProperty(reactor, "getFoo", {
-        get() {
-          return this.foo;
-        }
-      })
-      assert.equal(reactor.getFoo, "bar");
-      reactor.foo = "quu";
-      assert.equal(reactor.getFoo, "quu");
-      const inheritor = Object.create(reactor);
-      assert.equal(inheritor.foo, "quu");
-      assert.equal(inheritor.getFoo, "quu");
-      inheritor.foo = "mux"
-      assert.equal(inheritor.getFoo, "mux");
     });
 
   });
