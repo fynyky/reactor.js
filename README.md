@@ -271,46 +271,38 @@ reactor.foo = "moo"; // prints "moo"
 
 Sometimes you might want to read from a Reactor without becoming dependent on it. A common case for this is when using array modification methods. These often also read from the array in order to do the modification.
 ```javascript
-// The following example will throw an error after detecting an observer loop
-
-const reactor = new Reactor({
-  ticker: 1
-});
 const taskList = new Reactor(["a", "b", "c", "d"]);
+
+// Creating the following observer will throw a LoopError
+// Because it both reads from and modifies the length property of taskList
+// As a result it triggers itself in the middle of execution
+// This loop is detected and creates an exception
 observe(() => {
-  if (reactor.ticker) {
-    // Even though we only want to modify the array
-    // pop() also reads the length property of the array
-    console.log(taskList.pop()); 
-  }
-}); // prints "d"
-
-reactor.ticker = 2; // prints "c"
-
-// Pushing modifies an arrays length property
-// Because we incidentally read the length when calling "pop()" 
-// An unwanted dependency was created
-taskList.push("e"); // prints "e" 
+  // Even though we only want to modify the array
+  // pop() also reads the length property of the array
+  console.log(taskList.pop()); 
+});
 ```
 
 In these cases you can use "unobserve" to shield a block of code from creating dependencies. It takes a function and any reactor properties read inside that function will not be set as dependencies. Unobserve also passes through the return value of its function for syntactic simplicity.
 ```javascript
-const reactor = new Reactor({
-  ticker: 1
-});
 const taskList = new Reactor(["a", "b", "c", "d"]);
-observe(() => {
-  if (reactor.ticker) {
-    console.log(
-      unobserve(() => taskList.pop())
-    ); 
-  }
-}); // prints "d"
 
-reactor.ticker = 2; // prints "c"
+observe(() => {
+
+  console.log(
+    // Because we wrap pop() call in an unobserve block
+    // It is not create a depndency on the length property
+    // Unlike our previous example
+    unobserve(() => taskList.pop())
+  ); 
+
+}); // prints "d"
 
 taskList.push("e"); // does not trigger the observer
 ```
+
+Note that only the reads inside the unobserve block are shielded from creating dependencies. The rest of the observe block still creates dependencies as normal.
 
 ### Overrides
 If you need to dynamically create observers, you often need to manually clear the old observers. Instead of manually stopping and making a new observer, you can just provide the existing observer a new execution function. 
