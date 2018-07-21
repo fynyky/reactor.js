@@ -224,7 +224,7 @@ reactor.foo = "bar"; // prints "reactor.foo is bar";
 ```
 
 An Observer's dependencies are dynamically determined. Only the dependencies actually read in the last execution of an observer can trigger it again. This means that Reactor reads that are only conditionally used will not trigger the observer unnecessarily.
-```javascipt
+```javascript
 const reactor = new Reactor({
   a: true,
   b: "bee",
@@ -270,7 +270,7 @@ reactor.foo = "moo"; // prints "moo"
 ### Unobserve
 
 Sometimes you might want to read from a Reactor without becoming dependent on it. A common case for this is when using array modification methods. These often also read from the array in order to do the modification.
-```javascipt
+```javascript
 // The following example will throw an error after detecting an observer loop
 
 const reactor = new Reactor({
@@ -294,7 +294,7 @@ taskList.push("e"); // prints "e"
 ```
 
 In these cases you can use "unobserve" to shield a block of code from creating dependencies. It takes a function and any reactor properties read inside that function will not be set as dependencies. Unobserve also passes through the return value of its function for syntactic simplicity.
-```javascipt
+```javascript
 const reactor = new Reactor({
   ticker: 1
 });
@@ -314,7 +314,7 @@ taskList.push("e"); // does not trigger the observer
 
 ### Overrides
 If you need to dynamically create observers, you often need to manually clear the old observers. Instead of manually stopping and making a new observer, you can just provide the existing observer a new execution function. 
-```javascipt
+```javascript
 const reactor = new Reactor({ foo: "bar" });
 
 // The returned Observer object is itself a function
@@ -334,7 +334,7 @@ reactor.foo = "blep"; // prints "I am saying blep"
 
 You can also pass a key when creating an observer. When any other observer is created with the same key, it overrides the previous observer instead of creating a new one. 
 
-```javascipt
+```javascript
 const reactor = new Reactor({ foo: "bar" });
 
 const firstObserver = observe("fooTracker", () => {
