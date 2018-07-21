@@ -87,6 +87,10 @@ partialObserver.start(); // -
 partialObserver.start(); // -
 partialObserver.start(); // -
 
+// For convenience, you can call the function provided to the observer
+// This works regardless of whether the observer is started or stopped
+partialObserver(); // prints "next Bob"
+
 // You can provide a name to conveniently override old observers
 // This simplifies dynamic observer creation
 reactor.counter = 1
@@ -266,6 +270,22 @@ observer.start(); // No effect
 
 reactor.foo = "moo"; // prints "moo"
 ```
+
+For convenience, you can call an observer with no arguments to execute like a normal function. This works regardless of whether an observer is stopped.
+
+```javascript
+const reactor = new Reactor({ foo: "hello" });
+const observer = observe(() => {
+  console.log(reactor.foo);
+}); // prints "hello"
+reactor.foo = "hi"; // prints "hi"
+observer(); // prints "hi" again
+
+observer.stop();
+reactor.foo = "hola" // does not trigger the observer since its stopped
+observer(); // prints "hola"
+```
+Note that calling an observer this way does not create any of the observer's dependencies. It is equivalent to just calling the plain function without the observer wrapper. 
 
 ### Unobserve
 
