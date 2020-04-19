@@ -154,7 +154,7 @@ class Signal {
         if (errorList.length === 1) {
           throw errorList[0];
         } else if (errorList.length > 1) {
-          const errorMessage = errorList.length + " errors due to signal write";
+          const errorMessage = "Multiple errors from signal write";
           throw new CompoundError(errorMessage, errorList);
         }
         return output;
@@ -570,28 +570,31 @@ const batch = (execute) => {
     batcher = new Set();
     // Execute the given block and collect the triggerd observers
     result = execute();
+
+    // Clear the batching mode
+    // This needs to be done before observer triggering in case any observers
+    // subsequently themselves trigger batches
+    // This also needs to be done first before throwing errors
+    // Otherwise the thrown errors will mean we never unset the batcher
+    // This will cause subsequent triggers to get stuck in this dead batcher
+    // Never to be executed
+    const batchedObservers = Array.from(batcher); // Make a copy to freeze it
+    batcher = null;
     // Trigger the collected observers
     // If an error occurs, collect it and keep going
     // A conslidated error will be thrown at the end of propagation
-    const batchedObservers = Array.from(batcher); // Make a copy to freeze it
     const errorList = [];
     batchedObservers.forEach(observer => {
       try { observer.trigger(); }
       catch(error) { errorList.push(error); }
     });
-    // Clear the batching mode
-    // This needs to be done first before throwing errors
-    // Otherwise the thrown errors will mean we never unset the batcher
-    // This will cause subsequent triggers to get stuck in this dead batcher
-    // Never to be executed
-    batcher = null;
 
     // If any errors occured during propagation 
     // consolidate and throw them
     if (errorList.length === 1) {
       throw errorList[0];
     } else if (errorList.length > 1) {
-      const errorMessage = errorList.length + " batched observer errors";
+      const errorMessage = "Multiple errors from batched reactor observers";
       throw new CompoundError(errorMessage, errorList);
     }
   } 
@@ -613,15 +616,21 @@ class LoopError extends Error {
 
 // Custom Error class to consolidate multiple errors together
 class CompoundError extends Error {
-  constructor(message, errorArray) {
+  constructor(message, errorList) {
+    // Flatten any compound errors in the error list
+    errorList = errorList.flatMap(error => {
+      if (error instanceof CompoundError) return error.errorList;
+      return error;
+    });
     // Build the message to display all the component errors
-    const errors = errorArray;
-    for (let error of errors) {
+    message = message + "\n" + errorList.length + " errors in total";
+    for (let error of errorList) {
       const errorDescription =
         error.stack != null ? error.stack : error.toString();
       message = message + "\n" + errorDescription;
     }
     super(message);
+    this.errorList = errorList;
     this.name = this.constructor.name;
     return this;
   }

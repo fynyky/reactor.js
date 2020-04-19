@@ -601,6 +601,24 @@ describe("Observer", () => {
       assert.equal(counter, 2);
     });
 
+    it("triggers chained observers", () => {
+      let tracker;
+      const reactor = new Reactor({ 
+        foo: "bar"
+      });
+      observe(() => {
+        reactor.bigFoo = reactor.foo.toUpperCase();
+      });
+      assert.equal(reactor.bigFoo, "BAR");
+      observe(() => {
+        tracker = reactor.bigFoo;
+      });
+      assert.equal(tracker, "BAR");
+      reactor.foo = "qux";
+      assert.equal(reactor.bigFoo, "QUX");
+      assert.equal(tracker, "QUX");
+    }); 
+
   });
 
   describe("Start Stop", () => {
@@ -711,6 +729,36 @@ describe("Observer", () => {
         name: "CompoundError"
       });
     });
+
+    it("throws a flattened compound error with chained observers", () => {
+      const reactor = new Reactor({ 
+        foo: "Bar"
+      });
+      // Successful passthrough to create subsequent compound errors 
+      observe(() => {
+        reactor.passthrough = reactor.foo;
+      });
+      assert.equal(reactor.passthrough, "Bar");
+      // Initial error failrues to create an initial compound error
+      observe(() => {
+        if (reactor.foo === "error") throw new Error("BIG ERROR 1");
+      });
+      observe(() => {
+        if (reactor.foo === "error") throw new Error("BIG ERROR 2");
+      });
+      // Chain off reactor.passthrough to create a subsequent compound error
+      observe(() => {
+        if (reactor.passthrough === "error") throw new Error("small error 1");
+      });
+      observe(() => {
+        if (reactor.passthrough === "error") throw new Error("small error 2");
+      });
+      assert.throws(() => (reactor.foo = "error"), (error) => {
+        assert.equal(error.name, "CompoundError");
+        assert.equal(error.errorList.length, 4);
+        return true;
+      });
+    }); 
 
   });
 
