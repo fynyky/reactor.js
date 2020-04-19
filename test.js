@@ -619,6 +619,40 @@ describe("Observer", () => {
       assert.equal(tracker, "QUX");
     }); 
 
+    it("does not redundantly trigger on setting identical values", () => {
+      let counter = 0;
+      let tracker;
+      const reactor = new Reactor({ 
+        foo: "bar"
+      });
+      observe(() => {
+        counter += 1;
+        tracker = reactor.foo;
+      });
+      assert.equal(counter, 1);
+      assert.equal(tracker, "bar");
+      reactor.foo = "bar";
+      assert.equal(counter, 1);
+      assert.equal(tracker, "bar");
+    });
+
+    it("does not redundantly trigger if has check remains the same", () => {
+      let counter = 0;
+      let tracker;
+      const reactor = new Reactor({ 
+        foo: "bar"
+      });
+      observe(() => {
+        counter += 1;
+        tracker = "foo" in reactor;
+      });
+      assert.equal(counter, 1);
+      assert.equal(tracker, true);
+      reactor.foo = "baz";
+      assert.equal(counter, 1);
+      assert.equal(tracker, true);
+    });
+
   });
 
   describe("Start Stop", () => {

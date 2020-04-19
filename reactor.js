@@ -342,10 +342,14 @@ class Reactor {
       // The proper accessor will be materialized "just in time" on the getter
       // so it doesn't matter that we're swapping it with a filler Symbol
       trigger(property) {
+        // Calculate the actual new values observers will receive
+        // This avoids redundant triggering if they were the same
+        const getValue = Reflect.get(this.source, property);
+        const hasValue = Reflect.has(this.source, property);
         // Batch together to avoid redundant triggering for shared observers
         batch(() => {
-          if (this.getSignals[property]) this.getSignals[property](Symbol());
-          if (this.hasSignals[property]) this.hasSignals[property](Symbol());
+          if (this.getSignals[property]) this.getSignals[property](getValue);
+          if (this.hasSignals[property]) this.hasSignals[property](hasValue);
           this.selfSignal(Symbol());
         });
       }
