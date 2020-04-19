@@ -333,8 +333,10 @@ class Reactor {
 
       // Subscribe to the overall reactor by reading the dummy signal
       ownKeys() {
-        this.selfSignal();
-        return Reflect.ownKeys(this.source);
+        const currentKeys = Reflect.ownKeys(this.source);
+        const signalCore = coreExtractor.get(this.selfSignal);
+        signalCore.value = currentKeys;
+        return signalCore.read();
       },
 
       // Force dependencies to trigger
@@ -346,11 +348,23 @@ class Reactor {
         // This avoids redundant triggering if they were the same
         const getValue = Reflect.get(this.source, property);
         const hasValue = Reflect.has(this.source, property);
+        // For ownKeys you need to manually calculate the set comparison
+        const currentOwnKeysValue = Reflect.ownKeys(this.source);
+        const oldOwnKeysValue = coreExtractor.get(this.selfSignal).value;
+        const ownKeysChanged = (() => {
+          const currentSet = new Set(currentOwnKeysValue);
+          const oldSet = new Set(oldOwnKeysValue);
+          if (currentSet.size !== oldSet.size) return true;
+          for (let key of currentSet) {
+            if (!oldSet.has(key)) return true;
+          }
+          return false;
+        })();
         // Batch together to avoid redundant triggering for shared observers
         batch(() => {
           if (this.getSignals[property]) this.getSignals[property](getValue);
           if (this.hasSignals[property]) this.hasSignals[property](hasValue);
-          this.selfSignal(Symbol());
+          if (ownKeysChanged) this.selfSignal(currentOwnKeysValue);
         });
       }
     };

@@ -653,6 +653,26 @@ describe("Observer", () => {
       assert.equal(tracker, true);
     });
 
+    it("does not redundantly trigger if ownKeys check is the same", () => {
+      let counter = 0;
+      let tracker;
+      const reactor = new Reactor({ 
+        foo: "bar"
+      });
+      observe(() => {
+        counter += 1;
+        tracker = Object.keys(reactor);
+      });
+      reactor.foo = "baz";
+      assert.equal(counter, 1);
+      delete reactor.boo;
+      assert.equal(counter, 1);
+      delete reactor.foo;
+      assert.equal(counter, 2);
+      reactor.foo = "bar";
+      assert.equal(counter, 3);
+    });
+
   });
 
   describe("Start Stop", () => {
