@@ -281,6 +281,50 @@ describe("Observer", () => {
       assert.equal(tracker, "bar");
     });
 
+    it("triggers only once despite multiple dependencies", () => {
+      let counter = 0;
+      let hasTracker;
+      let getTracker;
+      let ownKeysTracker;
+      const reactor = new Reactor({
+        foo: "bar"
+      });
+      const observer = observe(() => {
+        counter += 1;
+        hasTracker = ("foo" in reactor);
+        getTracker = reactor.foo;
+        ownKeysTracker = Object.getOwnPropertyNames(reactor);
+      }); 
+      assert.equal(counter, 1);
+      assert.equal(hasTracker, true);
+      assert.equal(getTracker, "bar");
+      assert.equal(JSON.stringify(ownKeysTracker), '["foo"]');
+      reactor.foo = "baz";
+      assert.equal(counter, 2);
+      assert.equal(hasTracker, true);
+      assert.equal(getTracker, "baz");
+      assert.equal(JSON.stringify(ownKeysTracker), '["foo"]');
+    });
+
+    it("triggers only once even for functions with multiple changes", () => {
+      let counter = 0;
+      let lengthTracker;
+      let firstTracker;
+      const reactor = new Reactor([]);
+      const observer = observe(() => {
+        counter += 1;
+        lengthTracker = reactor.length;
+        firstTracker = reactor[0];
+      }); 
+      assert.equal(counter, 1);
+      assert.equal(lengthTracker, 0);
+      assert.equal(firstTracker, undefined);
+      reactor.push("bar");
+      assert.equal(counter, 2);
+      assert.equal(lengthTracker, 1);
+      assert.equal(firstTracker, "bar");
+    });
+
     it("triggers correctly on nested observer definitions", () => {
       const reactor = new Reactor({
         outer: "foo",

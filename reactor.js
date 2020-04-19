@@ -22,14 +22,15 @@ const coreExtractor = new WeakMap();
 // A batcher is used to postpone observer triggers and batch them together
 // When "batch" is called it adds sets a batcher to this global variable
 // When a Signal is updated it checks if a batcher is set
-// If it is, it adds that observer to this set in stead of triggering it
+// If it is, it adds that observer to this set instead of triggering it
 // At the end of the exeution, the batch call then calls all the observers 
 // Then clears the batcher again
 let batcher = null;
 
 // Definition is a shell class to identify dynamically calculated variables
 // Accessed through the "define" function
-// Class itself is not meant
+// Class itself is not meant to be instantiated directly
+// It is only for internal type checking
 // -----------------------------------------------------------------------------
 // Examples
 // let a = new Signal(define(() => Date.now()))
@@ -221,6 +222,13 @@ class Reactor {
       source: initializedSource,
       selfSignal: new Signal(null),
 
+      // Function calls on reactor properties are automatically batched
+      // This allows compound function calls like "Array.push"
+      // to only trigger one round of observer updates
+      apply(target, thisArg, argumentsList) {
+        return batch(() => Reflect.apply(target, thisArg, argumentsList));
+      },
+
       // Instead of reading a property directly
       // Reactor properties are read through a trivial Signal
       // This handles dependency tracking and sub-object Reactor wrapping
@@ -330,19 +338,27 @@ class Reactor {
       // Force dependencies to trigger
       // Hack to do this by trivially "redefining" the signal
       // The proper accessor will be materialized "just in time" on the getter
-      // so it doesn't matter
+      // so it doesn't matter that we're swapping it with a filler Symbol
       trigger(property) {
-        if (this.getSignals[property]) this.getSignals[property](null);
-        if (this.hasSignals[property]) this.hasSignals[property](null);
-        this.selfSignal(null);
+        // Batch together to avoid redundant triggering for shared observers
+        batch(() => {
+          if (this.getSignals[property]) this.getSignals[property](Symbol());
+          if (this.hasSignals[property]) this.hasSignals[property](Symbol());
+          this.selfSignal(Symbol());
+        });
       }
-
     };
 
     // The interface proxy returned to the user to utilize the Reactor
     // This is done to abstract away the messiness of how the Reactors work
     // Should contain no additional functionality and be purely syntactic sugar
     const reactorInterface = new Proxy(reactorCore.source, {
+      apply(target, thisArg, argumentsList) {
+        if (target === reactorCore.source) {
+          return reactorCore.apply(target, thisArg, argumentsList);
+        }
+        throw new Error("Proxy target does not match initialized object");
+      },
       get(target, property, receiver) {
         if (target === reactorCore.source) {
           return reactorCore.get(property, receiver);
@@ -547,20 +563,41 @@ global.unobserve = unobserve;
 
 // Method for allowing users to batch multiple observer updates together
 const batch = (execute) => {
+  let result;
   if (batcher === null) {
     // Set a global batcher so signals know not to trigger observers immediately
     // Using a set allows the removal of redundant triggering in observers
     batcher = new Set();
     // Execute the given block and collect the triggerd observers
-    execute();
+    result = execute();
     // Trigger the collected observers
+    // If an error occurs, collect it and keep going
+    // A conslidated error will be thrown at the end of propagation
     const batchedObservers = Array.from(batcher); // Make a copy to freeze it
-    batchedObservers.forEach(observer => observer.trigger());
+    const errorList = [];
+    batchedObservers.forEach(observer => {
+      try { observer.trigger(); }
+      catch(error) { errorList.push(error); }
+    });
     // Clear the batching mode
+    // This needs to be done first before throwing errors
+    // Otherwise the thrown errors will mean we never unset the batcher
+    // This will cause subsequent triggers to get stuck in this dead batcher
+    // Never to be executed
     batcher = null;
+
+    // If any errors occured during propagation 
+    // consolidate and throw them
+    if (errorList.length === 1) {
+      throw errorList[0];
+    } else if (errorList.length > 1) {
+      const errorMessage = errorList.length + " batched observer errors";
+      throw new CompoundError(errorMessage, errorList);
+    }
   } 
   // No need to do anything if batching is already taking place
-  else execute();
+  else result = execute();
+  return result;
 };
 global.batch = batch;
 
