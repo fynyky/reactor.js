@@ -132,6 +132,7 @@ class Signal {
       // - Trigger any dependent Observers while collecting errors thrown
       // - Throw a CompoundError if necessary
       write(newValue) {
+        if (this.value === newValue) return (this.value = newValue)
         // Save the new value/definition
         const output = (this.value = newValue);
         // Trigger dependents
@@ -225,8 +226,8 @@ class Reactor {
       // Function calls on reactor properties are automatically batched
       // This allows compound function calls like "Array.push"
       // to only trigger one round of observer updates
-      apply(target, thisArg, argumentsList) {
-        return batch(() => Reflect.apply(target, thisArg, argumentsList));
+      apply(thisArg, argumentsList) {
+        return batch(() => Reflect.apply(this.source, thisArg, argumentsList));
       },
 
       // Instead of reading a property directly
@@ -252,13 +253,11 @@ class Reactor {
           this.getSignals.hasOwnProperty(property)
             ? this.getSignals[property]
             : new Signal();
-        // Need to reach into the signal to reset its definition each time
-        // This enables it to adapt to the changing receiver
-        // Otherwise it would always use the first receiver which got it
+        // User accessor signals to give the actual output
+        // This enables automatic dependency tracking
         const signalCore = coreExtractor.get(this.getSignals[property]);
-        signalCore.value = define(
-          () => Reflect.get(this.source, property, receiver)
-        );
+        const currentValue = Reflect.get(this.source, property, receiver);
+        signalCore.value = currentValue;
         return signalCore.read();
       },
 
@@ -324,9 +323,12 @@ class Reactor {
           this.hasSignals.hasOwnProperty(property)
             ? this.hasSignals[property]
             : new Signal(null);
-        // Read the dummy signal to track dependents
-        this.hasSignals[property]();
-        return Reflect.has(this.source, property);
+        // User accessor signals to give the actual output
+        // This enables automatic dependency tracking
+        const signalCore = coreExtractor.get(this.hasSignals[property]);
+        const currentValue = Reflect.has(this.source, property);
+        signalCore.value = currentValue;
+        return signalCore.read();
       },
 
       // Subscribe to the overall reactor by reading the dummy signal
@@ -355,7 +357,7 @@ class Reactor {
     const reactorInterface = new Proxy(reactorCore.source, {
       apply(target, thisArg, argumentsList) {
         if (target === reactorCore.source) {
-          return reactorCore.apply(target, thisArg, argumentsList);
+          return reactorCore.apply(thisArg, argumentsList);
         }
         throw new Error("Proxy target does not match initialized object");
       },
