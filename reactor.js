@@ -85,7 +85,10 @@ class Signal {
       dependents: new Set(), // The Observers which rely on this Signal
       reactorCache: new WeakMap(), // Cache of objects to their reactor proxies
                                    // Allows for consistent dependency tracking
-                                   // across multiple reads of the same object 
+                                   // across multiple reads of the same object
+      removeSelf: (() => {}), // callback set by parent Reactor to allow removal
+                              // Used to delete Signals with no dependents
+                              // To reduce memory leaks
 
       // Life of a read
       // - check to see who is asking
@@ -159,6 +162,13 @@ class Signal {
           throw new CompoundError(errorMessage, errorList);
         }
         return output;
+      },
+
+      // Used by observers to remove themselves from this as dependents
+      // Also removesSelf from any owners if there are no more dependents
+      removeDependent(dependent) {
+        this.dependents.delete(dependent);
+        if (this.dependents.size === 0) this.removeSelf();
       }
 
     };
@@ -256,6 +266,7 @@ class Reactor {
         // User accessor signals to give the actual output
         // This enables automatic dependency tracking
         const signalCore = coreExtractor.get(this.getSignals[property]);
+        signalCore.removeSelf = () => delete this.getSignals[property];
         const currentValue = Reflect.get(this.source, property, receiver);
         signalCore.value = currentValue;
         return signalCore.read();
@@ -326,6 +337,8 @@ class Reactor {
         // User accessor signals to give the actual output
         // This enables automatic dependency tracking
         const signalCore = coreExtractor.get(this.hasSignals[property]);
+        // signalCore.removeSelf = () => delete this.getSignals[property];
+        signalCore.removeSelf = () => delete this.hasSignals[property];
         const currentValue = Reflect.has(this.source, property);
         signalCore.value = currentValue;
         return signalCore.read();
@@ -477,7 +490,7 @@ class Observer {
       // Symmetrically removes dependencies 
       clearDependencies() {
         this.dependencies.forEach(dependency =>
-          dependency.dependents.delete(this)
+          dependency.removeDependent(this)
         );
         this.dependencies.clear();
       },
