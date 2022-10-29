@@ -438,7 +438,7 @@ global.Reactor = Reactor;
 // They are automatically retriggered whenever a dependency is updated
 // Observers can be stopped and restarted
 // Starting after stopping causes the Observer to execute again
-// Starting does nothing if an Observer is already running
+// Starting does nothing if an Observer is already awake
 // To prevent infinite loops an error is thrown if an Observer triggers itself 
 // -----------------------------------------------------------------------------
 // Examples
@@ -481,7 +481,7 @@ class Observer {
       execute: execute,
       unobserve, unobserve, // flag on whether this is a unobserve block
                             // Avoids creating dependencies in that case 
-      running: true, // Whether further triggers and updates are allowed
+      awake: true, // Whether further triggers and updates are allowed
       triggering: false, // Whether the block is currently executing
                          // prevents further triggers
       dependencies: new Set(), // The Signals the execution block reads from
@@ -505,7 +505,7 @@ class Observer {
           );
         }
         // Execute the observed function after setting the dependency stack
-        if (this.running) {
+        if (this.awake) {
           this.clearDependencies();
           if (unobserve) dependencyStack.push(null);
           else dependencyStack.push(this);
@@ -520,14 +520,14 @@ class Observer {
 
       // Pause the observer preventing further triggers
       stop() {
-        this.running = false;
+        this.awake = false;
         this.clearDependencies();
       },
 
-      // Restart the observer if it is not already running
+      // Restart the observer if it is not already awake
       start() {
-        if (!this.running) {
-          this.running = true;
+        if (!this.awake) {
+          this.awake = true;
           this.trigger();
         }
       }
@@ -544,7 +544,7 @@ class Observer {
       }
       // reset all the core
       observerCore.clearDependencies();
-      observerCore.running = true;
+      observerCore.awake = true;
       observerCore.triggering = false;
       observerCore.execute = execute;
       observerCore.trigger();
