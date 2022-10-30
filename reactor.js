@@ -102,7 +102,7 @@ class Signal {
         const dependent = dependencyStack[dependencyStack.length - 1];
         if (dependent) {
           this.dependents.add(dependent);
-          dependent.dependencies.add(this);
+          dependent.addDependency(this);
         }
         // Return the appropriate static or calculated value
         let output = (this.value instanceof Definition) 
@@ -458,7 +458,7 @@ global.Reactor = Reactor;
 //                                            and allow updates again
 // 
 // observer.start();                          Does nothing since already started
-const observerRegistry = new Map();
+const observerRegistry = new Map(); // TODO weakmap? put need string key
 class Observer {
   constructor(key, execute, unobserve) {
 
@@ -484,15 +484,34 @@ class Observer {
       awake: true, // Whether further triggers and updates are allowed
       triggering: false, // Whether the block is currently executing
                          // prevents further triggers
-      dependencies: new Set(), // The Signals the execution block reads from
-                               // at last trigger
+      dependencies: new WeakSet(), // The Signals the execution block reads from
+                                   // at last trigger
+      dependencyRefs: new Set(), // Store a separate Set of WeakRefs
+                                 // to iterate later and clear
+                                 // Needed cos WeakSet does not allow iteration
 
       // Symmetrically removes dependencies 
       clearDependencies() {
-        this.dependencies.forEach(dependency =>
-          dependency.removeDependent(this)
-        );
-        this.dependencies.clear();
+        // Go upstream to break the connection
+        this.dependencyRefs.forEach(dependencyRef => {
+          let dependency = dependencyRef.deref();
+          if (dependency) dependency.removeDependent(this);
+        });
+        // Drop own references
+        this.dependencies = new WeakSet();
+        this.dependencyRefs = new Set();
+      },
+
+      // Store dependencies weakly to avoid memory loops
+      // They're only stored to break the connection later anyway
+      // Possible don't even have to break? Could lazily do it?
+      addDependency(dependency) {
+        // If the dependency is already set then no need to add it
+        if (this.dependencies.has(dependency)) return;
+        // Otherwise store keep it as a dependency
+        // Secondarily store a weakref so we can iterate over it later
+        this.dependencies.add(dependency);
+        this.dependencyRefs.add(new WeakRef(dependency));
       },
 
       // Trigger the execution block and find its dependencies
