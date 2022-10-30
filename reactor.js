@@ -4,11 +4,11 @@ const global =
   typeof exports !== "undefined" && exports !== null ? exports : this;
 
 // Global stack to automatically track dependencies
-// - When a signal is updated, it first puts itself on the dependency stack
+// - When an observer is updated, it first puts itself on the dependency stack
 // - When a signal is read, it checks the top of the stack to see who is reading
 // - The reader gets added as a dependent of the readee
 // - The readee gets added as a dependency of the reader
-// - When the signal evaluation is done, the signal pops itself off the stack
+// - When the signal evaluation is done, the observer pops itself off the stack
 // The stack is used to track the latest signal caller automaticaly
 // Using a stack allows nested signals to function correctly
 const dependencyStack = [];
@@ -337,7 +337,6 @@ class Reactor {
         // User accessor signals to give the actual output
         // This enables automatic dependency tracking
         const signalCore = coreExtractor.get(this.hasSignals[property]);
-        // signalCore.removeSelf = () => delete this.getSignals[property];
         signalCore.removeSelf = () => delete this.hasSignals[property];
         const currentValue = Reflect.has(this.source, property);
         signalCore.value = currentValue;
@@ -470,7 +469,7 @@ class Observer {
     // Check to see if there's an existing observer to override
     // instead of making a new one
     if (typeof key !== "undefined" && key !== null) {
-      const existingObserver = observerRegistry.get(key);
+      const existingObserver = observerRegistry.get(key)?.deref();
       if (existingObserver) return existingObserver(execute);
     }
 
@@ -575,7 +574,7 @@ class Observer {
     // Register the observer for potential overriding later
     coreExtractor.set(observerInterface, observerCore);
     if (typeof key !== "undefined") {
-      observerRegistry.set(key, observerInterface);
+      observerRegistry.set(key, new WeakRef(observerInterface));
     }
 
     // Trigger once on initialization
