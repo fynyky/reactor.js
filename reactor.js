@@ -27,6 +27,198 @@ const coreExtractor = new WeakMap();
 // Then clears the batcher again
 let batcher = null;
 
+// Custom Map with weakly held values (WeakMap does something else)
+class WeakValueMap extends Map {
+
+  // Delete the corresponding key when object is collected
+  // Need to manually deregister if deleting or setting new value
+  // to avoid "finalizing" the new value
+  #registry = new FinalizationRegistry(key => {
+    super.delete(key);
+  });
+
+  // When generating with new iterable, use the modified set
+  // so that we generate weakrefs
+  // TODO: Allow non object values? Just act as a normal map?
+  constructor(iterable) {
+    super();
+    if (iterable) {
+      for (const [key, value] of iterable) {
+        this.set(key, value);
+      }
+    }
+  }
+
+  // When setting wrap in a weakref instead
+  // Remember to first degister the old ref and
+  // register the new one for finalization
+  set(key, value) {
+    const oldRef = super.get(key);
+    if (typeof oldRef !== "undefined") {
+      this.#registry.unregister(oldRef);
+    }
+    const ref = new WeakRef(value);
+    this.#registry.register(value, key, ref);
+    return super.set(key, ref);
+  }
+
+  get(key) {
+    const value = super.get(key)?.deref();
+    if (typeof value === "undefined") {
+      return;
+    }
+    return value;
+  }
+
+  has(key) {
+    const value = super.get(key)?.deref();
+    if (typeof value === "undefined") {
+      return false;
+    }
+    return true;
+  }
+
+  delete(key) {
+    const ref = super.get(key);
+    // Early return if nothing defined
+    if (typeof ref === 'undefined') return false;
+    // If there is a ref then unregister first to avoid
+    // finalization deleting any new values later
+    this.#registry.unregister(ref);
+    super.delete(key);
+    // Only return a successful delete if ref was still live
+    if (typeof ref.deref() === "undefined") return false;
+    return true;
+  }
+
+  clear() {
+    for (const [key, ref] of super[Symbol.iterator]()) {
+      this.#registry.unregister(ref);
+    }
+    return super.clear();
+  }
+
+  forEach(callback, context) {
+    for (const [key, value] of this)
+      callback.call(context, value, key, this);
+  }
+
+  // Default iterator
+  // Iterates but only yields live references
+  *[Symbol.iterator]() {
+    for (const [key, ref] of super[Symbol.iterator]()) {
+      const value = ref.deref();
+      if (typeof value !== "undefined") yield [key, value];
+    }
+  }
+
+  // Pass through to the default iterator
+  *entries() {
+    yield *this;
+  }
+
+  // Use default iterator but only return the value
+  *values() {
+    for (const [key, value] of this) {
+      yield value;
+    }
+  }
+
+}
+global.WeakValueMap = WeakValueMap;
+
+// Custom Set with weakly held values (WeakSet does something else)
+class WeakValueSet extends Set {
+
+  // Used to check existing membership of the underlying target
+  // Maps the target to its ref
+  #membership = new WeakMap();
+
+  // Delete the corresponding ref when object is collected
+  #registry = new FinalizationRegistry(ref => {
+    super.delete(ref);
+  });
+
+  // When generating with an iterable, use the modified add
+  // so that we generate weakrefs
+  constructor(iterable) {
+    super();
+    if (iterable) for (const value of iterable) {
+      this.add(value);
+    }
+  }
+
+  // When add wrap the target in a weakref instead
+  add(value) {
+    // If it is already contained then skip
+    if (this.#membership.has(value)) return this;
+    // Otherwise mark the membership
+    // mark for clean up
+    // and store the reference
+    const ref = new WeakRef(value);
+    this.#membership.set(value, ref);
+    this.#registry.register(value, ref, ref);
+    return super.add(ref);
+  }
+
+  has(value) {
+    const ref = this.#membership.get(value);
+    if (typeof ref === "undefined") return false;
+    if (typeof ref.deref() === "undefined") return false;
+    return true;
+  }
+
+  delete(value) {
+    const ref = this.#membership.get(value);
+    // Early return if nothing defined
+    if (typeof ref === 'undefined') return false;
+    // Otherwise an entry was found
+    this.#membership.delete(value);
+    this.#registry.unregister(ref);
+    super.delete(ref);
+    // Only return a successful delete if ref was still live
+    if (typeof ref.deref() === "undefined") return false;
+    return true;
+  }
+
+  clear() {
+    this.#membership = new WeakMap();
+    this.#registry = new FinalizationRegistry(ref => {
+      super.delete(ref);
+    });
+    return super.clear();
+  }
+
+  // Follows the map API convention but passes value twice instead of 
+  // value and key
+  forEach(callback, context) {
+    for (const value of this) {
+      callback.call(context, value, value, this);
+    }
+  }
+
+  // Default iterator
+  // Iterates but only yields live references
+  *[Symbol.iterator]() {
+    for (const ref of super[Symbol.iterator]()) {
+      const value = ref.deref();
+      if (typeof value !== "undefined") yield value;
+    }
+  }
+
+  // The Set API follows a similar structure to Map despite lack of keys
+  // Returns an array of [value, value] pairs
+  *entries() {
+    for (const value of this) {
+      yield [value, value];
+    }
+  }
+  *keys() { yield *this; }
+  *values() { yield *this; }
+
+}
+global.WeakValueSet = WeakValueSet;
+
 // Definition is a shell class to identify dynamically calculated variables
 // Accessed through the "define" function
 // Class itself is not meant to be instantiated directly
@@ -457,7 +649,7 @@ global.Reactor = Reactor;
 //                                            and allow updates again
 // 
 // observer.start();                          Does nothing since already started
-const observerRegistry = new Map(); // TODO weakmap? put need string key
+const observerRegistry = new WeakValueMap();
 class Observer {
   constructor(key, execute, unobserve) {
 
@@ -469,7 +661,7 @@ class Observer {
     // Check to see if there's an existing observer to override
     // instead of making a new one
     if (typeof key !== "undefined" && key !== null) {
-      const existingObserver = observerRegistry.get(key)?.deref();
+      const existingObserver = observerRegistry.get(key);
       if (existingObserver) return existingObserver(execute);
     }
 
@@ -483,34 +675,23 @@ class Observer {
       awake: true, // Whether further triggers and updates are allowed
       triggering: false, // Whether the block is currently executing
                          // prevents further triggers
-      dependencies: new WeakSet(), // The Signals the execution block reads from
-                                   // at last trigger
-      dependencyRefs: new Set(), // Store a separate Set of WeakRefs
-                                 // to iterate later and clear
-                                 // Needed cos WeakSet does not allow iteration
+      dependencies: new WeakValueSet(), // The Signals the execution block reads from
+                                        // at last trigger
 
       // Symmetrically removes dependencies 
       clearDependencies() {
         // Go upstream to break the connection
-        this.dependencyRefs.forEach(dependencyRef => {
-          let dependency = dependencyRef.deref();
-          if (dependency) dependency.removeDependent(this);
+        this.dependencies.forEach(dependency => {
+          dependency.removeDependent(this);
         });
         // Drop own references
-        this.dependencies = new WeakSet();
-        this.dependencyRefs = new Set();
+        this.dependencies = new WeakValueSet();
       },
 
       // Store dependencies weakly to avoid memory loops
       // They're only stored to break the connection later anyway
-      // Possible don't even have to break? Could lazily do it?
       addDependency(dependency) {
-        // If the dependency is already set then no need to add it
-        if (this.dependencies.has(dependency)) return;
-        // Otherwise store keep it as a dependency
-        // Secondarily store a weakref so we can iterate over it later
         this.dependencies.add(dependency);
-        this.dependencyRefs.add(new WeakRef(dependency));
       },
 
       // Trigger the execution block and find its dependencies
@@ -574,7 +755,7 @@ class Observer {
     // Register the observer for potential overriding later
     coreExtractor.set(observerInterface, observerCore);
     if (typeof key !== "undefined") {
-      observerRegistry.set(key, new WeakRef(observerInterface));
+      observerRegistry.set(key, observerInterface);
     }
 
     // Trigger once on initialization
@@ -686,196 +867,3 @@ class CompoundError extends Error {
     return this;
   }
 }
-
-// Custom Map with weakly held values (WeakMap does something else)
-class WeakValueMap extends Map {
-
-  // Delete the corresponding key when object is collected
-  // Need to manually deregister if deleting or setting new value
-  // to avoid "finalizing" the new value
-  #registry = new FinalizationRegistry(key => {
-    super.delete(key);
-  });
-
-  // When generating with new iterable, use the modified set
-  // so that we generate weakrefs
-  // TODO: Allow non object values? Just act as a normal map?
-  constructor(iterable) {
-    super();
-    if (iterable) {
-      for (const [key, value] of iterable) {
-        this.set(key, value);
-      }
-    }
-  }
-
-  // When setting wrap in a weakref instead
-  // Remember to first degister the old ref and
-  // register the new one for finalization
-  set(key, value) {
-    const oldRef = super.get(key);
-    if (typeof oldRef !== "undefined") {
-      this.#registry.unregister(oldRef);
-    }
-    const ref = new WeakRef(value);
-    this.#registry.register(value, key, ref);
-    return super.set(key, ref);
-  }
-
-  get(key) {
-    const value = super.get(key)?.deref();
-    if (typeof value === "undefined") {
-      return;
-    }
-    return value;
-  }
-
-  has(key) {
-    const value = super.get(key)?.deref();
-    if (typeof value === "undefined") {
-      return false;
-    }
-    return true;
-  }
-
-  delete(key) {
-    const ref = super.get(key);
-    // Early return if nothing defined
-    if (typeof ref === 'undefined') return false;
-    // If there is a ref then unregister first to avoid
-    // finalization deleting any new values later
-    this.#registry.unregister(ref);
-    super.delete(key);
-    // Only return a successful delete if ref was still live
-    if (typeof ref.deref() === "undefined") return false;
-    return true;
-  }
-
-  clear() {
-    for (const [key, ref] of super[Symbol.iterator]()) {
-      this.#registry.unregister(ref);
-    }
-    return super.clear();
-  }
-
-  forEach(callback, context) {
-    for (const [key, value] of this)
-      callback.call(context, value, key, this);
-  }
-
-  // Default iterator
-  // Iterates but only yields live references
-  *[Symbol.iterator]() {
-    for (const [key, ref] of super[Symbol.iterator]()) {
-      const value = ref.deref();
-      if (typeof value !== "undefined") yield [key, value];
-    }
-  }
-
-  // Pass through to the default iterator
-  *entries() {
-    yield *this;
-  }
-
-  // Use default iterator but only return the value
-  *values() {
-    for (const [key, value] of this) {
-      yield value;
-    }
-  }
-
-}
-global.WeakValueMap = WeakValueMap;
-
-
-// Custom Set with weakly held values (WeakSet does something else)
-class WeakValueSet extends Set {
-
-  // Used to check existing membership of the underlying target
-  // Maps the target to its ref
-  #membership = new WeakMap();
-
-  // Delete the corresponding ref when object is collected
-  #registry = new FinalizationRegistry(ref => {
-    super.delete(ref);
-  });
-
-  // When generating with an iterable, use the modified add
-  // so that we generate weakrefs
-  constructor(iterable) {
-    super();
-    if (iterable) for (const value of iterable) {
-      this.add(value);
-    }
-  }
-
-  // When add wrap the target in a weakref instead
-  add(value) {
-    // If it is already contained then skip
-    if (this.#membership.has(value)) return this;
-    // Otherwise mark the membership
-    // mark for clean up
-    // and store the reference
-    const ref = new WeakRef(value);
-    this.#membership.set(value, ref);
-    this.#registry.register(value, ref, ref);
-    return super.add(ref);
-  }
-
-  has(value) {
-    const ref = this.#membership.get(value);
-    if (typeof ref === "undefined") return false;
-    if (typeof ref.deref() === "undefined") return false;
-    return true;
-  }
-
-  delete(value) {
-    const ref = this.#membership.get(value);
-    // Early return if nothing defined
-    if (typeof ref === 'undefined') return false;
-    // Otherwise an entry was found
-    this.#membership.delete(value);
-    this.#registry.unregister(ref);
-    super.delete(ref);
-    // Only return a successful delete if ref was still live
-    if (typeof ref.deref() === "undefined") return false;
-    return true;
-  }
-
-  clear() {
-    this.#membership = new WeakMap();
-    this.#registry = new FinalizationRegistry(ref => {
-      super.delete(ref);
-    });
-    return super.clear();
-  }
-
-  // Follows the map API convention but passes value twice instead of 
-  // value and key
-  forEach(callback, context) {
-    for (const value of this) {
-      callback.call(context, value, value, this);
-    }
-  }
-
-  // Default iterator
-  // Iterates but only yields live references
-  *[Symbol.iterator]() {
-    for (const ref of super[Symbol.iterator]()) {
-      const value = ref.deref();
-      if (typeof value !== "undefined") yield value;
-    }
-  }
-
-  // The Set API follows a similar structure to Map despite lack of keys
-  // Returns an array of [value, value] pairs
-  *entries() {
-    for (const value of this) {
-      yield [value, value];
-    }
-  }
-  *keys() { yield *this; }
-  *values() { yield *this; }
-
-}
-global.WeakValueSet = WeakValueSet;
