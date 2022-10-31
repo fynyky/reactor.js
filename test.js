@@ -3,7 +3,9 @@ const {
   Reactor, 
   observe,
   unobserve,
-  batch
+  batch,
+  WeakValueMap,
+  WeakValueSet
 } = require("./reactor");
 
 describe("Reactor", () => {
@@ -814,6 +816,260 @@ describe("Observer", () => {
       });
     }); 
 
+  });
+
+});
+
+describe("WeakValueMap", () => {
+
+  let weakValueMap, regularMap;
+  let normalizeMap = (a) => JSON.stringify(Array.from(a));
+
+  it("can be created", () => {
+    weakValueMap = new WeakValueMap();
+    regularMap = new Map();
+    assert(normalizeMap(weakValueMap) === normalizeMap(regularMap));
+  });
+
+  it("can be created from an existing iterable", () => {
+    const iterableSeed = [
+      ["foo", {"qoo": 1}],
+      ["bar", {"qar": 2}]
+    ]
+    weakValueMap = new WeakValueMap(iterableSeed);
+    regularMap = new Map(iterableSeed);
+    assert(normalizeMap(weakValueMap) === normalizeMap(regularMap));
+  });
+
+  it("can set a value", () => {
+    weakValueMap.set("baz", {"qux": 3 });
+    regularMap.set("baz", {"qux": 3 });
+    assert(normalizeMap(weakValueMap) === normalizeMap(regularMap));
+  });
+
+  it("can have a value gotten", () => {
+    const weakValueResult = weakValueMap.get("foo");
+    const regularResult = regularMap.get("foo");
+    assert(JSON.stringify(weakValueResult) === '{"qoo":1}');
+    assert(JSON.stringify(weakValueResult) === JSON.stringify(regularResult));
+  });
+
+  it("can fails to get a nonexistent value", () => {
+    const weakValueResult = weakValueMap.get("food");
+    const regularResult = regularMap.get("food");
+    assert(typeof weakValueResult === 'undefined');
+    assert(JSON.stringify(weakValueResult) === JSON.stringify(regularResult));
+  });
+
+  it("can check if it has a value", () => {
+    assert(weakValueMap.has("foo") === true);
+    assert(weakValueMap.has("foo") === regularMap.has("foo"));
+  });
+
+  it("can check if it does not have a value", () => {
+    assert(weakValueMap.has("food") === false);
+    assert(weakValueMap.has("food") === regularMap.has("food"));
+  });
+
+  it("can delete a value", () => {
+    weakValueMap.delete("foo");
+    regularMap.delete("foo"); 
+    assert(normalizeMap(weakValueMap) === '[["bar",{"qar":2}],["baz",{"qux":3}]]');
+    assert(normalizeMap(weakValueMap) === normalizeMap(regularMap));
+  });
+
+  it("can clear all values", () => {
+    weakValueMap.clear();
+    regularMap.clear()
+    assert(normalizeMap(weakValueMap) === '[]');
+    assert(normalizeMap(weakValueMap) === normalizeMap(regularMap));
+  });
+
+  it("can be iterated over", () => {
+    const seedData = [
+      ["foo", {"qoo": 1}],
+      ["bar", {"qar": 2}]
+    ];
+    let weakValueResult = "";
+    let regularResult = "";
+    weakValueMap = new WeakValueMap(seedData);
+    regularMap = new Map(seedData);
+    for ([key, value] of weakValueMap) {
+      weakValueResult += JSON.stringify([key, value]);
+    }
+    for ([key, value] of regularMap) {
+      regularResult += JSON.stringify([key, value]);
+    }
+    assert(weakValueResult === '["foo",{"qoo":1}]["bar",{"qar":2}]');
+    assert(weakValueResult === regularResult);
+  });
+
+  it("can iterate over entries", () => {
+    let weakValueResult = "";
+    let regularResult = "";
+    for ([key, value] of weakValueMap.entries()) {
+      weakValueResult += JSON.stringify([key, value]);
+    }
+    for ([key, value] of regularMap) {
+      regularResult += JSON.stringify([key, value]);
+    }
+    assert(weakValueResult === '["foo",{"qoo":1}]["bar",{"qar":2}]');
+    assert(weakValueResult === regularResult);
+  });
+
+
+  it("can iterate over values", () => {
+    let weakValueResult = "";
+    let regularResult = "";
+    for (value of weakValueMap.values()) {
+      weakValueResult += JSON.stringify(value);
+    }
+    for (value of regularMap.values()) {
+      regularResult += JSON.stringify(value);
+    }
+    assert(weakValueResult === '{"qoo":1}{"qar":2}');
+    assert(weakValueResult === regularResult);
+  });
+
+});
+
+
+describe("WeakValueSet", () => {
+
+  let weakValueSet, regularSet;
+  let normalizeSet = (a) => JSON.stringify(Array.from(a));
+
+  it("can be created", () => {
+    weakValueSet = new WeakValueSet();
+    regularSet = new Set();
+    assert(normalizeSet(weakValueSet) === normalizeSet(regularSet));
+  });
+
+
+  it("can be created with iterable", () => {
+    const seedData = [{"foo": 1}, {"bar": 2}, {"baz": 3}]
+    weakValueSet = new WeakValueSet(seedData);
+    regularSet = new Set(seedData);
+    assert(normalizeSet(weakValueSet) === normalizeSet(regularSet));
+  });
+
+  it("can have a value added", () => {
+    weakValueSet.add({"qaz": 4});
+    regularSet.add({"qaz": 4});
+    assert(normalizeSet(weakValueSet) === '[{"foo":1},{"bar":2},{"baz":3},{"qaz":4}]');
+    assert(normalizeSet(weakValueSet) === normalizeSet(regularSet));
+  });
+
+  const newElement = {"qux": 5};
+  it("can have a value added only once", () => {
+    weakValueSet.add(newElement);
+    weakValueSet.add(newElement);
+    regularSet.add(newElement);
+    regularSet.add(newElement);
+    assert(normalizeSet(weakValueSet) === '[{"foo":1},{"bar":2},{"baz":3},{"qaz":4},{"qux":5}]');
+    assert(normalizeSet(weakValueSet) === normalizeSet(regularSet));
+  });
+
+
+  it("can check if it has element", () => {
+    assert(weakValueSet.has(newElement) === true);
+  });
+
+  it("can check if it does not have element", () => {
+    assert(weakValueSet.has({}) === false);
+  });
+
+  it("can delete an element", () => {
+    let weakDidDelete = weakValueSet.delete(newElement);
+    let regularDidDelete = regularSet.delete(newElement);
+    assert(normalizeSet(weakValueSet) === '[{"foo":1},{"bar":2},{"baz":3},{"qaz":4}]');
+    assert(normalizeSet(weakValueSet) === normalizeSet(regularSet));
+    assert(weakDidDelete === true);
+    weakDidDelete = weakValueSet.delete(newElement);
+    regularDidDelete = regularSet.delete(newElement);
+    assert(weakDidDelete === false);
+    assert(weakDidDelete === regularDidDelete);
+  });
+
+
+  it("can clear itself", () => {
+    weakValueSet.clear();
+    regularSet.clear();
+    assert(normalizeSet(weakValueSet) === '[]');
+    assert(normalizeSet(weakValueSet) === normalizeSet(regularSet));
+  });
+
+
+  it("can forEach", () => {
+    const seedData = [{"foo": 1}, {"bar": 2}, {"baz": 3}];
+    weakValueSet = new WeakValueSet(seedData);
+    regularSet = new Set(seedData);
+    let weakValueResult = "";
+    let regularResult = "";
+    weakValueSet.forEach((value, key, set) => {
+      weakValueResult += (JSON.stringify(value) + JSON.stringify(key));
+      assert(set === weakValueSet);
+    });
+    regularSet.forEach((value, key, set) => {
+      regularResult += (JSON.stringify(value) + JSON.stringify(key));
+      assert(set === regularSet);
+    });
+    assert(weakValueResult === '{"foo":1}{"foo":1}{"bar":2}{"bar":2}{"baz":3}{"baz":3}');
+    assert(weakValueResult === regularResult);
+  });
+
+
+  it("can iterate normally", () => {
+    let weakValueResult = "";
+    let regularResult = "";
+    for (const value of weakValueSet) {
+      weakValueResult += JSON.stringify(value);
+    }
+    for (const value of regularSet) {
+      regularResult += JSON.stringify(value);
+    }
+    assert(weakValueResult === '{"foo":1}{"bar":2}{"baz":3}');
+    assert(weakValueResult === regularResult);
+  });
+
+  it("can iterate over entries", () => {
+    let weakValueResult = "";
+    let regularResult = "";
+    for (const value of weakValueSet.entries()) {
+      weakValueResult += JSON.stringify(value);
+    }
+    for (const value of regularSet.entries()) {
+      regularResult += JSON.stringify(value);
+    }
+    assert(weakValueResult === '[{"foo":1},{"foo":1}][{"bar":2},{"bar":2}][{"baz":3},{"baz":3}]');
+    assert(weakValueResult === regularResult);
+  });
+
+  it("can iterate over keys", () => {
+    let weakValueResult = "";
+    let regularResult = "";
+    for (const value of weakValueSet.keys()) {
+      weakValueResult += JSON.stringify(value);
+    }
+    for (const value of regularSet.keys()) {
+      regularResult += JSON.stringify(value);
+    }
+    assert(weakValueResult === '{"foo":1}{"bar":2}{"baz":3}');
+    assert(weakValueResult === regularResult);
+  });
+
+
+  it("can iterate over values", () => {
+    let weakValueResult = "";
+    let regularResult = "";
+    for (const value of weakValueSet.values()) {
+      weakValueResult += JSON.stringify(value);
+    }
+    for (const value of regularSet.values()) {
+      regularResult += JSON.stringify(value);
+    }
+    assert(weakValueResult === '{"foo":1}{"bar":2}{"baz":3}');
+    assert(weakValueResult === regularResult);
   });
 
 });
