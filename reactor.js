@@ -1,5 +1,4 @@
-import weakRefCollections from 'weak-ref-collections'
-const { WeakRefMap, WeakRefSet } = weakRefCollections
+import { WeakRefMap, WeakRefSet } from 'weak-ref-collections'
 
 // Global stack to automatically track dependencies
 // - When an observer is updated, it first puts itself on the dependency stack
