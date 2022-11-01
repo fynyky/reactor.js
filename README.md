@@ -430,7 +430,8 @@ Inside you application you can include the necessary components by running
 const { 
   Reactor, 
   observe,
-  unobserve
+  unobserve,
+  batch
 } = require("reactorjs");
 ```
 
