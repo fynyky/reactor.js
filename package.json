@@ -9,7 +9,7 @@
   },
   "scripts": {
     "lint": "standard --fix",
-    "test": "mocha"
+    "test": "standard && mocha"
   },
   "repository": {
     "type": "git",
