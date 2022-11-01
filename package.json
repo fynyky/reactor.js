@@ -9,7 +9,8 @@
   },
   "scripts": {
     "lint": "standard --fix",
-    "test": "standard && mocha"
+    "test": "standard && mocha",
+    "prepublish": "npm test"
   },
   "repository": {
     "type": "git",
