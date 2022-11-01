@@ -1,9 +1,5 @@
-const { WeakRefMap, WeakRefSet } = require('weak-ref-collections')
-
-// In Node.js, Reactor is packaged into a module
-// In the browser, Reactor is bound directly to the window namespace
-const global =
-  typeof exports !== 'undefined' && exports !== null ? exports : this
+import weakRefCollections from 'weak-ref-collections'
+const { WeakRefMap, WeakRefSet } = weakRefCollections
 
 // Global stack to automatically track dependencies
 // - When an observer is updated, it first puts itself on the dependency stack
@@ -54,7 +50,6 @@ class Definition {
 // Expose a define "keyword" instead of the class itself
 // This seems nicer syntactic sugar than "new Definition(...)" each time
 const define = (definition) => new Definition(definition)
-global.define = define
 
 // Signals are observable functions representing values
 // - Read a signal by calling it with no arguments
@@ -423,7 +418,6 @@ class Reactor {
     return reactorInterface
   }
 }
-global.Reactor = Reactor
 
 // Observers are functions which automatically track their dependencies
 // They are triggered first on initialization
@@ -576,7 +570,6 @@ const observe = (arg1, arg2) => {
   }
   return new Observer(key, execute)
 }
-global.observe = observe
 
 // Unobserve is syntactic sugar to create a dummy observer to block the triggers
 // While also returning the contents of the block
@@ -588,7 +581,6 @@ const unobserve = (execute) => {
   observer.stop()
   return output
 }
-global.unobserve = unobserve
 
 // Method for allowing users to batch multiple observer updates together
 const batch = (execute) => {
@@ -631,7 +623,6 @@ const batch = (execute) => {
   }
   return result
 }
-global.batch = batch
 
 // Custom Error class to indicate loops in observer triggering
 class LoopError extends Error {
@@ -662,4 +653,12 @@ class CompoundError extends Error {
     this.name = this.constructor.name
     return this
   }
+}
+
+export {
+  Reactor,
+  observe,
+  unobserve,
+  batch,
+  define
 }
