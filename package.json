@@ -1,13 +1,16 @@
 {
   "name": "reactorjs",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Simple reactive programming without frameworks",
   "main": "reactor.js",
   "devDependencies": {
-    "mocha": "^10.1.0"
+    "mocha": "^10.1.0",
+    "standard": "^17.0.0"
   },
   "scripts": {
-    "test": "mocha"
+    "lint": "standard --fix",
+    "test": "standard && mocha",
+    "prepublish": "npm test"
   },
   "repository": {
     "type": "git",
