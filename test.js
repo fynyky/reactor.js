@@ -1,11 +1,11 @@
 /* eslint-env mocha */
-const assert = require('assert')
-const {
+import assert from 'assert'
+import {
   Reactor,
   observe,
   unobserve,
   batch
-} = require('./reactor')
+} from './reactor.js'
 
 describe('Reactor', () => {
   it('initializes without error', () => new Reactor())
@@ -77,18 +77,7 @@ describe('Reactor', () => {
     assert.equal(reactor.foo, 'bar')
   })
 
-  it('silently fails write after defineProperty non-writable', () => {
-    const reactor = new Reactor()
-    Object.defineProperty(reactor, 'foo', {
-      value: 'bar',
-      writable: false
-    })
-    reactor.foo = 'baz'
-    assert.equal(reactor.foo, 'bar')
-  })
-
-  it("fails write after defineProperty non-writable if 'use strict'", () => {
-    'use strict'
+  it('fails write after defineProperty non-writable', () => {
     const reactor = new Reactor()
     Object.defineProperty(reactor, 'foo', {
       value: 'bar',
