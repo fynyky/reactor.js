@@ -25,8 +25,8 @@
     "url": "https://github.com/fynyky/reactor.js/issues"
   },
   "homepage": "https://github.com/fynyky/reactor.js#readme",
+  "type": "module",
   "dependencies": {
-    "weak-ref-collections": "^1.2.2"
-  },
-  "type": "module"
+    "weak-ref-collections": "^1.2.3"
+  }
 }
