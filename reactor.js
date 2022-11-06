@@ -142,7 +142,7 @@ class Signal {
         Array.from(this.dependents).forEach(dependent => {
           try {
             if (batcher) batcher.add(dependent)
-            else dependent.trigger()
+            else dependent.notify()
           } catch (error) { errorList.push(error) }
         })
         // If any errors occured during propagation
@@ -500,6 +500,10 @@ class Observer {
         this.dependencies.add(dependency)
       },
 
+      notify () {
+        if (this.awake) this.trigger()
+      },
+
       // Trigger the execution block and find its dependencies
       trigger () {
         // Avoid infinite loops by throwing an error if we
@@ -509,35 +513,36 @@ class Observer {
             'observer attempted to activate itself while already executing'
           )
         }
-        // Execute the observed function after setting the dependency stack
-        if (this.awake) {
-          this.clearDependencies()
-          if (unobserve) dependencyStack.push(null)
-          else dependencyStack.push(this)
-          this.triggering = true
-          let result
-          try { result = this.execute(this.context) } finally {
-            dependencyStack.pop()
-            this.triggering = false
-          }
-          // After main trigger, trigger any callbacks
-          const errorList = []
-          for (const callback of this.callbacks) {
-            try {
-              callback(result)
-            } catch (error) {
-              errorList.push(error)
-            }
-          }
 
-          // If any errors occured during callbacks
-          // consolidate and throw them
-          if (errorList.length === 1) {
-            throw errorList[0]
-          } else if (errorList.length > 1) {
-            const errorMessage = 'Multiple errors from observer callbacks'
-            throw new CompoundError(errorMessage, errorList)
+        // Execute the observed function after setting the dependency stack
+        this.clearDependencies()
+        if (unobserve) dependencyStack.push(null)
+        else dependencyStack.push(this)
+        this.triggering = true
+        let result
+        try { result = this.execute(this.context) } finally {
+          dependencyStack.pop()
+          this.triggering = false
+        }
+
+        // After main trigger, trigger any callbacks
+        // Potential for infinite loop here if a callback triggers the observer again
+        // Maybe i'm okay with that? there's legitimate use cases for this
+        const errorList = []
+        for (const callback of this.callbacks) {
+          try {
+            callback(result)
+          } catch (error) {
+            errorList.push(error)
           }
+        }
+        // If any errors occured during callbacks
+        // consolidate and throw them
+        if (errorList.length === 1) {
+          throw errorList[0]
+        } else if (errorList.length > 1) {
+          const errorMessage = 'Multiple errors from observer callbacks'
+          throw new CompoundError(errorMessage, errorList)
         }
       },
 
@@ -561,8 +566,8 @@ class Observer {
       },
 
       // Restart the observer if it is not already awake
-      // force start refires even if its already awake
-      start (force = false) {
+      // force start retriggers even if its already awake
+      start ({ force = false } = {}) {
         if (!this.awake || force) {
           this.awake = true
           this.trigger()
@@ -581,9 +586,9 @@ class Observer {
     // Public interace to hide the ugliness of how observers work
     const observerInterface = function (execute) {
       // AN empty call force triggers the block and turns it on
-      // Equivalent to force starting wth observer.start(true)
+      // Equivalent to force starting wth observer.start({ 'force': true })
       if (arguments.length === 0) {
-        observerCore.start(true)
+        observerCore.start({ force: true })
       } else {
         observerCore.redefine(execute)
       }
@@ -591,6 +596,8 @@ class Observer {
     }
     observerInterface.stop = () => observerCore.stop()
     observerInterface.start = (force) => observerCore.start(force)
+    observerInterface.notify = () => observerCore.notify()
+    observerInterface.trigger = () => observerCore.trigger()
     observerInterface.subscribe = (callback) => observerCore.subscribe(callback)
     // Allow someone handling the observer to set and get context
     Object.defineProperty(observerInterface, 'context', {
@@ -635,7 +642,7 @@ const unobserve = (execute) => {
   const observer = new Observer(null, () => {
     output = execute()
   }, true)
-  observer() //TODO replace with a manual once firing?
+  observer.trigger()
   observer.stop()
   return output
 }
@@ -664,7 +671,7 @@ const batch = (execute) => {
     // A conslidated error will be thrown at the end of propagation
     const errorList = []
     batchedObservers.forEach(observer => {
-      try { observer.trigger() } catch (error) { errorList.push(error) }
+      try { observer.notify() } catch (error) { errorList.push(error) }
     })
 
     // If any errors occured during propagation

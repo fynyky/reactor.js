@@ -713,13 +713,97 @@ describe('Observer', () => {
       assert.equal(counter, 2)
       assert.equal(tracker, 'moo')
     })
+
+    it('has an effect with repeated force starts', () => {
+      let counter = 0
+      let tracker = null
+      const reactor = new Reactor({ value: 'foo' })
+      const observer = observe(() => {
+        counter += 1
+        tracker = reactor.value
+      })()
+      assert.equal(counter, 1)
+      assert.equal(tracker, 'foo')
+      observer.stop()
+      reactor.value = 'moo'
+      assert.equal(counter, 1)
+      assert.equal(tracker, 'foo')
+      observer.start({ force: true })
+      assert.equal(counter, 2)
+      assert.equal(tracker, 'moo')
+      observer.start({ force: true })
+      assert.equal(counter, 3)
+      observer.start({ force: true })
+      observer.start({ force: true })
+      observer.start({ force: true })
+      assert.equal(counter, 6)
+    })
+
+    it('can trigger even when stopped and stay stopped', () => {
+      let counter = 0
+      let tracker = null
+      const reactor = new Reactor({ value: 'foo' })
+      const observer = observe(() => {
+        counter += 1
+        tracker = reactor.value
+      })()
+      assert.equal(counter, 1)
+      assert.equal(tracker, 'foo')
+      observer.stop()
+      reactor.value = 'moo'
+      assert.equal(counter, 1)
+      assert.equal(tracker, 'foo')
+      observer.trigger()
+      assert.equal(counter, 2)
+      assert.equal(tracker, 'moo')
+      reactor.value = 'boo'
+      assert.equal(counter, 2)
+      assert.equal(tracker, 'moo')
+      observer.trigger()
+      assert.equal(counter, 3)
+      assert.equal(tracker, 'boo')
+      observer.trigger()
+      observer.trigger()
+      observer.trigger()
+      assert.equal(counter, 6)
+    })
+
+    it('can notify respecting stopped or not', () => {
+      let counter = 0
+      let tracker = null
+      const reactor = new Reactor({ value: 'foo' })
+      const observer = observe(() => {
+        counter += 1
+        tracker = reactor.value
+      })()
+      assert.equal(counter, 1)
+      assert.equal(tracker, 'foo')
+      observer.stop()
+      reactor.value = 'moo'
+      assert.equal(counter, 1)
+      assert.equal(tracker, 'foo')
+      observer.notify()
+      assert.equal(counter, 1)
+      assert.equal(tracker, 'foo')
+      observer.notify()
+      observer.notify()
+      assert.equal(counter, 1)
+      assert.equal(tracker, 'foo')
+      observer.start()
+      assert.equal(counter, 2)
+      assert.equal(tracker, 'moo')
+      observer.notify()
+      observer.notify()
+      observer.notify()
+      assert.equal(counter, 5)
+      assert.equal(tracker, 'moo')
+    })
   })
 
   describe('Context & Subscriptions', () => {
-
     it('context defaults to undefined', () => {
-      let contextChecker = null
-      const observer = observe((context) => {
+      let contextChecker = 'foo'
+      observe((context) => {
         contextChecker = context
       })()
       assert(typeof contextChecker === 'undefined')
@@ -730,7 +814,7 @@ describe('Observer', () => {
       const observer = observe((context) => {
         contextChecker = context
       })
-      observer.context = "foo"
+      observer.context = 'foo'
       observer()
       assert(contextChecker === 'foo')
       assert(contextChecker === observer.context)
@@ -741,10 +825,10 @@ describe('Observer', () => {
 
     it('can subscribe to observer results', () => {
       const reactor = new Reactor({
-        'foo': 'bar'
+        foo: 'bar'
       })
       const observer = observe(() => {
-        return reactor.foo + "baz"
+        return reactor.foo + 'baz'
       })
       let result
       observer.subscribe(x => {
@@ -758,10 +842,10 @@ describe('Observer', () => {
 
     it('can unsubscribe to observer results', () => {
       const reactor = new Reactor({
-        'foo': 'bar'
+        foo: 'bar'
       })
       const observer = observe(() => {
-        return reactor.foo + "baz"
+        return reactor.foo + 'baz'
       })
       let result
       const unsubscribe = observer.subscribe(x => {
@@ -773,7 +857,6 @@ describe('Observer', () => {
       reactor.foo = 'qux'
       assert(result === 'barbaz')
     })
-
   })
 
   describe('Error Handling', () => {
