@@ -463,16 +463,24 @@ class Observer {
     // Should be completely agnostic to syntactic sugar
     const observerCore = {
       execute,
-      unobserve, // flag on whether this is a unobserve block
+      // flag on whether this is a unobserve block
       // Avoids creating dependencies in that case
-      awake: false, // Whether further triggers and updates are allowed
-      triggering: false, // Whether the block is currently executing
+      unobserve,
+      // Whether further triggers and updates are allowed
+      awake: false,
+      // Whether the block is currently executing
       // prevents further triggers
-      dependencies: new WeakRefSet(), // The Signals the execution block reads from
+      triggering: false,
+      // The Signals the execution block reads from
       // at last trigger
-      context: null, // Provided to the execute function when it triggers
+      dependencies: new WeakRefSet(),
+      // Provided to the execute function when it triggers
       // Can be set externally
       // Allows information to be provided outside of when its defined
+      context: null,
+      // callbacks which will be given the execute return value
+      // when triggered
+      callbacks: new Set(),
 
       // Symmetrically removes dependencies
       clearDependencies () {
@@ -505,9 +513,28 @@ class Observer {
           if (unobserve) dependencyStack.push(null)
           else dependencyStack.push(this)
           this.triggering = true
-          try { this.execute(this.context) } finally {
+          let result
+          try { result = this.execute(this.context) } finally {
             dependencyStack.pop()
             this.triggering = false
+          }
+          // After main trigger, trigger any callbacks
+          const errorList = []
+          for (const callback of this.callbacks) {
+            try {
+              callback(result)
+            } catch (error) {
+              errorList.push(error)
+            }
+          }
+
+          // If any errors occured during callbacks
+          // consolidate and throw them
+          if (errorList.length === 1) {
+            throw errorList[0]
+          } else if (errorList.length > 1) {
+            const errorMessage = 'Multiple errors from observer callbacks'
+            throw new CompoundError(errorMessage, errorList)
           }
         }
       },
@@ -525,6 +552,13 @@ class Observer {
           this.awake = true
           this.trigger()
         }
+      },
+
+      // Callbacks with the observer return value
+      subscribe (callback) {
+        this.callbacks.add(callback)
+        const unsubscribe = () => this.callbacks.delete(callback)
+        return unsubscribe
       }
 
     }
@@ -551,6 +585,7 @@ class Observer {
     }
     observerInterface.stop = () => observerCore.stop()
     observerInterface.start = (force) => observerCore.start(force)
+    observerInterface.subscribe = (callback) => observerCore.subscribe(callback)
     // Allow someone handling the observer to set and get context
     Object.defineProperty(observerInterface, 'context', {
       get () { return observerCore.context },
