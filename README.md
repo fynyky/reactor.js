@@ -11,7 +11,7 @@ const reactor = new Reactor({ foo: "bar" });
 
 observe(() => {
   console.log("foo is ", reactor.foo);
-}); // prints "foo is bar"
+})(); // prints "foo is bar"
 
 reactor.foo = "moo"; // prints "foo is moo"
 ```
@@ -50,12 +50,12 @@ reactor.name; // "Bob"
 const observer = observe(() => {
   // Reading from a Reactor property automatically saves it as a dependency
   console.log("reactor.foo is ", reactor.foo);
-}); // prints "reactor.foo is bar"
+})(); // prints "reactor.foo is bar"
 
 // Dependency tracking works for sub-objects as well
 const innerObserver = observe(() => {
   console.log("reactor.outer.inner is ", reactor.outer.inner);
-}); // prints "reactor.outer.inner is value"
+})(); // prints "reactor.outer.inner is value"
 
 // Updating the property automatically notifies the observer
 reactor.foo = "updated"; // prints "reactor.foo is updated"
@@ -71,7 +71,7 @@ const partialObserver = observe(() => {
     const next = unobserve(() => reactor.names.pop());
     console.log("next ", next);
   }
-}); // prints "next David"
+})(); // prints "next David"
 
 reactor.ticker += 1; // prints "next Charles"
 reactor.names.push("Elsie"); // Will not trigger the observer
@@ -98,12 +98,12 @@ partialObserver(); // prints "next Bob"
 reactor.counter = 1
 const firstObserver = observe("counterReporter", () => {
   console.log("first observer: ", reactor.counter);
-}); // prints "first observer: 1";
+})(); // prints "first observer: 1";
 reactor.counter += 1 // prints "first observer: 2"
 
 const secondObserver = observe("counterReporter", () => {
   console.log("second observer: ", reactor.counter);
-}); // prints "second observer: 2";
+})(); // prints "second observer: 2";
 reactor.counter += 1; // prints "second observer: 3"
                       // First observer has been overriden and does not trigger
 ```
@@ -163,7 +163,7 @@ const reactor = new Reactor({ foo: "bar" });
 
 observe(() => {
   console.log("foo is ", reactor.foo);
-}); // prints "foo is bar"
+})(); // prints "foo is bar"
 
 reactor.foo = "moo"; // prints "foo is moo"
 
@@ -183,11 +183,11 @@ const reactor = new Reactor({
 
 observe(() => {
   console.log("foo tracker is now", reactor.foo);
-}); // prints "foo tracker is now bar"
+})(); // prints "foo tracker is now bar"
 
 observe(() => {
   console.log("moo tracker is now", reactor.foo);
-}); // prints "moo tracker is now mar"
+})(); // prints "moo tracker is now mar"
 
 reactor.foo = "bar2"; // prints "foo tracker is now bar2"
 reactor.moo = "mar2"; // prints "moo tracker is now mar2"
@@ -204,7 +204,7 @@ const reactor = new Reactor({
 
 observe(() => {
   console.log("inner value is ", reactor.outer.inner);
-}); // prints "inner value is cake"
+})(); // prints "inner value is cake"
 ```
 
 Observers
@@ -216,7 +216,7 @@ Observers are created by using "observe" passing it a function. This function is
 ```javascript
 observe(() => {
   console.log("hello world")
-}); // prints "hello world"
+})(); // prints "hello world"
 ```
 
 When an Observer reads a Reactor's property it gets saved as a dependent. When that property is updated it notifies the observer which re-executes its function. This happens automatically without any need to manually declare dependencies.
@@ -224,7 +224,7 @@ When an Observer reads a Reactor's property it gets saved as a dependent. When t
 const reactor = new Reactor();
 observe(() => {
   console.log("reactor.foo is ", reactor.foo);
-}); // prints "reactor.foo is undefined"
+})(); // prints "reactor.foo is undefined"
 
 reactor.foo = "bar"; // prints "reactor.foo is bar";
 ```
@@ -242,7 +242,7 @@ observe(() => {
   } else {
     console.log("reactor.c is ", reactor.c);
   }
-}); // prints "reactor.b is bee"
+})(); // prints "reactor.b is bee"
 
 reactor.b = "boop"; // prints "reactor.b is boop"
 reactor.c = "cat" // does not trigger the observer
@@ -257,7 +257,7 @@ You can stop an observer by just calling "stop()" on the returned observer objec
 const reactor = new Reactor();
 const observer = observe(() => {
   console.log(reactor.foo);
-}); // prints "undefined"
+})(); // prints "undefined"
 
 reactor.foo = "bar"; // prints "bar"
 
@@ -279,7 +279,7 @@ For convenience, you can call an observer with no arguments to execute like a no
 const reactor = new Reactor({ foo: "hello" });
 const observer = observe(() => {
   console.log(reactor.foo);
-}); // prints "hello"
+})(); // prints "hello"
 reactor.foo = "hi"; // prints "hi"
 observer(); // prints "hi" again
 
@@ -303,7 +303,7 @@ observe(() => {
   // Even though we only want to modify the array
   // pop() also reads the length property of the array
   console.log(taskList.pop()); 
-});
+})();
 ```
 
 In these cases you can use "unobserve" to shield a block of code from creating dependencies. It takes a function and any reactor properties read inside that function will not be set as dependencies. Unobserve also passes through the return value of its function for syntactic simplicity.
@@ -319,7 +319,7 @@ observe(() => {
     unobserve(() => taskList.pop())
   ); 
 
-}); // prints "d"
+})(); // prints "d"
 
 taskList.push("e"); // does not trigger the observer
 ```
@@ -334,14 +334,14 @@ const reactor = new Reactor({ foo: "bar" });
 // The returned Observer object is itself a function
 let observerToBeOverriden = observe(() => {
   console.log(reactor.foo);
-}); // prints "bar"
+})(); // prints "bar"
 
 reactor.foo = "moo"; // prints "moo"
 
 // Passing a new function to the observer object replaces the old function
 observerToBeOverriden(() => {
   console.log("I am saying", reactor.foo);
-}); // prints "I am saying moo"
+})(); // prints "I am saying moo"
 
 reactor.foo = "blep"; // prints "I am saying blep"
 ```
@@ -353,12 +353,12 @@ const reactor = new Reactor({ foo: "bar" });
 
 const firstObserver = observe("fooTracker", () => {
   console.log("first observer: ", reactor.foo);
-}); // prints "first observer: bar";
+})(); // prints "first observer: bar";
 reactor.foo = "moo"; // prints "first observer: moo"
 
 const secondObserver = observe("fooTracker", () => {
   console.log("second observer: ", reactor.foo);
-}); // prints "second observer: moo";
+})(); // prints "second observer: moo";
 reactor.foo = "beep"; // prints "second observer: beep"
 
 firstObserver === secondObserver; // true
@@ -390,7 +390,7 @@ const observer = observe(() => {
     " " + 
     person.rank
   );
-}); // prints "I am Anakin Skywalker, Jedi Knight"
+})(); // prints "I am Anakin Skywalker, Jedi Knight"
 
 // The following updates will each trigger the observer even though we only 
 // want to trigger the observer once all the updates are complete
