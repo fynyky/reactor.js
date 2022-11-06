@@ -715,6 +715,67 @@ describe('Observer', () => {
     })
   })
 
+  describe('Context & Subscriptions', () => {
+
+    it('context defaults to undefined', () => {
+      let contextChecker = null
+      const observer = observe((context) => {
+        contextChecker = context
+      })()
+      assert(typeof contextChecker === 'undefined')
+    })
+
+    it('can set context', () => {
+      let contextChecker
+      const observer = observe((context) => {
+        contextChecker = context
+      })
+      observer.context = "foo"
+      observer()
+      assert(contextChecker === 'foo')
+      assert(contextChecker === observer.context)
+      observer.context = {}
+      observer()
+      assert(contextChecker === observer.context)
+    })
+
+    it('can subscribe to observer results', () => {
+      const reactor = new Reactor({
+        'foo': 'bar'
+      })
+      const observer = observe(() => {
+        return reactor.foo + "baz"
+      })
+      let result
+      observer.subscribe(x => {
+        result = x
+      })
+      observer()
+      assert(result === 'barbaz')
+      reactor.foo = 'qux'
+      assert(result === 'quxbaz')
+    })
+
+    it('can unsubscribe to observer results', () => {
+      const reactor = new Reactor({
+        'foo': 'bar'
+      })
+      const observer = observe(() => {
+        return reactor.foo + "baz"
+      })
+      let result
+      const unsubscribe = observer.subscribe(x => {
+        result = x
+      })
+      observer()
+      assert(result === 'barbaz')
+      unsubscribe()
+      reactor.foo = 'qux'
+      assert(result === 'barbaz')
+    })
+
+  })
+
   describe('Error Handling', () => {
     it('throws an error on an Observer loop', () => {
       let counter = 0

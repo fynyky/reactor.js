@@ -467,6 +467,7 @@ class Observer {
       // Avoids creating dependencies in that case
       unobserve,
       // Whether further triggers and updates are allowed
+      // Start asleep - this allows configuration of subscribers/context first
       awake: false,
       // Whether the block is currently executing
       // prevents further triggers
@@ -477,7 +478,8 @@ class Observer {
       // Provided to the execute function when it triggers
       // Can be set externally
       // Allows information to be provided outside of when its defined
-      context: null,
+      // Don't actually initialize context so that it defaults to undefined
+      // context,
       // callbacks which will be given the execute return value
       // when triggered
       callbacks: new Set(),
@@ -539,6 +541,19 @@ class Observer {
         }
       },
 
+      // Redefines the observer with a new exec function
+      redefine (newExecute) {
+        if (typeof newExecute !== 'function') {
+          throw new TypeError('Cannot create observer with a non-function')
+        }
+        this.clearDependencies()
+        this.awake = false
+        this.triggering = false
+        this.execute = newExecute
+        // Leave context as is
+        // Leave callbacks as is
+      },
+
       // Pause the observer preventing further triggers
       stop () {
         this.awake = false
@@ -569,18 +584,9 @@ class Observer {
       // Equivalent to force starting wth observer.start(true)
       if (arguments.length === 0) {
         observerCore.start(true)
-        return observerInterface
+      } else {
+        observerCore.redefine(execute)
       }
-      // A non-empty call is used to redefine the observer
-      if (typeof execute !== 'function') {
-        throw new TypeError('Cannot create observer with a non-function')
-      }
-      // reset all the core
-      // But leave the current context
-      observerCore.clearDependencies()
-      observerCore.awake = false
-      observerCore.triggering = false
-      observerCore.execute = execute
       return observerInterface
     }
     observerInterface.stop = () => observerCore.stop()
