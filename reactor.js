@@ -465,11 +465,14 @@ class Observer {
       execute,
       unobserve, // flag on whether this is a unobserve block
       // Avoids creating dependencies in that case
-      awake: true, // Whether further triggers and updates are allowed
+      awake: false, // Whether further triggers and updates are allowed
       triggering: false, // Whether the block is currently executing
       // prevents further triggers
       dependencies: new WeakRefSet(), // The Signals the execution block reads from
       // at last trigger
+      context: null, // Provided to the execute function when it triggers
+      // Can be set externally
+      // Allows information to be provided outside of when its defined
 
       // Symmetrically removes dependencies
       clearDependencies () {
@@ -502,7 +505,7 @@ class Observer {
           if (unobserve) dependencyStack.push(null)
           else dependencyStack.push(this)
           this.triggering = true
-          try { this.execute() } finally {
+          try { this.execute(this.context) } finally {
             dependencyStack.pop()
             this.triggering = false
           }
@@ -516,8 +519,9 @@ class Observer {
       },
 
       // Restart the observer if it is not already awake
-      start () {
-        if (!this.awake) {
+      // force start refires even if its already awake
+      start (force = false) {
+        if (!this.awake || force) {
           this.awake = true
           this.trigger()
         }
@@ -527,22 +531,31 @@ class Observer {
 
     // Public interace to hide the ugliness of how observers work
     const observerInterface = function (execute) {
-      // AN empty call is a manual "one time" trigger of the block
-      if (arguments.length === 0) return observerCore.execute()
-      // A non-empty call is used to redfine the observer
+      // AN empty call force triggers the block and turns it on
+      // Equivalent to force starting wth observer.start(true)
+      if (arguments.length === 0) {
+        observerCore.start(true)
+        return observerInterface
+      }
+      // A non-empty call is used to redefine the observer
       if (typeof execute !== 'function') {
         throw new TypeError('Cannot create observer with a non-function')
       }
       // reset all the core
+      // But leave the current context
       observerCore.clearDependencies()
-      observerCore.awake = true
+      observerCore.awake = false
       observerCore.triggering = false
       observerCore.execute = execute
-      observerCore.trigger()
       return observerInterface
     }
     observerInterface.stop = () => observerCore.stop()
-    observerInterface.start = () => observerCore.start()
+    observerInterface.start = (force) => observerCore.start(force)
+    // Allow someone handling the observer to set and get context
+    Object.defineProperty(observerInterface, 'context', {
+      get () { return observerCore.context },
+      set (newValue) { return (observerCore.context = newValue) }
+    })
 
     // Register the observer for potential overriding later
     coreExtractor.set(observerInterface, observerCore)
@@ -550,9 +563,13 @@ class Observer {
       observerRegistry.set(key, observerInterface)
     }
 
-    // Trigger once on initialization
-    observerCore.trigger()
+    // Does not trigger on initialization until () or .start() are called
     return observerInterface
+
+    // TODO figure out start stop calls vs ()
+    // start - kicks off if asleep. Multiple calls do nothing
+    // () - kicks off if asleep. Multiple calls manually do mulktiple trigger
+    // once - does not awake if asleep. Multiple calls manually do multiple triggers
   }
 }
 const observe = (arg1, arg2) => {
@@ -577,6 +594,7 @@ const unobserve = (execute) => {
   const observer = new Observer(null, () => {
     output = execute()
   }, true)
+  observer() //TODO replace with a manual once firing?
   observer.stop()
   return output
 }

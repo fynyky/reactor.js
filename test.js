@@ -182,7 +182,7 @@ describe('Observer', () => {
   describe('Triggering', () => {
     it('triggers once on initialization', () => {
       let counter = 0
-      observe(() => { counter += 1 })
+      observe(() => { counter += 1 })()
       assert.equal(counter, 1)
     })
 
@@ -195,7 +195,7 @@ describe('Observer', () => {
       observe(() => {
         counter += 1
         tracker = reactor.foo
-      })
+      })()
       assert.equal(counter, 1)
       assert.equal(tracker, 'bar')
       reactor.foo = 'mux'
@@ -214,7 +214,7 @@ describe('Observer', () => {
       observe(() => {
         counter += 1
         tracker = reactor.foo.bar
-      })
+      })()
       assert.equal(counter, 1)
       assert.equal(tracker, 'baz')
       reactor.foo.bar = 'moo'
@@ -227,7 +227,7 @@ describe('Observer', () => {
       const reactor = new Reactor({
         foo: 'bar'
       })
-      observe(() => (tracker = reactor.foo))
+      observe(() => (tracker = reactor.foo))()
       assert.equal(tracker, 'bar')
       Object.defineProperty(reactor, 'foo', {
         get () { return 'baz' }
@@ -240,7 +240,7 @@ describe('Observer', () => {
       const reactor = new Reactor({
         foo: 'bar'
       })
-      observe(() => (tracker = reactor.foo))
+      observe(() => (tracker = reactor.foo))()
       assert.equal(tracker, 'bar')
       delete reactor.foo
       assert.equal(tracker, undefined)
@@ -253,7 +253,7 @@ describe('Observer', () => {
       observe(() => {
         counter += 1
         tracker = reactor[0]
-      })
+      })()
       assert.equal(counter, 1)
       assert.equal(tracker, undefined)
       reactor.push('foo')
@@ -277,7 +277,7 @@ describe('Observer', () => {
         hasTracker = ('foo' in reactor)
         getTracker = reactor.foo
         ownKeysTracker = Object.getOwnPropertyNames(reactor)
-      })
+      })()
       assert.equal(counter, 1)
       assert.equal(hasTracker, true)
       assert.equal(getTracker, 'bar')
@@ -298,7 +298,7 @@ describe('Observer', () => {
         counter += 1
         lengthTracker = reactor.length
         firstTracker = reactor[0]
-      })
+      })()
       assert.equal(counter, 1)
       assert.equal(lengthTracker, 0)
       assert.equal(firstTracker, undefined)
@@ -325,8 +325,8 @@ describe('Observer', () => {
         innerObserver = observe(() => {
           innerCounter += 1
           innerTracker = reactor.inner
-        })
-      })
+        })()
+      })()
       assert.equal(outerCounter, 1)
       assert.equal(outerTracker, 'foo')
       assert.equal(innerCounter, 1)
@@ -350,7 +350,7 @@ describe('Observer', () => {
       observe(() => {
         counter += 1
         tracker = Object.keys(reactor)
-      })
+      })()
       assert.equal(counter, 1)
       assert.equal(JSON.stringify(tracker), '["foo"]')
       reactor.moo = 'mux'
@@ -365,7 +365,7 @@ describe('Observer', () => {
       observe(() => {
         counter += 1
         tracker = ('foo' in reactor)
-      })
+      })()
       assert.equal(counter, 1)
       assert.equal(tracker, false)
       reactor.foo = 'bar'
@@ -380,7 +380,7 @@ describe('Observer', () => {
       observe(() => {
         counter += 1
         tracker = reactor.value
-      })
+      })()
       assert.equal(counter, 1)
       assert.equal(tracker, 'foo')
       reactor.value = 'bar'
@@ -404,7 +404,7 @@ describe('Observer', () => {
           innerCounter += 1
           innerTracker = reactor.inner
         })
-      })
+      })()
       assert.equal(outerCounter, 1)
       assert.equal(innerCounter, 1)
       assert.equal(outerTracker, 'foo')
@@ -437,7 +437,7 @@ describe('Observer', () => {
           innerCounter += 1
           return reactor.inner
         })
-      })
+      })()
       assert.equal(outerCounter, 1)
       assert.equal(innerCounter, 1)
       assert.equal(outerTracker, 'foo')
@@ -458,7 +458,7 @@ describe('Observer', () => {
       const reactor = new Reactor(['a', 'b', 'c'])
       observe(() => {
         unobserve(() => reactor.pop())
-      })
+      })()
     })
 
     it('can override observer', () => {
@@ -473,7 +473,7 @@ describe('Observer', () => {
       const observer = observe(() => {
         firstCounter += 1
         firstTracker = reactor.first
-      })
+      })()
       assert.equal(firstCounter, 1)
       assert.equal(secondCounter, 0)
       assert.equal(firstTracker, 'foo')
@@ -481,7 +481,7 @@ describe('Observer', () => {
       observer(() => {
         secondCounter += 1
         secondTracker = reactor.second
-      })
+      })()
       assert.equal(firstCounter, 1)
       assert.equal(secondCounter, 1)
       assert.equal(firstTracker, 'foo')
@@ -510,7 +510,7 @@ describe('Observer', () => {
       observe('commonKey', () => {
         firstCounter += 1
         firstTracker = reactor.first
-      })
+      })()
       assert.equal(firstCounter, 1)
       assert.equal(secondCounter, 0)
       assert.equal(firstTracker, 'foo')
@@ -518,7 +518,7 @@ describe('Observer', () => {
       observe('commonKey', () => {
         secondCounter += 1
         secondTracker = reactor.second
-      })
+      })()
       assert.equal(firstCounter, 1)
       assert.equal(secondCounter, 1)
       assert.equal(firstTracker, 'foo')
@@ -541,7 +541,7 @@ describe('Observer', () => {
       observe(() => {
         counter += 1
         return reactor.value
-      })
+      })()
       assert.equal(counter, 1)
       batch(() => {
         reactor.value = 'bleep'
@@ -560,7 +560,7 @@ describe('Observer', () => {
       observe(() => {
         counter += 1
         return reactor.value
-      })
+      })()
       assert.equal(counter, 1)
       batch(() => {
         reactor.value = 'bleep'
@@ -588,11 +588,11 @@ describe('Observer', () => {
       })
       observe(() => {
         reactor.bigFoo = reactor.foo.toUpperCase()
-      })
+      })()
       assert.equal(reactor.bigFoo, 'BAR')
       observe(() => {
         tracker = reactor.bigFoo
-      })
+      })()
       assert.equal(tracker, 'BAR')
       reactor.foo = 'qux'
       assert.equal(reactor.bigFoo, 'QUX')
@@ -608,7 +608,7 @@ describe('Observer', () => {
       observe(() => {
         counter += 1
         tracker = reactor.foo
-      })
+      })()
       assert.equal(counter, 1)
       assert.equal(tracker, 'bar')
       reactor.foo = 'bar'
@@ -625,7 +625,7 @@ describe('Observer', () => {
       observe(() => {
         counter += 1
         tracker = 'foo' in reactor
-      })
+      })()
       assert.equal(counter, 1)
       assert.equal(tracker, true)
       reactor.foo = 'baz'
@@ -641,7 +641,7 @@ describe('Observer', () => {
       observe(() => {
         counter += 1
         Object.keys(reactor)
-      })
+      })()
       reactor.foo = 'baz'
       assert.equal(counter, 1)
       delete reactor.boo
@@ -661,7 +661,7 @@ describe('Observer', () => {
       const observer = observe(() => {
         counter += 1
         tracker = reactor.value
-      })
+      })()
       assert.equal(counter, 1)
       assert.equal(tracker, 'foo')
       reactor.value = 'bar'
@@ -680,7 +680,7 @@ describe('Observer', () => {
       const observer = observe(() => {
         counter += 1
         tracker = reactor.value
-      })
+      })()
       assert.equal(counter, 1)
       assert.equal(tracker, 'foo')
       observer.stop()
@@ -699,7 +699,7 @@ describe('Observer', () => {
       const observer = observe(() => {
         counter += 1
         tracker = reactor.value
-      })
+      })()
       assert.equal(counter, 1)
       assert.equal(tracker, 'foo')
       observer.stop()
@@ -725,7 +725,7 @@ describe('Observer', () => {
           counter += 1
           tracker = reactor.value
           if (counter < 100) reactor.value = 'bar'
-        })
+        })()
       }, {
         name: 'LoopError',
         message: 'observer attempted to activate itself while already executing'
@@ -738,7 +738,7 @@ describe('Observer', () => {
       const reactor = new Reactor({ value: 'foo' })
       observe(() => {
         if (reactor.value > 1) throw new Error('dummy error')
-      })
+      })()
       assert.throws(() => (reactor.value = 2), {
         name: 'Error',
         message: 'dummy error'
@@ -749,10 +749,10 @@ describe('Observer', () => {
       const reactor = new Reactor({ value: 1 })
       observe(() => {
         if (reactor.value > 1) throw new Error('dummy error 1')
-      })
+      })()
       observe(() => {
         if (reactor.value > 1) throw new Error('dummy error 2')
-      })
+      })()
       assert.throws(() => (reactor.value = 2), {
         name: 'CompoundError'
       })
@@ -765,22 +765,22 @@ describe('Observer', () => {
       // Successful passthrough to create subsequent compound errors
       observe(() => {
         reactor.passthrough = reactor.foo
-      })
+      })()
       assert.equal(reactor.passthrough, 'Bar')
       // Initial error failrues to create an initial compound error
       observe(() => {
         if (reactor.foo === 'error') throw new Error('BIG ERROR 1')
-      })
+      })()
       observe(() => {
         if (reactor.foo === 'error') throw new Error('BIG ERROR 2')
-      })
+      })()
       // Chain off reactor.passthrough to create a subsequent compound error
       observe(() => {
         if (reactor.passthrough === 'error') throw new Error('small error 1')
-      })
+      })()
       observe(() => {
         if (reactor.passthrough === 'error') throw new Error('small error 2')
-      })
+      })()
       assert.throws(() => (reactor.foo = 'error'), (error) => {
         assert.equal(error.name, 'CompoundError')
         assert.equal(error.errorList.length, 4)
