@@ -579,6 +579,17 @@ class Observer {
         this.callbacks.add(callback)
         const unsubscribe = () => this.callbacks.delete(callback)
         return unsubscribe
+      },
+
+      // Wipes the observer clean for disposal
+      clear () {
+        this.clearDependencies()
+        this.execute = null
+        this.unobserve = null
+        this.awake = null
+        this.triggering = null
+        this.dependencies = null
+        this.callbacks = null
       }
 
     }
@@ -599,6 +610,7 @@ class Observer {
     observerInterface.notify = () => observerCore.notify()
     observerInterface.trigger = () => observerCore.trigger()
     observerInterface.subscribe = (callback) => observerCore.subscribe(callback)
+    observerInterface.clear = () => observerCore.clear()
     // Allow someone handling the observer to set and get context
     Object.defineProperty(observerInterface, 'context', {
       get () { return observerCore.context },
