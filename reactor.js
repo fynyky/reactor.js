@@ -444,6 +444,7 @@ class Reactor {
 //
 // observer.start();                          Does nothing since already started
 const observerRegistry = new WeakRefMap()
+const observerMembership = new WeakSet()
 class Observer {
   constructor (key, execute, unobserve) {
     // The triggered and observed block of code
@@ -470,8 +471,8 @@ class Observer {
       // Start asleep - this allows configuration of subscribers/context first
       awake: false,
       // Whether the block is currently executing
-      // prevents further triggers
-      triggering: false,
+      // prevents further triggered executions
+      executing: false,
       // The Signals the execution block reads from
       // at last trigger
       dependencies: new WeakRefSet(),
@@ -482,7 +483,7 @@ class Observer {
       // context,
       // callbacks which will be given the execute return value
       // when triggered
-      callbacks: new Set(),
+      subscribers: new Set(),
 
       // Symmetrically removes dependencies
       clearDependencies () {
@@ -501,43 +502,57 @@ class Observer {
       },
 
       notify () {
-        if (this.awake) this.trigger()
+        if (this.awake) {
+          // Avoid infinite loops by throwing an error if we
+          // try to trigger an already executing observer
+          if (this.executing) {
+            throw new LoopError(
+              'observer attempted to activate itself while already executing'
+            )
+          }
+          // Execute the observed function after setting the dependency stack
+          this.clearDependencies()
+          if (unobserve) dependencyStack.push(null)
+          else dependencyStack.push(this)
+          this.executing = true
+          let result
+          try {
+            result = this.execute(this.context)
+          } finally {
+            dependencyStack.pop()
+            this.executing = false
+          }
+          // After main trigger, trigger any callbacks
+          // Potential for infinite loop here if a callback triggers the observer again
+          // Maybe i'm okay with that? there's legitimate use cases for this
+          this.callback(result)
+        }
       },
 
       // Trigger the execution block and find its dependencies
+      // TODO should triggers build dependencies?
+      // One option is is awake yes. If asleep then no?
+      // What if trigger is called within another observer?
+      // Should it "wrap" like an unobserve?
+      // Or just be another function call
+      // Argument I think is that it is another function call
       trigger () {
-        // Avoid infinite loops by throwing an error if we
-        // try to trigger an already triggering observer
-        if (this.triggering) {
-          throw new LoopError(
-            'observer attempted to activate itself while already executing'
-          )
-        }
+        const result = this.execute(this.context)
+        this.callback(result)
+      },
 
-        // Execute the observed function after setting the dependency stack
-        this.clearDependencies()
-        if (unobserve) dependencyStack.push(null)
-        else dependencyStack.push(this)
-        this.triggering = true
-        let result
-        try { result = this.execute(this.context) } finally {
-          dependencyStack.pop()
-          this.triggering = false
-        }
-
-        // After main trigger, trigger any callbacks
-        // Potential for infinite loop here if a callback triggers the observer again
-        // Maybe i'm okay with that? there's legitimate use cases for this
+      // Fire all callbacks with the result
+      // If any errors occured during callbacks
+      // consolidate and throw them
+      callback (result) {
         const errorList = []
-        for (const callback of this.callbacks) {
+        for (const subscriber of this.subscribers) {
           try {
-            callback(result)
+            subscriber(result)
           } catch (error) {
             errorList.push(error)
           }
         }
-        // If any errors occured during callbacks
-        // consolidate and throw them
         if (errorList.length === 1) {
           throw errorList[0]
         } else if (errorList.length > 1) {
@@ -553,10 +568,10 @@ class Observer {
         }
         this.clearDependencies()
         this.awake = false
-        this.triggering = false
+        this.executing = false
         this.execute = newExecute
         // Leave context as is
-        // Leave callbacks as is
+        // Leave subscribers as is
       },
 
       // Pause the observer preventing further triggers
@@ -568,16 +583,15 @@ class Observer {
       // Restart the observer if it is not already awake
       // force start retriggers even if its already awake
       start ({ force = false } = {}) {
-        if (!this.awake || force) {
-          this.awake = true
-          this.trigger()
-        }
+        if (this.awake && !force) return
+        this.awake = true
+        this.notify()
       },
 
       // Callbacks with the observer return value
       subscribe (callback) {
-        this.callbacks.add(callback)
-        const unsubscribe = () => this.callbacks.delete(callback)
+        this.subscribers.add(callback)
+        const unsubscribe = () => this.subscribers.delete(callback)
         return unsubscribe
       },
 
@@ -587,9 +601,9 @@ class Observer {
         this.execute = null
         this.unobserve = null
         this.awake = null
-        this.triggering = null
+        this.executing = null
         this.dependencies = null
-        this.callbacks = null
+        this.subscribers = null
       }
 
     }
@@ -622,6 +636,7 @@ class Observer {
     if (typeof key !== 'undefined') {
       observerRegistry.set(key, observerInterface)
     }
+    observerMembership.add(observerInterface)
 
     // Does not trigger on initialization until () or .start() are called
     return observerInterface
@@ -647,6 +662,8 @@ const observe = (arg1, arg2) => {
   return new Observer(key, execute)
 }
 
+const isObserver = (candidate) => observerMembership.has(candidate)
+
 // Unobserve is syntactic sugar to create a dummy observer to block the triggers
 // While also returning the contents of the block
 const unobserve = (execute) => {
@@ -654,7 +671,7 @@ const unobserve = (execute) => {
   const observer = new Observer(null, () => {
     output = execute()
   }, true)
-  observer.trigger()
+  observer.start()
   observer.stop()
   return output
 }
@@ -734,6 +751,7 @@ class CompoundError extends Error {
 
 export {
   Reactor,
+  isObserver,
   observe,
   unobserve,
   batch,
