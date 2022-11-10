@@ -514,20 +514,16 @@ class Observer {
       },
 
       // Redefines the observer with a new exec function
+      // Maintains the context, Signal dependents, and awake status
       redefine (newExecute) {
         if (typeof newExecute !== 'function') {
           throw new TypeError('Cannot create observer with a non-function')
         }
         this.clearDependencies()
         this.execute = newExecute
-        this.awake = false
-        // Set Signal to undefined instead of making a new Signal so we maintain dependents
-        // Ugliness of setting something to be undefined necessary
-        // To maintain javascript unset variable semantics
-        // TODO does propagating an undefined to all dependents cause trouble?
-        // Maybe should just have it execute on redefine automatically?
-        this.value(undefined)
-        // Leave context as is? TODO maybe not?
+        // If awake this will update the value Signal and notify observers downstream
+        // If alseep this will correctly do nothing leaving value to the last triggered value
+        this.trigger()
       },
 
       // Pause the observer preventing further triggers
@@ -643,7 +639,7 @@ const batch = (execute) => {
   return result
 }
 
-// Custom Error class to consolidate multiple errors together
+// Custom Error to consolidate multiple errors together
 class CompoundError extends Error {
   constructor (message, errorList) {
     // Flatten any compound errors in the error list

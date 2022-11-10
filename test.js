@@ -209,8 +209,9 @@ describe('Observer', () => {
     observer()
     assert.equal(counter, 2)
     observer.execute = () => { counter += 2 }
-    observer()
     assert.equal(counter, 4)
+    observer()
+    assert.equal(counter, 6)
   })
 
   it('returns the function return value', () => {
@@ -522,7 +523,6 @@ describe('Observer', () => {
         secondCounter += 1
         secondTracker = reactor.second
       }
-      observer()
       assert.equal(firstCounter, 1)
       assert.equal(secondCounter, 1)
       assert.equal(firstTracker, 'foo')
