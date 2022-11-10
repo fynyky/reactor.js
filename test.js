@@ -742,6 +742,18 @@ describe('Observer', () => {
       observer(dummyObject)
       assert.equal(contextChecker, dummyObject)
     })
+
+    it('can set context with multiple params', () => {
+      let contextChecker
+      const observer = observe((a, b, c) => {
+        contextChecker = a + b + c
+      })
+      observer('foo', 'bar', 'baz')
+      assert.equal(contextChecker, 'foobarbaz')
+      contextChecker = null
+      observer()
+      assert.equal(contextChecker, 'foobarbaz')
+    })
   })
 
   describe('Error Handling', () => {

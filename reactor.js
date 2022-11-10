@@ -503,7 +503,7 @@ class Observer {
           // dependency stack is popped even if an error is occured
           // Allows users to catch errors themselves and handle them
           try {
-            result = this.execute(this.context)
+            result = this.execute.apply(null, this.context)
           } finally {
             dependencyStack.pop()
           }
@@ -559,7 +559,7 @@ class Observer {
     // A call with arguments gets those arguments passed as a context
     // for that and future retriggers
     const observerInterface = function () {
-      if (arguments.length > 0) observerCore.context = arguments[0]
+      if (arguments.length > 0) observerCore.context = arguments
       observerCore.awake = true
       return observerCore.trigger()
     }
