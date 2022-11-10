@@ -488,6 +488,7 @@ class Observer {
       // Symmetrically removes dependencies
       clearDependencies () {
         // Go upstream to break the connection
+        if (this.dependencies === null) return
         this.dependencies.forEach(dependency => {
           dependency.removeDependent(this)
         })
@@ -671,7 +672,7 @@ const unobserve = (execute) => {
   const observer = new Observer(null, () => {
     output = execute()
   }, true)
-  observer.start()
+  observer()
   observer.stop()
   return output
 }
