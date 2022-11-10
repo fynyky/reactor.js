@@ -179,6 +179,15 @@ describe('Observer', () => {
     })
   })
 
+  it('exposes the raw function as execute', () => {
+    const dummyFunction = function(){
+      counter += 1
+      return rx.foo
+    }
+    const observer = observe(dummyFunction)
+    assert.equal(observer.execute, dummyFunction)
+  })
+
   describe('Triggering', () => {
     it('triggers once on initialization', () => {
       let counter = 0
@@ -823,40 +832,6 @@ describe('Observer', () => {
       assert(contextChecker === observer.context)
     })
 
-    it('can subscribe to observer results', () => {
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      const observer = observe(() => {
-        return reactor.foo + 'baz'
-      })
-      let result
-      observer.subscribe(x => {
-        result = x
-      })
-      observer()
-      assert(result === 'barbaz')
-      reactor.foo = 'qux'
-      assert(result === 'quxbaz')
-    })
-
-    it('can unsubscribe to observer results', () => {
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      const observer = observe(() => {
-        return reactor.foo + 'baz'
-      })
-      let result
-      const unsubscribe = observer.subscribe(x => {
-        result = x
-      })
-      observer()
-      assert(result === 'barbaz')
-      unsubscribe()
-      reactor.foo = 'qux'
-      assert(result === 'barbaz')
-    })
   })
 
   describe('Error Handling', () => {
@@ -931,5 +906,6 @@ describe('Observer', () => {
         return true
       })
     })
+
   })
 })

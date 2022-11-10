@@ -468,7 +468,7 @@ class Observer {
       // Avoids creating dependencies in that case
       unobserve,
       // Whether further triggers and updates are allowed
-      // Start asleep - this allows configuration of subscribers/context first
+      // Start asleep - this allows configuration of context first
       awake: false,
       // Whether the block is currently executing
       // prevents further triggered executions
@@ -476,14 +476,6 @@ class Observer {
       // The Signals the execution block reads from
       // at last trigger
       dependencies: new WeakRefSet(),
-      // Provided to the execute function when it triggers
-      // Can be set externally
-      // Allows information to be provided outside of when its defined
-      // Don't actually initialize context so that it defaults to undefined
-      // context,
-      // callbacks which will be given the execute return value
-      // when triggered
-      subscribers: new Set(),
 
       // Symmetrically removes dependencies
       clearDependencies () {
@@ -526,7 +518,6 @@ class Observer {
           // After main trigger, trigger any callbacks
           // Potential for infinite loop here if a callback triggers the observer again
           // Maybe i'm okay with that? there's legitimate use cases for this
-          this.callback(result)
         }
       },
 
@@ -539,27 +530,6 @@ class Observer {
       // Argument I think is that it is another function call
       trigger () {
         const result = this.execute(this.context)
-        this.callback(result)
-      },
-
-      // Fire all callbacks with the result
-      // If any errors occured during callbacks
-      // consolidate and throw them
-      callback (result) {
-        const errorList = []
-        for (const subscriber of this.subscribers) {
-          try {
-            subscriber(result)
-          } catch (error) {
-            errorList.push(error)
-          }
-        }
-        if (errorList.length === 1) {
-          throw errorList[0]
-        } else if (errorList.length > 1) {
-          const errorMessage = 'Multiple errors from observer callbacks'
-          throw new CompoundError(errorMessage, errorList)
-        }
       },
 
       // Redefines the observer with a new exec function
@@ -572,7 +542,6 @@ class Observer {
         this.executing = false
         this.execute = newExecute
         // Leave context as is
-        // Leave subscribers as is
       },
 
       // Pause the observer preventing further triggers
@@ -589,13 +558,6 @@ class Observer {
         this.notify()
       },
 
-      // Callbacks with the observer return value
-      subscribe (callback) {
-        this.subscribers.add(callback)
-        const unsubscribe = () => this.subscribers.delete(callback)
-        return unsubscribe
-      },
-
       // Wipes the observer clean for disposal
       clear () {
         this.clearDependencies()
@@ -604,7 +566,6 @@ class Observer {
         this.awake = null
         this.executing = null
         this.dependencies = null
-        this.subscribers = null
       }
 
     }
@@ -624,8 +585,12 @@ class Observer {
     observerInterface.start = (force) => observerCore.start(force)
     observerInterface.notify = () => observerCore.notify()
     observerInterface.trigger = () => observerCore.trigger()
-    observerInterface.subscribe = (callback) => observerCore.subscribe(callback)
     observerInterface.clear = () => observerCore.clear()
+    // Allow someone handling the observer to set and get context
+    Object.defineProperty(observerInterface, 'execute', {
+      get () { return observerCore.execute },
+      set (newValue) { return (observerCore.execute = newValue) }
+    })
     // Allow someone handling the observer to set and get context
     Object.defineProperty(observerInterface, 'context', {
       get () { return observerCore.context },
