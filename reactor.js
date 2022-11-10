@@ -558,7 +558,7 @@ class Observer {
       start ({ force = false } = {}) {
         if (this.awake && !force) return
         this.awake = true
-        this.notify()
+        return this.notify()
       },
 
       // Wipes the observer clean for disposal
@@ -578,11 +578,11 @@ class Observer {
       // AN empty call force triggers the block and turns it on
       // Equivalent to force starting wth observer.start({ 'force': true })
       if (arguments.length === 0) {
-        observerCore.start({ force: true })
+        return observerCore.start({ force: true })
       } else {
-        observerCore.redefine(execute)
+        observerCore.context = arguments[0]
+        return observerCore.start({ force: true })
       }
-      return observerInterface
     }
     observerInterface.stop = () => observerCore.stop()
     observerInterface.start = (force) => observerCore.start(force)
@@ -593,11 +593,6 @@ class Observer {
     Object.defineProperty(observerInterface, 'execute', {
       get () { return observerCore.execute },
       set (newValue) { return observerCore.redefine(newValue) }// TODO check return value
-    })
-    // Allow someone handling the observer to set and get context
-    Object.defineProperty(observerInterface, 'context', {
-      get () { return observerCore.context },
-      set (newValue) { return (observerCore.context = newValue) }
     })
     // Allow reading of last prop
     Object.defineProperty(observerInterface, 'value', {
