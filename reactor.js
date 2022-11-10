@@ -419,8 +419,7 @@ class Reactor {
 }
 
 // Observers are functions which automatically track their dependencies
-// They are triggered first on initialization
-// They are automatically retriggered whenever a dependency is updated
+// Once triggered they are automatically retriggered whenever a dependency is updated
 // Observers can be stopped and restarted
 // Starting after stopping causes the Observer to execute again
 // Starting does nothing if an Observer is already awake
@@ -493,22 +492,15 @@ class Observer {
         if (this.awake) {
           // Avoid infinite loops by throwing an error if we
           // try to trigger an already executing observer
-          if (this.executing) {
-            throw new LoopError(
-              'observer attempted to activate itself while already executing'
-            )
-          }
           // Execute the observed function after setting the dependency stack
           this.clearDependencies()
           if (unobserve) dependencyStack.push(null)
           else dependencyStack.push(this)
-          this.executing = true
           let result
           try {
             result = this.execute(this.context)
           } finally {
             dependencyStack.pop()
-            this.executing = false
           }
           // Store the result as a subscribable signal
           this.value(result)
@@ -663,15 +655,6 @@ const batch = (execute) => {
     result = execute()
   }
   return result
-}
-
-// Custom Error class to indicate loops in observer triggering
-class LoopError extends Error {
-  constructor (...args) {
-    super(...args)
-    this.name = this.constructor.name
-    return this
-  }
 }
 
 // Custom Error class to consolidate multiple errors together

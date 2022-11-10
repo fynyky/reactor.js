@@ -833,23 +833,6 @@ describe('Observer', () => {
   })
 
   describe('Error Handling', () => {
-    it('throws an error on an Observer loop', () => {
-      let counter = 0
-      let tracker
-      const reactor = new Reactor({ value: 'foo' })
-      assert.throws(() => {
-        observe(() => {
-          counter += 1
-          tracker = reactor.value
-          if (counter < 100) reactor.value = 'bar'
-        })()
-      }, {
-        name: 'LoopError',
-        message: 'observer attempted to activate itself while already executing'
-      })
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-    })
 
     it('throws an error on a write if there is an Observer error', () => {
       const reactor = new Reactor({ value: 'foo' })
