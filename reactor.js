@@ -84,7 +84,7 @@ class Signal {
       // Used to delete Signals with no dependents
       // To reduce memory leaks
 
-      // Life of a read
+      // Life of a read 
       // - check to see who is asking
       // - register them as a dependent and register self as their dependency
       // - return the appropriate static or dynamic value
@@ -446,7 +446,7 @@ class Reactor {
 // observer.start();                          Does nothing since already started
 const observerMembership = new WeakSet() // To check if something is an Observer
 class Observer {
-  constructor (execute, unobserve) {
+  constructor (execute) {
     // Parameter validation
     if (typeof execute !== 'function') {
       throw new TypeError('Cannot create observer with a non-function')
@@ -470,7 +470,6 @@ class Observer {
       value: new Signal(),
       // Flag on whether this is a unobserve block
       // Avoids creating dependencies in that case
-      unobserve,
 
       // Symmetrically removes dependencies
       clearDependencies () {
@@ -496,8 +495,7 @@ class Observer {
           this.clearDependencies()
           // Put self on the dependency stack
           // So any signals read by execute know who is calling
-          if (unobserve) dependencyStack.push(null)
-          else dependencyStack.push(this)
+          dependencyStack.push(this)
           let result
           // Wrap execute in a try block so that
           // dependency stack is popped even if an error is occured
@@ -597,11 +595,8 @@ const isObserver = (candidate) => observerMembership.has(candidate)
 // Unobserve is syntactic sugar to create a dummy observer to block the triggers
 // While also returning the contents of the block
 const unobserve = (execute) => {
-  let output
-  const observer = new Observer(() => {
-    output = execute()
-  }, true)
-  observer()
+  const observer = observe(execute)
+  const output = observer()
   observer.stop()
   return output
 }
