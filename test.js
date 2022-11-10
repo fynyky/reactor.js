@@ -201,19 +201,6 @@ describe('Observer', () => {
     assert.equal(observer.value, 'bar')
   })
 
-  it('can redefine the observer', () => {
-    let counter = 0
-    const observer = observe(() => { counter += 1 })
-    observer()
-    assert.equal(counter, 1)
-    observer()
-    assert.equal(counter, 2)
-    observer.execute = () => { counter += 2 }
-    assert.equal(counter, 4)
-    observer()
-    assert.equal(counter, 6)
-  })
-
   it('returns the function return value', () => {
     const observer = observe(() => 'foo')
     assert.equal(observer(), 'foo')
@@ -501,7 +488,7 @@ describe('Observer', () => {
       })()
     })
 
-    it('can override observer', () => {
+    it('can redefine an observer', () => {
       const reactor = new Reactor({
         first: 'foo',
         second: 'bar'
