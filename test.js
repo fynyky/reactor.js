@@ -206,6 +206,20 @@ describe('Observer', () => {
     assert.equal(observer(), 'foo')
   })
 
+  it('can observe an observer', () => {
+    let outcome
+    const rx = new Reactor({
+      foo: 'foo'
+    })
+    const a = observe(() => rx.foo + 'bar')
+    a()
+    const b = observe(() => (outcome = a.value + 'baz'))
+    b()
+    assert.equal(outcome, 'foobarbaz')
+    rx.foo = 'qux'
+    assert.equal(outcome, 'quxbarbaz')
+  })
+
   describe('Triggering', () => {
     it('triggers once on initialization', () => {
       let counter = 0
