@@ -180,9 +180,8 @@ describe('Observer', () => {
   })
 
   it('exposes the raw function as execute', () => {
-    const dummyFunction = function(){
-      counter += 1
-      return rx.foo
+    const dummyFunction = function () {
+      return 'foo'
     }
     const observer = observe(dummyFunction)
     assert.equal(observer.execute, dummyFunction)
@@ -204,12 +203,12 @@ describe('Observer', () => {
 
   it('can redefine the observer', () => {
     let counter = 0
-    const observer = observe(() => counter += 1)
+    const observer = observe(() => { counter += 1 })
     observer()
     assert.equal(counter, 1)
     observer()
     assert.equal(counter, 2)
-    observer.execute = () => counter += 2
+    observer.execute = () => { counter += 2 }
     observer()
     assert.equal(counter, 4)
   })
@@ -540,44 +539,6 @@ describe('Observer', () => {
       assert.equal(secondTracker, 'baz')
     })
 
-    // TODO figure out how to fix this. Redefine or new obs
-    it.skip('can override observer using key', () => {
-      const reactor = new Reactor({
-        first: 'foo',
-        second: 'bar'
-      })
-      let firstCounter = 0
-      let secondCounter = 0
-      let firstTracker
-      let secondTracker
-      observe('commonKey', () => {
-        firstCounter += 1
-        firstTracker = reactor.first
-      })()
-      assert.equal(firstCounter, 1)
-      assert.equal(secondCounter, 0)
-      assert.equal(firstTracker, 'foo')
-      assert.equal(secondTracker, undefined)
-      observe('commonKey', () => {
-        secondCounter += 1
-        secondTracker = reactor.second
-      })()
-      assert.equal(firstCounter, 1)
-      assert.equal(secondCounter, 1)
-      assert.equal(firstTracker, 'foo')
-      assert.equal(secondTracker, 'bar')
-      reactor.first = 'moo'
-      assert.equal(firstCounter, 1)
-      assert.equal(secondCounter, 1)
-      assert.equal(firstTracker, 'foo')
-      assert.equal(secondTracker, 'bar')
-      reactor.second = 'baz'
-      assert.equal(firstCounter, 1)
-      assert.equal(secondCounter, 2)
-      assert.equal(firstTracker, 'foo')
-      assert.equal(secondTracker, 'baz')
-    })
-
     it('delays and combines observer triggers when using batch', () => {
       const reactor = new Reactor({ value: 'foo' })
       let counter = 0
@@ -869,7 +830,6 @@ describe('Observer', () => {
       observer(dummyObject)
       assert.equal(contextChecker, dummyObject)
     })
-
   })
 
   describe('Error Handling', () => {
@@ -944,6 +904,5 @@ describe('Observer', () => {
         return true
       })
     })
-
   })
 })

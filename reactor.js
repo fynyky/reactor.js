@@ -1,4 +1,4 @@
-import { WeakRefMap, WeakRefSet } from 'weak-ref-collections'
+import { WeakRefSet } from 'weak-ref-collections'
 
 // Global stack to automatically track dependencies
 // - When an observer is updated, it first puts itself on the dependency stack
@@ -443,20 +443,12 @@ class Reactor {
 //                                            and allow updates again
 //
 // observer.start();                          Does nothing since already started
-const observerRegistry = new WeakRefMap()
 const observerMembership = new WeakSet()
 class Observer {
-  constructor (key, execute, unobserve) {
-    // The triggered and observed block of code
+  constructor (execute, unobserve) {
+    // Parameter validation
     if (typeof execute !== 'function') {
       throw new TypeError('Cannot create observer with a non-function')
-    }
-
-    // Check to see if there's an existing observer to override
-    // instead of making a new one
-    if (typeof key !== 'undefined' && key !== null) {
-      const existingObserver = observerRegistry.get(key)
-      if (existingObserver) return existingObserver(execute)
     }
 
     // Internal engine of an Observer for how it works
@@ -533,6 +525,7 @@ class Observer {
       // Argument I think is that it is another function call
       trigger () {
         const result = this.execute(this.context)
+        return result
       },
 
       // Redefines the observer with a new exec function
@@ -596,15 +589,11 @@ class Observer {
     })
     // Allow reading of last prop
     Object.defineProperty(observerInterface, 'value', {
-      get () { return observerCore.value() },
+      get () { return observerCore.value() }
     })
-
 
     // Register the observer for potential overriding later
     coreExtractor.set(observerInterface, observerCore)
-    if (typeof key !== 'undefined') {
-      observerRegistry.set(key, observerInterface)
-    }
     observerMembership.add(observerInterface)
 
     // Does not trigger on initialization until () or .start() are called
@@ -616,19 +605,8 @@ class Observer {
     // once - does not awake if asleep. Multiple calls manually do multiple triggers
   }
 }
-const observe = (arg1, arg2) => {
-  // Argument parsing
-  // If only one argument is given then it needs to be an execute block
-  // If 2 are presented then the first one is treated as an override key
-  let key
-  let execute
-  if (typeof arg2 === 'undefined') {
-    execute = arg1
-  } else {
-    key = arg1
-    execute = arg2
-  }
-  return new Observer(key, execute)
+const observe = (execute) => {
+  return new Observer(execute)
 }
 
 const isObserver = (candidate) => observerMembership.has(candidate)
@@ -637,7 +615,7 @@ const isObserver = (candidate) => observerMembership.has(candidate)
 // While also returning the contents of the block
 const unobserve = (execute) => {
   let output
-  const observer = new Observer(null, () => {
+  const observer = new Observer(() => {
     output = execute()
   }, true)
   observer()
