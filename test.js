@@ -188,6 +188,32 @@ describe('Observer', () => {
     assert.equal(observer.execute, dummyFunction)
   })
 
+  it('exposes the last derived value', () => {
+    const rx = new Reactor({
+      foo: 'foo'
+    })
+    const observer = observe(() => {
+      return rx.foo
+    })
+    assert(typeof observer.value === 'undefined')
+    observer()
+    assert.equal(observer.value, 'foo')
+    rx.foo = 'bar'
+    assert.equal(observer.value, 'bar')
+  })
+
+  it('can redefine the observer', () => {
+    let counter = 0
+    const observer = observe(() => counter += 1)
+    observer()
+    assert.equal(counter, 1)
+    observer()
+    assert.equal(counter, 2)
+    observer.execute = () => counter += 2
+    observer()
+    assert.equal(counter, 4)
+  })
+
   describe('Triggering', () => {
     it('triggers once on initialization', () => {
       let counter = 0

@@ -75,7 +75,7 @@ class Signal {
     const signalCore = {
 
       // Signal state
-      value: null, // The set value
+      // value: undefined, // The set value. Purposed undefined as undefined
       dependents: new Set(), // The Observers which rely on this Signal
       reactorCache: new WeakMap(), // Cache of objects to their reactor proxies
       // Allows for consistent dependency tracking
@@ -476,6 +476,9 @@ class Observer {
       // The Signals the execution block reads from
       // at last trigger
       dependencies: new WeakRefSet(),
+      // Store the value of the last successful execution
+      // Stored as a Signal which makes it subscribable
+      value: new Signal(),
 
       // Symmetrically removes dependencies
       clearDependencies () {
@@ -515,9 +518,9 @@ class Observer {
             dependencyStack.pop()
             this.executing = false
           }
-          // After main trigger, trigger any callbacks
-          // Potential for infinite loop here if a callback triggers the observer again
-          // Maybe i'm okay with that? there's legitimate use cases for this
+          // Store the result as a subscribable signal
+          this.value(result)
+          return result
         }
       },
 
@@ -589,13 +592,18 @@ class Observer {
     // Allow someone handling the observer to set and get context
     Object.defineProperty(observerInterface, 'execute', {
       get () { return observerCore.execute },
-      set (newValue) { return (observerCore.execute = newValue) }
+      set (newValue) { return observerCore.redefine(newValue) }// TODO check return value
     })
     // Allow someone handling the observer to set and get context
     Object.defineProperty(observerInterface, 'context', {
       get () { return observerCore.context },
       set (newValue) { return (observerCore.context = newValue) }
     })
+    // Allow reading of last prop
+    Object.defineProperty(observerInterface, 'value', {
+      get () { return observerCore.value() },
+    })
+
 
     // Register the observer for potential overriding later
     coreExtractor.set(observerInterface, observerCore)
