@@ -142,7 +142,7 @@ class Signal {
         Array.from(this.dependents).forEach(dependent => {
           try {
             if (batcher) batcher.add(dependent)
-            else dependent.notify()
+            else dependent.trigger()
           } catch (error) { errorList.push(error) }
         })
         // If any errors occured during propagation
@@ -299,12 +299,12 @@ class Reactor {
         const didSucceed = Reflect.defineProperty(
           this.source, property, descriptor
         )
-        // Notify dependents before returning
+        // Trigger dependents before returning
         this.trigger(property)
         return didSucceed
       },
 
-      // Transparently delete the property but also notify dependents
+      // Transparently delete the property but also trigger dependents
       deleteProperty (property) {
         const didSucceed = Reflect.deleteProperty(this.source, property)
         this.trigger(property)
@@ -419,11 +419,12 @@ class Reactor {
 }
 
 // Observers are functions which automatically track their dependencies
-// Once triggered they are automatically retriggered whenever a dependency is updated
+// Once triggered they automatically retrigger whenever a dependency is updated
+// A dependency is any read of Signal or property of a Reactor
+// Triggering an observer with parameters saves them for future auto triggers
 // Observers can be stopped and restarted
 // Starting after stopping causes the Observer to execute again
 // Starting does nothing if an Observer is already awake
-// To prevent infinite loops an error is thrown if an Observer triggers itself
 // -----------------------------------------------------------------------------
 // Examples
 // let a = new Signal(1);
@@ -433,6 +434,7 @@ class Reactor {
 //   console.log("a is now " + a());          a or b.foo are updated
 //   console.log("b.foois now " + b.foo);
 // })
+// observer()
 // a(2);                                      This will trigger an update
 //
 // observer.stop();                           This will block triggers
@@ -442,7 +444,7 @@ class Reactor {
 //                                            and allow updates again
 //
 // observer.start();                          Does nothing since already started
-const observerMembership = new WeakSet()
+const observerMembership = new WeakSet() // To check if something is an Observer
 class Observer {
   constructor (execute, unobserve) {
     // Parameter validation
@@ -454,22 +456,21 @@ class Observer {
     // All actual functionality & state should be built into the core
     // Should be completely agnostic to syntactic sugar
     const observerCore = {
+      // Core function the observer is wrapping
       execute,
-      // flag on whether this is a unobserve block
+      // Whether automatic triggers will be accepted
+      awake: false,
+      // The Signals the execution block reads from
+      // Cleared and rebuilt at every trigger
+      // Store dependencies weakly to avoid memory loops
+      // They're only stored to break the connection later anyway
+      dependencies: new WeakRefSet(),
+      // Stored return value of the last successful execute
+      // Stored in a Signal which makes it observable itself
+      value: new Signal(),
+      // Flag on whether this is a unobserve block
       // Avoids creating dependencies in that case
       unobserve,
-      // Whether further triggers and updates are allowed
-      // Start asleep - this allows configuration of context first
-      awake: false,
-      // Whether the block is currently executing
-      // prevents further triggered executions
-      executing: false,
-      // The Signals the execution block reads from
-      // at last trigger
-      dependencies: new WeakRefSet(),
-      // Store the value of the last successful execution
-      // Stored as a Signal which makes it subscribable
-      value: new Signal(),
 
       // Symmetrically removes dependencies
       clearDependencies () {
@@ -482,42 +483,36 @@ class Observer {
         this.dependencies = new WeakRefSet()
       },
 
-      // Store dependencies weakly to avoid memory loops
-      // They're only stored to break the connection later anyway
+      // External call to add a dependency
+      // Wrapped to to encapsulate implementation
       addDependency (dependency) {
         this.dependencies.add(dependency)
       },
 
-      notify () {
+      // Trigger the execute block and build dependencies
+      // Does nothing if observer is asleep
+      trigger () {
         if (this.awake) {
-          // Avoid infinite loops by throwing an error if we
-          // try to trigger an already executing observer
-          // Execute the observed function after setting the dependency stack
           this.clearDependencies()
+          // Put self on the dependency stack
+          // So any signals read by execute know who is calling
           if (unobserve) dependencyStack.push(null)
           else dependencyStack.push(this)
           let result
+          // Wrap execute in a try block so that
+          // dependency stack is popped even if an error is occured
+          // Allows users to catch errors themselves and handle them
           try {
             result = this.execute(this.context)
           } finally {
             dependencyStack.pop()
           }
           // Store the result as a subscribable signal
+          // This will trigger any downstream observers
+          // which depend on this observers value
           this.value(result)
           return result
         }
-      },
-
-      // Trigger the execution block and find its dependencies
-      // TODO should triggers build dependencies?
-      // One option is is awake yes. If asleep then no?
-      // What if trigger is called within another observer?
-      // Should it "wrap" like an unobserve?
-      // Or just be another function call
-      // Argument I think is that it is another function call
-      trigger () {
-        const result = this.execute(this.context)
-        return result
       },
 
       // Redefines the observer with a new exec function
@@ -526,75 +521,71 @@ class Observer {
           throw new TypeError('Cannot create observer with a non-function')
         }
         this.clearDependencies()
-        this.awake = false
-        this.executing = false
         this.execute = newExecute
-        // Leave context as is
+        this.awake = false
+        // Set Signal to undefined instead of making a new Signal so we maintain dependents
+        // Ugliness of setting something to be undefined necessary
+        // To maintain javascript unset variable semantics
+        // TODO does propagating an undefined to all dependents cause trouble?
+        // Maybe should just have it execute on redefine automatically?
+        this.value(undefined)
+        // Leave context as is? TODO maybe not?
       },
 
       // Pause the observer preventing further triggers
+      // Returns false if it was already asleep
+      // Returns true if it was awake
       stop () {
+        if (!this.awake) return false
         this.awake = false
         this.clearDependencies()
+        return true
       },
 
       // Restart the observer if it is not already awake
-      // force start retriggers even if its already awake
-      start ({ force = false } = {}) {
-        if (this.awake && !force) return
+      // Returns false is already awake
+      // Returns true if it was woken up
+      start () {
+        if (this.awake) return false
         this.awake = true
-        return this.notify()
-      },
-
-      // Wipes the observer clean for disposal
-      clear () {
-        this.clearDependencies()
-        this.execute = null
-        this.unobserve = null
-        this.awake = null
-        this.executing = null
-        this.dependencies = null
+        this.trigger()
+        return true
       }
 
     }
 
     // Public interace to hide the ugliness of how observers work
-    const observerInterface = function (execute) {
-      // AN empty call force triggers the block and turns it on
-      // Equivalent to force starting wth observer.start({ 'force': true })
-      if (arguments.length === 0) {
-        return observerCore.start({ force: true })
-      } else {
-        observerCore.context = arguments[0]
-        return observerCore.start({ force: true })
-      }
+    // An empty call force triggers the block and turns it on
+    // A call with arguments gets those arguments passed as a context
+    // for that and future retriggers
+    const observerInterface = function () {
+      if (arguments.length > 0) observerCore.context = arguments[0]
+      observerCore.awake = true
+      return observerCore.trigger()
     }
     observerInterface.stop = () => observerCore.stop()
     observerInterface.start = (force) => observerCore.start(force)
-    observerInterface.notify = () => observerCore.notify()
     observerInterface.trigger = () => observerCore.trigger()
-    observerInterface.clear = () => observerCore.clear()
-    // Allow someone handling the observer to set and get context
+    // Expose the wrapped execute function
+    // Setting it keeps the context and dependents
+    // but puts the observer back to sleep
     Object.defineProperty(observerInterface, 'execute', {
       get () { return observerCore.execute },
       set (newValue) { return observerCore.redefine(newValue) }// TODO check return value
     })
-    // Allow reading of last prop
+    // Allow reads of the last return value of execute
+    // As a Signal this itself is observable and
+    // builds dependencies if done within another observer
     Object.defineProperty(observerInterface, 'value', {
       get () { return observerCore.value() }
     })
 
-    // Register the observer for potential overriding later
+    // Register the observer for isObserver checking later
     coreExtractor.set(observerInterface, observerCore)
     observerMembership.add(observerInterface)
 
     // Does not trigger on initialization until () or .start() are called
     return observerInterface
-
-    // TODO figure out start stop calls vs ()
-    // start - kicks off if asleep. Multiple calls do nothing
-    // () - kicks off if asleep. Multiple calls manually do mulktiple trigger
-    // once - does not awake if asleep. Multiple calls manually do multiple triggers
   }
 }
 const observe = (execute) => {
@@ -639,7 +630,7 @@ const batch = (execute) => {
     // A conslidated error will be thrown at the end of propagation
     const errorList = []
     batchedObservers.forEach(observer => {
-      try { observer.notify() } catch (error) { errorList.push(error) }
+      try { observer.trigger() } catch (error) { errorList.push(error) }
     })
 
     // If any errors occured during propagation

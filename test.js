@@ -720,94 +720,6 @@ describe('Observer', () => {
       assert.equal(counter, 2)
       assert.equal(tracker, 'moo')
     })
-
-    it('has an effect with repeated force starts', () => {
-      let counter = 0
-      let tracker = null
-      const reactor = new Reactor({ value: 'foo' })
-      const observer = observe(() => {
-        counter += 1
-        tracker = reactor.value
-      })
-      observer()
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-      observer.stop()
-      reactor.value = 'moo'
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-      observer.start({ force: true })
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'moo')
-      observer.start({ force: true })
-      assert.equal(counter, 3)
-      observer.start({ force: true })
-      observer.start({ force: true })
-      observer.start({ force: true })
-      assert.equal(counter, 6)
-    })
-
-    it('can trigger even when stopped and stay stopped', () => {
-      let counter = 0
-      let tracker = null
-      const reactor = new Reactor({ value: 'foo' })
-      const observer = observe(() => {
-        counter += 1
-        tracker = reactor.value
-      })
-      observer()
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-      observer.stop()
-      reactor.value = 'moo'
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-      observer.trigger()
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'moo')
-      reactor.value = 'boo'
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'moo')
-      observer.trigger()
-      assert.equal(counter, 3)
-      assert.equal(tracker, 'boo')
-      observer.trigger()
-      observer.trigger()
-      observer.trigger()
-      assert.equal(counter, 6)
-    })
-
-    it('can notify respecting stopped or not', () => {
-      let counter = 0
-      let tracker = null
-      const reactor = new Reactor({ value: 'foo' })
-      const observer = observe(() => {
-        counter += 1
-        tracker = reactor.value
-      })
-      observer()
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-      observer.stop()
-      reactor.value = 'moo'
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-      observer.notify()
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-      observer.notify()
-      observer.notify()
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-      observer.start()
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'moo')
-      observer.notify()
-      observer.notify()
-      observer.notify()
-      assert.equal(counter, 5)
-      assert.equal(tracker, 'moo')
-    })
   })
 
   describe('Context & Subscriptions', () => {
@@ -833,7 +745,6 @@ describe('Observer', () => {
   })
 
   describe('Error Handling', () => {
-
     it('throws an error on a write if there is an Observer error', () => {
       const reactor = new Reactor({ value: 'foo' })
       observe(() => {
