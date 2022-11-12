@@ -102,6 +102,13 @@ class Signal {
         const output = (this.value instanceof Definition)
           ? this.value.definition()
           : this.value
+
+        // If it's not an object then just return it right away
+        // Cleaner and faster than the alternative approach of constructing a Reactor
+        // and catching an error
+        if (output === null) return output
+        if (typeof output !== 'function' && typeof output !== 'object') return output
+
         // Wrap the output in a Reactor if it's an object
         // No need to wrap it if its already a Reactor
         if (Reactors.has(output)) return output
@@ -110,16 +117,9 @@ class Signal {
         let reactor = this.reactorCache.get(output)
         if (reactor) return reactor
         // If not then wrap and store it for future reads
-        try {
-          reactor = new Reactor(output)
-          this.reactorCache.set(output, reactor)
-          return reactor
-        // Assume TypeError means it was not an object
-        // In that case just return the plain output
-        } catch (error) {
-          if (error.name === 'TypeError') return output
-          throw error
-        }
+        reactor = new Reactor(output)
+        this.reactorCache.set(output, reactor)
+        return reactor
       },
 
       // Life of a write
