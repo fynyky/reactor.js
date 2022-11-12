@@ -84,7 +84,7 @@ class Signal {
       // Used to delete Signals with no dependents
       // To reduce memory leaks
 
-      // Life of a read 
+      // Life of a read
       // - check to see who is asking
       // - register them as a dependent and register self as their dependency
       // - return the appropriate static or dynamic value
@@ -256,7 +256,29 @@ class Reactor {
         // This enables automatic dependency tracking
         const signalCore = coreExtractor.get(this.getSignals[property])
         signalCore.removeSelf = () => delete this.getSignals[property]
-        const currentValue = Reflect.get(this.source, property, receiver)
+        const currentValue = (() => {
+          // Handle getters which require hidden/native properties
+          // If putting the proxy as `this` fails then reveal the underlying object
+          // There are limitations though
+          // - If the getter have any side effects on error this will trigger them twice
+          // - If the getter also reads other public properties this will not build dependencies
+          // For example this will fail to build a dependency on `this.normalProp` if proxied
+          // get (prop) {
+          //   return this.#hiddenProp + this.normalProp
+          // }
+          // This is sort of a necessary limitation of dealing with native code though
+          // Better than failing overall?
+          // An alternative is to detect the "nativeness" of an object and pass through
+          // That seems quite messy though
+          try {
+            return Reflect.get(this.source, property, receiver)
+          } catch (error) {
+            // We trim to TypeError to minimize unnecessary double retries to actual proxy problems
+            // but it could still happen for other TypeErrors
+            if (error.name === 'TypeError') return Reflect.get(this.source, property, this.source)
+            throw error
+          }
+        })()
         signalCore.value = currentValue
         return signalCore.read()
       },

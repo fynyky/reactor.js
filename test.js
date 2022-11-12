@@ -119,6 +119,15 @@ describe('Reactor', () => {
       inheritor.foo = 'mux'
       assert.equal(inheritor.getFoo, 'mux')
     })
+
+    it('allows Reactor wrapping of native object properties', () => {
+      const native = new Map()
+      const proxy = new Reactor(native)
+      // Normaly proxy wrapping will fail
+      // This check to see if we redirect the call `this`
+      // to the wrapped object instead of the wrapper when appropriate
+      assert.equal(proxy.size, 0)
+    })
   })
 })
 
