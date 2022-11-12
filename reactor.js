@@ -226,7 +226,29 @@ class Reactor {
       // This allows compound function calls like "Array.push"
       // to only trigger one round of observer updates
       apply (thisArg, argumentsList) {
-        return batch(() => Reflect.apply(this.source, thisArg, argumentsList))
+        return batch(() => {
+          // For native object methods which cant use a Proxy as `this`
+          // try again with the underlying object
+          // Some limitations if the failed attempt has side effects this will double up
+          // Also this still wont fix being unable to pass the proxy to static methods
+          // `proxiedMap.keys()` will work because keys gets wrapped by this handler
+          // `Map.prototype.keys.call(proxiedMap)` won't work because it doesnt get wrapped
+          try {
+            return Reflect.apply(this.source, thisArg, argumentsList)
+          } catch (error) {
+            if (error.name === 'TypeError') {
+              const core = coreExtractor.get(thisArg)
+              if (typeof core !== 'undefined') {
+                // Note that this.source and core.source are different
+                // core.source is the underlying object
+                // this.source is the function which is being called with the object as `this`
+                return Reflect.apply(this.source, core.source, argumentsList)
+              }
+            }
+            // If any other type of error, or if there's nothing to unwrap throw error anyway
+            throw error
+          }
+        })
       },
 
       // Instead of reading a property directly

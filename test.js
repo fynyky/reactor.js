@@ -128,6 +128,13 @@ describe('Reactor', () => {
       // to the wrapped object instead of the wrapper when appropriate
       assert.equal(proxy.size, 0)
     })
+
+    it('allows Reactor wrapping of native objects methods', () => {
+      const reactor = new Reactor(new Map())
+      // Normal proxy wrapping will fail
+      // since .keys() cannot be called on a Proxy
+      reactor.keys()
+    })
   })
 })
 
