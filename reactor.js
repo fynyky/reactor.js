@@ -604,18 +604,22 @@ const batch = (execute) => {
     // Set a global batcher so signals know not to trigger observers immediately
     // Using a set allows the removal of redundant triggering in observers
     batcher = new Set()
+    let batchedObservers = []
     // Execute the given block and collect the triggerd observers
-    result = execute()
+    try {
+      result = execute()
+    } finally {
+      // Clear the batching mode
+      // This needs to be done before observer triggering in case any observers
+      // subsequently themselves trigger batches
+      // This also needs to be done first before throwing errors
+      // Otherwise the thrown errors will mean we never unset the batcher
+      // This will cause subsequent triggers to get stuck in this dead batcher
+      // Never to be executed
+      batchedObservers = Array.from(batcher) // Make a copy to freeze it
+      batcher = null
+    }
 
-    // Clear the batching mode
-    // This needs to be done before observer triggering in case any observers
-    // subsequently themselves trigger batches
-    // This also needs to be done first before throwing errors
-    // Otherwise the thrown errors will mean we never unset the batcher
-    // This will cause subsequent triggers to get stuck in this dead batcher
-    // Never to be executed
-    const batchedObservers = Array.from(batcher) // Make a copy to freeze it
-    batcher = null
     // Trigger the collected observers
     // If an error occurs, collect it and keep going
     // A conslidated error will be thrown at the end of propagation
