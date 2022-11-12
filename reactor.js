@@ -553,7 +553,7 @@ class Observer {
           // This will trigger any downstream observers
           // which depend on this observers value
           this.value(result)
-          return result
+          return this.value()
         }
       },
 
@@ -635,10 +635,14 @@ const isObserver = (candidate) => observerMembership.has(candidate)
 // Unobserve is syntactic sugar to create a dummy observer to block the triggers
 // While also returning the contents of the block
 const unobserve = (execute) => {
-  const observer = observe(execute)
-  const output = observer()
-  observer.stop()
-  return output
+  let result
+  dependencyStack.push(null)
+  try {
+    result = execute()
+  } finally {
+    dependencyStack.pop()
+  }
+  return result
 }
 
 // Method for allowing users to batch multiple observer updates together
