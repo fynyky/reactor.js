@@ -4,7 +4,8 @@ import {
   Reactor,
   observe,
   unobserve,
-  batch
+  batch,
+  shuck
 } from './reactor.js'
 
 describe('Reactor', () => {
@@ -134,6 +135,16 @@ describe('Reactor', () => {
       // Normal proxy wrapping will fail
       // since .keys() cannot be called on a Proxy
       reactor.keys()
+    })
+
+    it.only('allows shucking of a Reactor to get the underlying object', () => {
+      const reactor = new Reactor(new Map())
+      assert.throws(() => Map.prototype.keys.call(reactor), {
+        name: 'TypeError',
+        message: 'Method Map.prototype.keys called on incompatible receiver #<Map>'
+      })
+      const source = shuck(reactor)
+      Map.prototype.keys.call(source)
     })
   })
 })

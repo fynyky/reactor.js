@@ -691,6 +691,14 @@ const batch = (execute) => {
   return result
 }
 
+// Method for extracting a the internal object from the Reactor
+const shuck = (reactor) => {
+  const core = coreExtractor.get(reactor)
+  if (core) return core.source
+  // In this case its a normal object. No need to shuck
+  return reactor
+}
+
 // Custom Error to consolidate multiple errors together
 class CompoundError extends Error {
   constructor (message, errorList) {
@@ -719,5 +727,6 @@ export {
   observe,
   unobserve,
   batch,
+  shuck,
   define
 }
