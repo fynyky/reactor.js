@@ -635,7 +635,7 @@ const observe = (execute) => {
   return new Observer(execute)
 }
 
-const isObserver = (candidate) => observerMembership.has(candidate)
+const isObserver = (candidate) => observerMembership.has(shuck(candidate))
 
 // Unobserve is syntactic sugar to create a dummy observer to block the triggers
 // While also returning the contents of the block
