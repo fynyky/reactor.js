@@ -14,7 +14,9 @@ const dependencyStack = []
 // each others interfaces to access internal core variables
 // In the constructor of each of them, they will map their external interfaces
 // to their internal cores
-const coreExtractor = new WeakMap()
+const signalCoreExtractor = new WeakMap()
+const reactorCoreExtractor = new WeakMap()
+const observerCoreExtractor = new WeakMap()
 
 // A batcher is used to postpone observer triggers and batch them together
 // When "batch" is called it adds sets a batcher to this global variable
@@ -172,7 +174,7 @@ class Signal {
     }
 
     // Register the Signal for debugging/typechecking purposes
-    coreExtractor.set(signalInterface, signalCore)
+    signalCoreExtractor.set(signalInterface, signalCore)
     Signals.add(signalInterface)
 
     // Initialize with the provided value before returning
@@ -241,7 +243,7 @@ class Reactor {
             return Reflect.apply(this.source, thisArg, argumentsList)
           } catch (error) {
             if (error.name === 'TypeError') {
-              const core = coreExtractor.get(thisArg)
+              const core = reactorCoreExtractor.get(thisArg)
               if (typeof core !== 'undefined') {
                 // Note that this.source and core.source are different
                 // core.source is the underlying object
@@ -280,7 +282,7 @@ class Reactor {
             : new Signal()
         // User accessor signals to give the actual output
         // This enables automatic dependency tracking
-        const signalCore = coreExtractor.get(this.getSignals[property])
+        const signalCore = signalCoreExtractor.get(this.getSignals[property])
         signalCore.removeSelf = () => delete this.getSignals[property]
         const currentValue = (() => {
           // Handle getters which require hidden/native properties
@@ -373,7 +375,7 @@ class Reactor {
             : new Signal(null)
         // User accessor signals to give the actual output
         // This enables automatic dependency tracking
-        const signalCore = coreExtractor.get(this.hasSignals[property])
+        const signalCore = signalCoreExtractor.get(this.hasSignals[property])
         signalCore.removeSelf = () => delete this.hasSignals[property]
         const currentValue = Reflect.has(this.source, property)
         signalCore.value = currentValue
@@ -383,7 +385,7 @@ class Reactor {
       // Subscribe to the overall reactor by reading the dummy signal
       ownKeys () {
         const currentKeys = Reflect.ownKeys(this.source)
-        const signalCore = coreExtractor.get(this.selfSignal)
+        const signalCore = signalCoreExtractor.get(this.selfSignal)
         signalCore.value = currentKeys
         return signalCore.read()
       },
@@ -399,7 +401,7 @@ class Reactor {
         const hasValue = Reflect.has(this.source, property)
         // For ownKeys you need to manually calculate the set comparison
         const currentOwnKeysValue = Reflect.ownKeys(this.source)
-        const oldOwnKeysValue = coreExtractor.get(this.selfSignal).value
+        const oldOwnKeysValue = signalCoreExtractor.get(this.selfSignal).value
         const ownKeysChanged = (() => {
           const currentSet = new Set(currentOwnKeysValue)
           const oldSet = new Set(oldOwnKeysValue)
@@ -460,7 +462,7 @@ class Reactor {
       }
     })
     // Register the reactor for debugging/typechecking purposes
-    coreExtractor.set(reactorInterface, reactorCore)
+    reactorCoreExtractor.set(reactorInterface, reactorCore)
     Reactors.add(reactorInterface)
     reactorCache.set(initializedSource, reactorInterface)
     return reactorInterface
@@ -624,7 +626,7 @@ class Observer {
     })
 
     // Register the observer for isObserver checking later
-    coreExtractor.set(observerInterface, observerCore)
+    observerCoreExtractor.set(observerInterface, observerCore)
     observerMembership.add(observerInterface)
 
     // Does not trigger on initialization until () or .start() are called
@@ -635,7 +637,7 @@ const observe = (execute) => {
   return new Observer(execute)
 }
 
-const isObserver = (candidate) => observerMembership.has(shuck(candidate))
+const isObserver = (candidate) => observerMembership.has(candidate)
 
 // Unobserve is syntactic sugar to create a dummy observer to block the triggers
 // While also returning the contents of the block
@@ -698,7 +700,7 @@ const batch = (execute) => {
 
 // Method for extracting a the internal object from the Reactor
 const shuck = (reactor) => {
-  const core = coreExtractor.get(reactor)
+  const core = reactorCoreExtractor.get(reactor)
   if (core) return core.source
   // In this case its a normal object. No need to shuck
   return reactor
