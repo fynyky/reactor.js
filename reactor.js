@@ -16,7 +16,6 @@ const dependencyStack = []
 // to their internal cores
 const signalCoreExtractor = new WeakMap()
 const reactorCoreExtractor = new WeakMap()
-const observerCoreExtractor = new WeakMap()
 
 // A batcher is used to postpone observer triggers and batch them together
 // When "batch" is called it adds sets a batcher to this global variable
@@ -626,7 +625,6 @@ class Observer {
     })
 
     // Register the observer for isObserver checking later
-    observerCoreExtractor.set(observerInterface, observerCore)
     observerMembership.add(observerInterface)
 
     // Does not trigger on initialization until () or .start() are called
