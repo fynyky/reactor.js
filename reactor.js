@@ -24,6 +24,11 @@ const coreExtractor = new WeakMap()
 // Then clears the batcher again
 let batcher = null
 
+// Cache of objects to their reactor proxies
+// Allows for consistent dependency tracking
+// across multiple reads of the same object
+const reactorCache = new WeakMap()
+
 // Definition is a shell class to identify dynamically calculated variables
 // Accessed through the "define" function
 // Class itself is not meant to be instantiated directly
@@ -77,9 +82,6 @@ class Signal {
       // Signal state
       // value: undefined, // The set value. Purposed undefined as undefined
       dependents: new Set(), // The Observers which rely on this Signal
-      reactorCache: new WeakMap(), // Cache of objects to their reactor proxies
-      // Allows for consistent dependency tracking
-      // across multiple reads of the same object
       removeSelf: () => {}, // callback set by parent Reactor to allow removal
       // Used to delete Signals with no dependents
       // To reduce memory leaks
@@ -112,14 +114,8 @@ class Signal {
         // Wrap the output in a Reactor if it's an object
         // No need to wrap it if its already a Reactor
         if (Reactors.has(output)) return output
-        // Check to see if we've wrapped this object before
-        // This allows consistency of dependencies with repeated read calls
-        let reactor = this.reactorCache.get(output)
-        if (reactor) return reactor
         // If not then wrap and store it for future reads
-        reactor = new Reactor(output)
-        this.reactorCache.set(output, reactor)
-        return reactor
+        return new Reactor(output)
       },
 
       // Life of a write
@@ -211,6 +207,11 @@ class Signal {
 const Reactors = new WeakSet()
 class Reactor {
   constructor (initializedSource) {
+    // Check to see if we've wrapped this object before
+    // This allows consistency of dependencies with repeated read calls
+    const existingReactor = reactorCache.get(initializedSource)
+    if (existingReactor) return existingReactor
+
     // The source is the internal proxied object
     // If no source is provided then provide a new default object
     if (arguments.length === 0) initializedSource = {}
@@ -458,6 +459,7 @@ class Reactor {
     // Register the reactor for debugging/typechecking purposes
     coreExtractor.set(reactorInterface, reactorCore)
     Reactors.add(reactorInterface)
+    reactorCache.set(initializedSource, reactorInterface)
     return reactorInterface
   }
 }

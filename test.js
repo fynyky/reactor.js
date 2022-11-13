@@ -137,7 +137,7 @@ describe('Reactor', () => {
       reactor.keys()
     })
 
-    it.only('allows shucking of a Reactor to get the underlying object', () => {
+    it('allows shucking of a Reactor to get the underlying object', () => {
       const reactor = new Reactor(new Map())
       assert.throws(() => Map.prototype.keys.call(reactor), {
         name: 'TypeError',
@@ -145,6 +145,17 @@ describe('Reactor', () => {
       })
       const source = shuck(reactor)
       Map.prototype.keys.call(source)
+    })
+
+    it('Wraps the same object to the same Reactor', () => {
+      const outerDummy = {}
+      const reactorA = new Reactor(outerDummy)
+      const reactorB = new Reactor(outerDummy)
+      const innerDummy = {}
+      reactorA.foo = innerDummy
+      reactorB.bar = innerDummy
+      assert.equal(reactorA, reactorB)
+      assert.equal(reactorA.foo, reactorB.bar)
     })
   })
 })
