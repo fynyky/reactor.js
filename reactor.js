@@ -207,6 +207,9 @@ class Signal {
 const Reactors = new WeakSet()
 class Reactor {
   constructor (initializedSource) {
+    // Trying to reactor map a reactor does
+    if (Reactors.has(initializedSource)) return initializedSource
+
     // Check to see if we've wrapped this object before
     // This allows consistency of dependencies with repeated read calls
     const existingReactor = reactorCache.get(initializedSource)
