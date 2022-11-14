@@ -157,6 +157,21 @@ describe('Reactor', () => {
       assert.equal(reactorA, reactorB)
       assert.equal(reactorA.foo, reactorB.bar)
     })
+
+    it('does not read an observer when calling start', () => {
+      let counter = 0
+      const reactor = new Reactor({
+        foo: 'bar'
+      })
+      const innerObserver = observe(() => reactor.foo)
+      observe(() => {
+        innerObserver.start()
+        counter += 1
+      })()
+      assert.equal(counter, 1)
+      reactor.foo = 'baz'
+      assert.equal(counter, 1)
+    })
   })
 })
 

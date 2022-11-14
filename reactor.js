@@ -540,6 +540,8 @@ class Observer {
 
       // Trigger the execute block and build dependencies
       // Does nothing if observer is asleep
+      // If it was awake return true
+      // If it was asleep return false
       trigger () {
         if (this.awake) {
           this.clearDependencies()
@@ -559,8 +561,9 @@ class Observer {
           // This will trigger any downstream observers
           // which depend on this observers value
           this.value(result)
-          return this.value()
+          return true
         }
+        return false
       },
 
       // Redefines the observer with a new exec function
@@ -573,7 +576,7 @@ class Observer {
         this.execute = newExecute
         // If awake this will update the value Signal and notify observers downstream
         // If alseep this will correctly do nothing leaving value to the last triggered value
-        this.trigger()
+        return this.trigger()
       },
 
       // Pause the observer preventing further triggers
@@ -602,14 +605,22 @@ class Observer {
     // An empty call force triggers the block and turns it on
     // A call with arguments gets those arguments passed as a context
     // for that and future retriggers
-    const observerInterface = function () {
-      if (arguments.length > 0) observerCore.context = arguments
+    const observerInterface = function (...args) {
+      if (args.length > 0) observerCore.context = args
       observerCore.awake = true
-      return observerCore.trigger()
+      observerCore.trigger()
+      return observerCore.value()
     }
+    observerInterface.start = () => observerCore.start()
     observerInterface.stop = () => observerCore.stop()
-    observerInterface.start = (force) => observerCore.start(force)
     observerInterface.trigger = () => observerCore.trigger()
+    // Expose the observer context
+    // Note that setting a new context does not cause the observer to trigger
+    // The observer will need to be started and triggered
+    Object.defineProperty(observerInterface, 'context', {
+      get () { return observerCore.context },
+      set (newValue) { return observerCore.context = newValue }
+    })
     // Expose the wrapped execute function
     // Setting it keeps the context and dependents
     // but puts the observer back to sleep
@@ -623,6 +634,7 @@ class Observer {
     Object.defineProperty(observerInterface, 'value', {
       get () { return observerCore.value() }
     })
+    
 
     // Register the observer for isObserver checking later
     observerMembership.add(observerInterface)
