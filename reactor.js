@@ -605,7 +605,7 @@ class Observer {
     // An empty call force triggers the block and turns it on
     // A call with arguments gets those arguments passed as a context
     // for that and future retriggers
-    const observerInterface = function (...args) {
+    const observerInterface = (...args) => {
       if (args.length > 0) observerCore.context = args
       observerCore.awake = true
       observerCore.trigger()
@@ -614,13 +614,14 @@ class Observer {
     observerInterface.start = () => observerCore.start()
     observerInterface.stop = () => observerCore.stop()
     observerInterface.trigger = () => observerCore.trigger()
-    // Expose the observer context
     // Note that setting a new context does not cause the observer to trigger
     // The observer will need to be started and triggered
-    Object.defineProperty(observerInterface, 'context', {
-      get () { return observerCore.context },
-      set (newValue) { return observerCore.context = newValue }
-    })
+    // Named setContext instead of exposing context property for cleaner syntax
+    // `context` property is an array but trivial case of giving a single context argument
+    // Should be expected to work but it doesnt
+    observerInterface.setContext = (...args) => {
+      observerCore.context = args
+    }
     // Expose the wrapped execute function
     // Setting it keeps the context and dependents
     // but puts the observer back to sleep
@@ -634,7 +635,6 @@ class Observer {
     Object.defineProperty(observerInterface, 'value', {
       get () { return observerCore.value() }
     })
-    
 
     // Register the observer for isObserver checking later
     observerMembership.add(observerInterface)
