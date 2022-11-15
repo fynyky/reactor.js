@@ -721,7 +721,7 @@ class CompoundError extends Error {
   constructor (message, errorList) {
     // Flatten any compound errors in the error list
     errorList = errorList.flatMap(error => {
-      if (error instanceof CompoundError) return error.errorList
+      if (error instanceof CompoundError) return error.cause
       return error
     })
     // Build the message to display all the component errors
@@ -731,8 +731,7 @@ class CompoundError extends Error {
         error.stack != null ? error.stack : error.toString()
       message = message + '\n' + errorDescription
     }
-    super(message)
-    this.errorList = errorList
+    super(message, { cause: errorList })
     this.name = this.constructor.name
     return this
   }

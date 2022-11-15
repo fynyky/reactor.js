@@ -860,7 +860,7 @@ describe('Observer', () => {
       })()
       assert.throws(() => (reactor.foo = 'error'), (error) => {
         assert.equal(error.name, 'CompoundError')
-        assert.equal(error.errorList.length, 4)
+        assert.equal(error.cause.length, 4)
         return true
       })
     })
