@@ -3,7 +3,7 @@ import assert from 'assert'
 import {
   Reactor,
   observe,
-  unobserve,
+  hide,
   batch,
   shuck
 } from './reactor.js'
@@ -482,7 +482,7 @@ describe('Observer', () => {
       assert.equal(tracker, 'bar')
     })
 
-    it('does not subscribe in unobserve block', () => {
+    it('does not subscribe in hide block', () => {
       const reactor = new Reactor({
         outer: 'foo',
         inner: 'bar'
@@ -494,7 +494,7 @@ describe('Observer', () => {
       observe(() => {
         outerCounter += 1
         outerTracker = reactor.outer
-        unobserve(() => {
+        hide(() => {
           innerCounter += 1
           innerTracker = reactor.inner
         })
@@ -515,7 +515,7 @@ describe('Observer', () => {
       assert.equal(innerTracker, 'baz')
     })
 
-    it('returns output of unobserve block', () => {
+    it('returns output of hide block', () => {
       const reactor = new Reactor({
         outer: 'foo',
         inner: 'bar'
@@ -527,7 +527,7 @@ describe('Observer', () => {
       observe(() => {
         outerCounter += 1
         outerTracker = reactor.outer
-        innerTracker = unobserve(() => {
+        innerTracker = hide(() => {
           innerCounter += 1
           return reactor.inner
         })
@@ -548,10 +548,10 @@ describe('Observer', () => {
       assert.equal(innerTracker, 'baz')
     })
 
-    it('does not self trigger in an unobserve block', () => {
+    it('does not self trigger in an hide block', () => {
       const reactor = new Reactor(['a', 'b', 'c'])
       observe(() => {
-        unobserve(() => reactor.pop())
+        hide(() => reactor.pop())
       })()
     })
 

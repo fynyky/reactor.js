@@ -651,7 +651,7 @@ const isObserver = (candidate) => observerMembership.has(shuck(candidate))
 
 // Unobserve is syntactic sugar to create a dummy observer to block the triggers
 // While also returning the contents of the block
-const unobserve = (execute) => {
+const hide = (execute) => {
   let result
   dependencyStack.push(null)
   try {
@@ -741,7 +741,7 @@ export {
   Reactor,
   isObserver,
   observe,
-  unobserve,
+  hide,
   batch,
   shuck,
   define
