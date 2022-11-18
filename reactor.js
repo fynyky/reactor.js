@@ -614,7 +614,7 @@ class Observer extends Function {
         return observerCore.value()
       },
       construct (target, args, receiver) {
-        return Reflect.construct(target, args, target)
+        return new observerCore.execute(...args)
       }
     })
     observerInterface.start = () => observerCore.start()
