@@ -159,7 +159,7 @@ class Signal {
     signalInterface(initialValue)
     return signalInterface
   }
-};
+}
 
 // Reactors are observable object proxies
 // - They mostly function transparently passing calls to the internal object
@@ -174,8 +174,8 @@ class Signal {
 // a.foo = 2
 // a.foo                          Returns 2 as expected
 // a.bar = define(function() {    Sets a dynamic getter using defineProperty
-//   return this.foo;
-// });
+//   return this.foo
+// })
 // let b = new Reactor({          Wraps an existing object into a Reactor
 //   quu: "mux"
 //   moo: {
@@ -243,7 +243,7 @@ class Reactor {
       get (property, receiver) {
         // Disable unnecessary wrapping for unmodifiable properties
         // Needed because Array prototype checking fails if wrapped
-        // Specificaly [].map();
+        // Specificaly [].map()
         const descriptor = Object.getOwnPropertyDescriptor(
           this.source, property
         )
@@ -387,7 +387,7 @@ class Reactor {
       defineProperty (target, property, descriptor) {
         if (target === reactorCore.source) {
           return reactorCore.defineProperty(property, descriptor)
-        };
+        }
         throw new Error('Proxy target does not match initialized object')
       },
       deleteProperty (target, property) {
@@ -405,7 +405,7 @@ class Reactor {
       ownKeys (target) {
         if (target === reactorCore.source) {
           return reactorCore.ownKeys()
-        };
+        }
         throw new Error('Proxy target does not match initialized object')
       }
     })
@@ -426,23 +426,23 @@ class Reactor {
 // Starting does nothing if an Observer is already awake
 // -----------------------------------------------------------------------------
 // Examples
-// let a = new Signal(1);
-// let b = new Reactor();
+// let a = new Signal(1)
+// let b = new Reactor()
 // b.foo = "bar"
 // let observer = new Observer(() => {        This will trigger whenever
-//   console.log("a is now " + a());          a or b.foo are updated
-//   console.log("b.foois now " + b.foo);
+//   console.log("a is now " + a())          a or b.foo are updated
+//   console.log("b.foois now " + b.foo)
 // })
 // observer()
-// a(2);                                      This will trigger an update
+// a(2)                                      This will trigger an update
 //
-// observer.stop();                           This will block triggers
+// observer.stop()                           This will block triggers
 // b.foo = "cheese"                           No trigger since we stopped it
 //
-// observer.start();                          Will rerun the function
+// observer.start()                          Will rerun the function
 //                                            and allow updates again
 //
-// observer.start();                          Does nothing since already started
+// observer.start()                          Does nothing since already started
 class Observer extends Function {
   constructor (execute) {
     // Parameter validation
