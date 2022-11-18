@@ -161,6 +161,9 @@ class Signal {
   }
 }
 
+// WeakSet of all Reactors to check if something is a Reactor
+// Need to implement it this way because you can check instanceof Proxies
+const Reactors = new WeakSet()
 // Reactors are observable object proxies
 // - They mostly function transparently passing calls to the internal object
 // - The main difference is that they track and notify Observers automatically
@@ -170,24 +173,19 @@ class Signal {
 // When a Reactor property is updated it automatically notifies dependents
 // -----------------------------------------------------------------------------
 // Examples
-// let a = new Reactor()          Initializes a new empty Reactor object
+// const a = new Reactor()          Initializes a new empty Reactor object
 // a.foo = 2
 // a.foo                          Returns 2 as expected
-// a.bar = define(function() {    Sets a dynamic getter using defineProperty
-//   return this.foo
-// })
-// let b = new Reactor({          Wraps an existing object into a Reactor
+// const b = new Reactor({          Wraps an existing object into a Reactor
 //   quu: "mux"
 //   moo: {
 //     cheese: "banana"
 //   }
 // })
-// WeakSet of all Reactors to check if something is a Reactor
-// Need to implement it this way because you can check instanceof Proxies
-const Reactors = new WeakSet()
 class Reactor {
   constructor (initializedSource) {
-    // Trying to reactor map a reactor does
+    // If the source is already a reactor then do nothing and return it
+    // No double wrapping of reactors allowed
     if (Reactors.has(initializedSource)) return initializedSource
 
     // Check to see if we've wrapped this object before
@@ -204,6 +202,8 @@ class Reactor {
     // Should be completely agnostic to syntactic sugar
     const reactorCore = {
       source: initializedSource,
+      // Dependency tracking not for any particular property
+      // but for the reactor overall
       selfSignal: new Signal(null),
 
       // Function calls on reactor properties are automatically batched
@@ -213,7 +213,11 @@ class Reactor {
         return batch(() => {
           // For native object methods which cant use a Proxy as `this`
           // try again with the underlying object
-          // Some limitations if the failed attempt has side effects this will double up
+          // Some limitations if the failed attempt has side effects prior to throwing an error
+          // this will double them
+          // Generally acceptable because native objects should be expected to not leave a mess
+          // Potentially some issues in user defined objects getting wrapped in Reactor
+          // using private properties and leaving a mess on error
           // Also this still wont fix being unable to pass the proxy to static methods
           // `proxiedMap.keys()` will work because keys gets wrapped by this handler
           // `Map.prototype.keys.call(proxiedMap)` won't work because it doesnt get wrapped
@@ -230,6 +234,7 @@ class Reactor {
               }
             }
             // If any other type of error, or if there's nothing to unwrap throw error anyway
+            // because then its not a problem with Reactor wrapping
             throw error
           }
         })
@@ -410,8 +415,8 @@ class Reactor {
       }
     })
     // Register the reactor for debugging/typechecking purposes
-    reactorCoreExtractor.set(reactorInterface, reactorCore)
     Reactors.add(reactorInterface)
+    reactorCoreExtractor.set(reactorInterface, reactorCore)
     reactorCache.set(initializedSource, reactorInterface)
     return reactorInterface
   }
@@ -584,7 +589,7 @@ class Observer extends Function {
     // but puts the observer back to sleep
     Object.defineProperty(observerInterface, 'execute', {
       get () { return observerCore.execute },
-      set (newValue) { return observerCore.redefine(newValue) }// TODO check return value
+      set (newValue) { return observerCore.redefine(newValue) }
     })
     // Allow reads of the last return value of execute
     // As a Signal this itself is observable and
