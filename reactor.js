@@ -21,12 +21,13 @@ const reactorCoreExtractor = new WeakMap()
 // When "batch" is called it adds sets a batcher to this global variable
 // When a Signal is updated it checks if a batcher is set
 // If it is, it adds that observer to this set instead of triggering it
-// At the end of the exeution, the batch call then calls all the observers
+// At the end of the execution, the batch call then calls all the observers
 // Then clears the batcher again
 let batcher = null
 
 // Cache of objects to their reactor proxies
-// Allows for consistent dependency tracking
+// The same object should always get turned into the same Reactor
+// This allows for consistent dependency tracking
 // across multiple reads of the same object
 const reactorCache = new WeakMap()
 
@@ -42,7 +43,6 @@ const reactorCache = new WeakMap()
 // let a = new Signal(1)          Initializes it with value 1
 // a()                            Returns 1
 // a(2)                           Sets the value to 2
-// a(define(() => Date.now()))    Sets a dynamic getter instead of static value
 const Signals = new WeakSet()
 class Signal {
   // Signals are made up of 2 main parts
@@ -53,14 +53,15 @@ class Signal {
     // All actual functionality & state should be built into the core
     // Should be completely agnostic to syntactic sugar
     const signalCore = {
-
       // Signal state
-      // value: undefined, // The set value. Purposed undefined as undefined
-      dependents: new Set(), // The Observers which rely on this Signal
-      removeSelf: () => {}, // callback set by parent Reactor to allow removal
+      // The set value. Purposely commented out to be undefined as a base
+      // value: undefined,
+      // The Observers which rely on this Signal
+      dependents: new Set(),
+      // callback set by parent Reactor to allow removal
       // Used to delete Signals with no dependents
       // To reduce memory leaks
-
+      removeSelf: () => {},
       // Life of a read
       // - check to see who is asking
       // - register them as a dependent and register self as their dependency
@@ -80,8 +81,13 @@ class Signal {
         // If it's not an object then just return it right away
         // Cleaner and faster than the alternative approach of constructing a Reactor
         // and catching an error
-        if (output === null) return output
-        if (typeof output !== 'function' && typeof output !== 'object') return output
+        if (
+          // Need to do this because typeof null is object for some reason
+          output === null || (
+            typeof output !== 'function' &&
+            typeof output !== 'object'
+          )
+        ) return output
 
         // Wrap the output in a Reactor if it's an object
         // No need to wrap it if its already a Reactor
@@ -91,11 +97,11 @@ class Signal {
       },
 
       // Life of a write
-      // - If the new value is a Definition then save it as a getter
-      // - Otherwise just store the provided value
+      // - Store the provided value
       // - Trigger any dependent Observers while collecting errors thrown
       // - Throw a CompoundError if necessary
       write (newValue) {
+        // Avoid triggering observers if same value is written
         if (this.value === newValue) return (this.value = newValue)
         // Save the new value/definition
         const output = (this.value = newValue)
@@ -123,11 +129,12 @@ class Signal {
         }
         return output
       },
-
       // Used by observers to remove themselves from this as dependents
       // Also removesSelf from any owners if there are no more dependents
       removeDependent (dependent) {
         this.dependents.delete(dependent)
+        // TODO should we be doing this? clean self up if no dependents
+        // What if you want it to stick around for future reads
         if (this.dependents.size === 0) this.removeSelf()
       }
 
@@ -136,6 +143,7 @@ class Signal {
     // The interface function returned to the user to utilize the signal
     // This is done to abstract away the messiness of how the signals work
     // Should contain no additional functionality and be purely syntactic sugar
+    // TODO convert this to a function extension so allow type checking
     const signalInterface = function (value) {
       // An empty call is treated as a read
       if (arguments.length === 0) return signalCore.read()
