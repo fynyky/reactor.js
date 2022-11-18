@@ -30,32 +30,6 @@ let batcher = null
 // across multiple reads of the same object
 const reactorCache = new WeakMap()
 
-// Definition is a shell class to identify dynamically calculated variables
-// Accessed through the "define" function
-// Class itself is not meant to be instantiated directly
-// It is only for internal type checking
-// -----------------------------------------------------------------------------
-// Examples
-// let a = new Signal(define(() => Date.now()))
-// let b = new Signal(1);
-// b = new Signal(define(() => {
-//   return "hello it is now " + a();
-// }));
-// let c = new Reactor();
-// c.foo = define(() => "the message is " + b());
-class Definition {
-  constructor (definition) {
-    if (typeof definition === 'function') {
-      this.definition = definition
-      return this
-    }
-    throw new TypeError('Cannot create definition with a non-function')
-  }
-}
-// Expose a define "keyword" instead of the class itself
-// This seems nicer syntactic sugar than "new Definition(...)" each time
-const define = (definition) => new Definition(definition)
-
 // Signals are observable functions representing values
 // - Read a signal by calling it with no arguments
 // - Write to a signal by calling it with the desired value as an argument
@@ -101,10 +75,7 @@ class Signal {
           this.dependents.add(dependent)
           dependent.addDependency(this)
         }
-        // Return the appropriate static or calculated value
-        const output = (this.value instanceof Definition)
-          ? this.value.definition()
-          : this.value
+        const output = this.value
 
         // If it's not an object then just return it right away
         // Cleaner and faster than the alternative approach of constructing a Reactor
@@ -315,36 +286,6 @@ class Reactor {
       // We trap defineProperty instead of set because it avoids the ambiguity
       // of access through the prototype chain
       defineProperty (property, descriptor) {
-        // Automatically transform a Definition set into a getter
-        // Identical to calling Object.defineProperty with a getter directly
-        // This is just syntactic sugar and does not provide new functionality
-        if (descriptor.value instanceof Definition) {
-          const newDescriptor = {
-            get: descriptor.value.definition,
-            // Copy the prexisting configurable and enumerable properties
-            // Default to true if undefined
-            // Apparent bug in v8 where you are unable to modify
-            // the descriptor with it false
-            // https://bugs.chromium.org/p/v8/issues/detail?id=7884
-            configurable: (descriptor.configurable === undefined
-              ? true
-              : descriptor.configurable
-            ),
-            enumerable: (descriptor.enumerable === undefined
-              ? true
-              : descriptor.enumerable
-            )
-          }
-          // Translate the writable property into the existence of a setter
-          // Default to true
-          if (descriptor.writable || descriptor.writable === undefined) {
-            newDescriptor.set = (value) => {
-              delete this.source[property]
-              this.source[property] = value
-            }
-          }
-          descriptor = newDescriptor
-        };
         const didSucceed = Reflect.defineProperty(
           this.source, property, descriptor
         )
@@ -614,7 +555,7 @@ class Observer extends Function {
         return observerCore.value()
       },
       construct (target, args, receiver) {
-        return new observerCore.execute(...args)
+        return Reflect.construct(observerCore.execute, args)
       }
     })
     observerInterface.start = () => observerCore.start()
@@ -745,6 +686,5 @@ export {
   observe,
   hide,
   batch,
-  shuck,
-  define
+  shuck
 }

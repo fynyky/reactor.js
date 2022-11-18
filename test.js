@@ -183,14 +183,13 @@ describe('Observer', () => {
     assert(a instanceof Function)
   })
 
-
   it('can be used as a constructor', () => {
-    const a = observe(function (arg) {
+    const A = observe(function (arg) {
       this.foo = 'bar' + arg
       return this
     })
-    const b = new a('baz')
-    assert.equal(JSON.stringify(b), '{"foo":"barbaz"}')
+    const a = new A('baz')
+    assert.equal(JSON.stringify(a), '{"foo":"barbaz"}')
   })
 
   it('initializes function without error', () => observe(() => {}))
