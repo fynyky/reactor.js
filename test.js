@@ -186,6 +186,22 @@ describe('Observer', () => {
 
   it('initializes function without error', () => observe(() => {}))
 
+  it('passed correct value of this to observer', () => {
+    let aResult
+    const a = observe(function() { aResult = this })
+    let barResult
+    const foo = {
+      a: a,
+      bar: function() { barResult = this }
+    }
+    foo.a()
+    foo.bar()
+    assert.equal(foo, aResult)
+    assert.equal(foo, barResult)
+    assert.equal(aResult, barResult)
+  })
+
+
   it('fails to initialize with no argument', () => {
     assert.throws(() => observe(), {
       name: 'TypeError',

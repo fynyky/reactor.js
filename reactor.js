@@ -494,7 +494,6 @@ class Reactor {
 //                                            and allow updates again
 //
 // observer.start();                          Does nothing since already started
-const observerMembership = new WeakSet() // To check if something is an Observer
 class Observer extends Function {
   constructor (execute) {
     // Parameter validation
@@ -542,7 +541,7 @@ class Observer extends Function {
       // Does nothing if observer is asleep
       // If it was awake return true
       // If it was asleep return false
-      trigger () {
+      trigger (that) {
         if (this.awake) {
           this.clearDependencies()
           // Put self on the dependency stack
@@ -553,7 +552,7 @@ class Observer extends Function {
           // dependency stack is popped even if an error is occured
           // Allows users to catch errors themselves and handle them
           try {
-            result = this.execute.apply(null, this.context)
+            result = this.execute.apply(that, this.context)
           } finally {
             dependencyStack.pop()
           }
@@ -612,7 +611,7 @@ class Observer extends Function {
       apply(target, thisArg, args) {
         if (args.length > 0) observerCore.context = args
         observerCore.awake = true
-        observerCore.trigger()
+        observerCore.trigger(thisArg)
         return observerCore.value()        
       }, 
       construct(target, args, receiver) {
@@ -643,8 +642,6 @@ class Observer extends Function {
     Object.defineProperty(observerInterface, 'value', {
       get () { return observerCore.value() }
     })
-    // Register the observer for isObserver checking later
-    observerMembership.add(observerInterface)
     // Does not trigger on initialization until () or .start() are called
     return observerInterface
   }
