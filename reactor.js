@@ -495,7 +495,7 @@ class Reactor {
 //
 // observer.start();                          Does nothing since already started
 const observerMembership = new WeakSet() // To check if something is an Observer
-class Observer {
+class Observer extends Function {
   constructor (execute) {
     // Parameter validation
     if (typeof execute !== 'function') {
@@ -599,18 +599,26 @@ class Observer {
         return true
       }
 
+
+
     }
 
     // Public interace to hide the ugliness of how observers work
     // An empty call force triggers the block and turns it on
     // A call with arguments gets those arguments passed as a context
     // for that and future retriggers
-    const observerInterface = (...args) => {
-      if (args.length > 0) observerCore.context = args
-      observerCore.awake = true
-      observerCore.trigger()
-      return observerCore.value()
-    }
+    super()
+    const observerInterface = new Proxy(this, {
+      apply(target, thisArg, args) {
+        if (args.length > 0) observerCore.context = args
+        observerCore.awake = true
+        observerCore.trigger()
+        return observerCore.value()        
+      }, 
+      construct(target, args, receiver) {
+        return Reflect.construct(target, args, target)
+      }
+    })
     observerInterface.start = () => observerCore.start()
     observerInterface.stop = () => observerCore.stop()
     observerInterface.trigger = () => observerCore.trigger()
@@ -621,7 +629,7 @@ class Observer {
     // Should be expected to work but it doesnt
     observerInterface.setContext = (...args) => {
       observerCore.context = args
-    }
+    }    
     // Expose the wrapped execute function
     // Setting it keeps the context and dependents
     // but puts the observer back to sleep
@@ -635,10 +643,8 @@ class Observer {
     Object.defineProperty(observerInterface, 'value', {
       get () { return observerCore.value() }
     })
-
     // Register the observer for isObserver checking later
     observerMembership.add(observerInterface)
-
     // Does not trigger on initialization until () or .start() are called
     return observerInterface
   }
@@ -739,6 +745,7 @@ class CompoundError extends Error {
 
 export {
   Reactor,
+  Observer,
   isObserver,
   observe,
   hide,

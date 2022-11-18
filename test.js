@@ -2,6 +2,7 @@
 import assert from 'assert'
 import {
   Reactor,
+  Observer,
   observe,
   hide,
   batch,
@@ -176,6 +177,13 @@ describe('Reactor', () => {
 })
 
 describe('Observer', () => {
+
+  it('passes instanceof checks', () => {
+    const a = observe(() => {})
+    assert(a instanceof Observer)
+    assert(a instanceof Function)
+  })
+
   it('initializes function without error', () => observe(() => {}))
 
   it('fails to initialize with no argument', () => {
