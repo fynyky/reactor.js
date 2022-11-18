@@ -177,7 +177,6 @@ describe('Reactor', () => {
 })
 
 describe('Observer', () => {
-
   it('passes instanceof checks', () => {
     const a = observe(() => {})
     assert(a instanceof Observer)
@@ -188,11 +187,11 @@ describe('Observer', () => {
 
   it('passed correct value of this to observer', () => {
     let aResult
-    const a = observe(function() { aResult = this })
+    const a = observe(function () { aResult = this })
     let barResult
     const foo = {
-      a: a,
-      bar: function() { barResult = this }
+      a,
+      bar: function () { barResult = this }
     }
     foo.a()
     foo.bar()
@@ -200,7 +199,6 @@ describe('Observer', () => {
     assert.equal(foo, barResult)
     assert.equal(aResult, barResult)
   })
-
 
   it('fails to initialize with no argument', () => {
     assert.throws(() => observe(), {
@@ -824,13 +822,37 @@ describe('Observer', () => {
     it('can set context with multiple params', () => {
       let contextChecker
       const observer = observe((a, b, c) => {
-        contextChecker = a + b + c
+        contextChecker = '' + a + b + c
       })
       observer('foo', 'bar', 'baz')
       assert.equal(contextChecker, 'foobarbaz')
       contextChecker = null
       observer()
-      assert.equal(contextChecker, 'foobarbaz')
+      assert.equal(contextChecker, 'undefinedundefinedundefined')
+    })
+
+    it('can set context and react to it', () => {
+      const reactor = new Reactor()
+      const contextChecker = {}
+      const observer = observe(function (...args) {
+        contextChecker.this = this
+        contextChecker.args = args
+        contextChecker.result = reactor.foo
+      })
+      const bar = {
+        baz: observer
+      }
+      assert(typeof contextChecker.this === 'undefined')
+      assert(typeof contextChecker.args === 'undefined')
+      assert(typeof contextChecker.result === 'undefined')
+      bar.baz('qux')
+      assert.equal(contextChecker.this, bar)
+      assert.equal(contextChecker.args[0], 'qux')
+      assert(typeof contextChecker.result === 'undefined')
+      reactor.foo = 'bop'
+      assert.equal(contextChecker.this, bar)
+      assert.equal(contextChecker.args[0], 'qux')
+      assert.equal(contextChecker.result, 'bop')
     })
   })
 

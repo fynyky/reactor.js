@@ -541,7 +541,7 @@ class Observer extends Function {
       // Does nothing if observer is asleep
       // If it was awake return true
       // If it was asleep return false
-      trigger (that) {
+      trigger () {
         if (this.awake) {
           this.clearDependencies()
           // Put self on the dependency stack
@@ -552,7 +552,7 @@ class Observer extends Function {
           // dependency stack is popped even if an error is occured
           // Allows users to catch errors themselves and handle them
           try {
-            result = this.execute.apply(that, this.context)
+            result = this.execute.apply(this.thisContext, this.argsContext)
           } finally {
             dependencyStack.pop()
           }
@@ -598,8 +598,6 @@ class Observer extends Function {
         return true
       }
 
-
-
     }
 
     // Public interace to hide the ugliness of how observers work
@@ -608,27 +606,30 @@ class Observer extends Function {
     // for that and future retriggers
     super()
     const observerInterface = new Proxy(this, {
-      apply(target, thisArg, args) {
-        if (args.length > 0) observerCore.context = args
+      apply (target, thisArg, args) {
+        observerCore.thisContext = thisArg
+        observerCore.argsContext = args
         observerCore.awake = true
-        observerCore.trigger(thisArg)
-        return observerCore.value()        
-      }, 
-      construct(target, args, receiver) {
+        observerCore.trigger()
+        return observerCore.value()
+      },
+      construct (target, args, receiver) {
         return Reflect.construct(target, args, target)
       }
     })
     observerInterface.start = () => observerCore.start()
     observerInterface.stop = () => observerCore.stop()
-    observerInterface.trigger = () => observerCore.trigger()
     // Note that setting a new context does not cause the observer to trigger
     // The observer will need to be started and triggered
     // Named setContext instead of exposing context property for cleaner syntax
     // `context` property is an array but trivial case of giving a single context argument
     // Should be expected to work but it doesnt
-    observerInterface.setContext = (...args) => {
-      observerCore.context = args
-    }    
+    observerInterface.setThisContext = (that) => {
+      observerCore.thisContext = that
+    }
+    observerInterface.setArgsContext = (...args) => {
+      observerCore.argsContext = args
+    }
     // Expose the wrapped execute function
     // Setting it keeps the context and dependents
     // but puts the observer back to sleep
