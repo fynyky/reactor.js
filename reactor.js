@@ -197,7 +197,7 @@ class Reactor {
 
     // The source is the internal proxied object
     // If no source is provided then provide a new default object
-    if (arguments.length === 0) initializedSource = {}
+    if (arguments.length === 0) initializedSource = this
 
     // The "guts" of a Reactor containing properties and methods
     // All actual functionality & state should be built into the core

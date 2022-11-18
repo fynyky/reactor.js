@@ -173,6 +173,14 @@ describe('Reactor', () => {
       reactor.foo = 'baz'
       assert.equal(counter, 1)
     })
+
+    it('passes instanceof checks', () => {
+      const a = new Reactor()
+      assert(a instanceof Reactor)
+      const b = new Reactor([])
+      assert(b instanceof Array)
+      // assert(b instanceof Reactor)
+    })
   })
 })
 
