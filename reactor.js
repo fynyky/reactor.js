@@ -44,7 +44,7 @@ const reactorCache = new WeakMap()
 // a()                            Returns 1
 // a(2)                           Sets the value to 2
 const Signals = new WeakSet()
-class Signal {
+class Signal extends Function {
   // Signals are made up of 2 main parts
   // - The core: The properties & methods which lets signals work
   // - The interface: The function returned to the user to use
@@ -143,13 +143,15 @@ class Signal {
     // The interface function returned to the user to utilize the signal
     // This is done to abstract away the messiness of how the signals work
     // Should contain no additional functionality and be purely syntactic sugar
-    // TODO convert this to a function extension so allow type checking
-    const signalInterface = function (value) {
-      // An empty call is treated as a read
-      if (arguments.length === 0) return signalCore.read()
-      // A non empty call is treated as a write
-      return signalCore.write(value)
-    }
+    super()
+    const signalInterface = new Proxy(this, {
+      apply (target, thisArg, args) {
+        // An empty call is treated as a read
+        if (args.length === 0) return signalCore.read()
+        // A non empty call is treated as a write
+        return signalCore.write(args[0])
+      }
+    })
 
     // Register the Signal for debugging/typechecking purposes
     signalCoreExtractor.set(signalInterface, signalCore)
