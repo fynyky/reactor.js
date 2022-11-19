@@ -1,23 +1,24 @@
 Reactor.js
 ==========
 
-Reactor.js is a lightweight library for [reactive programming](http://en.wikipedia.org/wiki/Reactive_programming). It provides observer blocks that automatically track the reactive variables that they use and get retriggered if any of these variables are updated. This makes it easy to keep a complex data model consistent, or a user interface up to date when a model is changed.
+Reactor.js is a lightweight library for [reactive programming](http://en.wikipedia.org/wiki/Reactive_programming). It provides observer functions that automatically track the reactive variables that they use and get retriggered if any of these variables are updated. This makes it easy to keep a complex data model consistent, or a user interface up to date when a model is changed.
 
 Here's a quick example of what Reactor does:
 ```javascript
-const reactor = new Reactor({ foo: "bar" });
-
-observe(() => {
-  console.log("foo is ", reactor.foo);
-})(); // prints "foo is bar"
-
-reactor.foo = "moo"; // prints "foo is moo"
+const reactor = new Reactor()
+reactor.foo = 'bar'
+const observer = new Observer(() => {
+  console.log('foo is ', reactor.foo)
+})
+observer() // prints "foo is bar"
+reactor.foo = 'moo'; // prints "foo is moo"
 ```
-- You create a reactive object and an `observe` block that reads from that object. 
-- The observe block executes once on initial definition and automatically tracks which reactive properties it is using. 
-- Whenever the reactive property is updated, the observer is notified and executes its observed block again. 
+- Reactors work like normal objects that you can set and get properties on
+- Observers work like normal functions that you can define and call
+- When an observer reads a reactor it registers itself as a dependent
+- When a reactor is updated it automatically retriggers its dependents
 
-Reactor is designed to be unobtrusive and unopinionated. 
+Reactor.js is designed to be unobtrusive and unopinionated. 
 - There is no need to manually declare listeners or bindings. Reactor automatically keeps track of all that for you. 
 - It imposes no particular structure on your code. Any variable can be easily replaced with a reactive one.
 - There is no need to learn special syntax or a domain specific language. Reactors behave just like normal objects and you can observe any synchronous code.
@@ -65,7 +66,7 @@ reactor.ticker = 1;
 reactor.names = ["Alice", "Bob", "Charles", "David"];
 const partialObserver = observe(() => {
   if (reactor.ticker) {
-    // Unobserve passes through the return value of its block
+    // Hide passes through the return value of its block
     const next = hide(() => reactor.names.pop());
     console.log("next ", next);
   }
@@ -287,7 +288,7 @@ observer(); // prints "hola"
 ```
 Note that calling an observer this way does not create any of the observer's dependencies. It is equivalent to just calling the plain function without the observer wrapper. 
 
-### Unobserve
+### Hide
 
 Sometimes you might want to read from a Reactor without becoming dependent on it. A common case for this is when using array modification methods. These often also read from the array in order to do the modification.
 ```javascript
@@ -304,17 +305,17 @@ observe(() => {
 })();
 ```
 
-In these cases you can use "unobserve" to shield a block of code from creating dependencies. It takes a function and any reactor properties read inside that function will not be set as dependencies. Unobserve also passes through the return value of its function for syntactic simplicity.
+In these cases you can use "hide" to shield a block of code from creating dependencies. It takes a function and any reactor properties read inside that function will not be set as dependencies. `hide` also passes through the return value of its function for syntactic simplicity.
 ```javascript
 const taskList = new Reactor(["a", "b", "c", "d"]);
 
 observe(() => {
 
   console.log(
-    // Because we wrap pop() call in an unobserve block
+    // Because we wrap pop() call in an hide block
     // It is not create a depndency on the length property
     // Unlike our previous example
-    unobserve(() => taskList.pop())
+    hide(() => taskList.pop())
   ); 
 
 })(); // prints "d"
@@ -322,7 +323,7 @@ observe(() => {
 taskList.push("e"); // does not trigger the observer
 ```
 
-Note that only the reads inside the unobserve block are shielded from creating dependencies. The rest of the observe block still creates dependencies as normal.
+Note that only the reads inside the hide block are shielded from creating dependencies. The rest of the observe block still creates dependencies as normal.
 
 ### Overrides
 If you need to dynamically create observers, you often need to manually clear the old observers. Instead of manually stopping and making a new observer, you can just provide the existing observer a new execution function. 
@@ -427,12 +428,12 @@ Inside you application you can include the necessary components by running
 ```javascript
 const { 
   Reactor, 
-  observe,
-  unobserve
+  Observer,
+  hide
 } = require("reactorjs");
 ```
 
-If you want to just use Reactor.js directly without using npm, you can download [Reactor.js](https://github.com/fynyky/reactor.js/raw/master/reactor.js) and include it in your application. When used outside of a module system, Reactor provides the same `Reactor`, `observe`, `unobserve`, and `batch` components as global objects.
+If you want to just use Reactor.js directly without using npm, you can download [Reactor.js](https://github.com/fynyky/reactor.js/raw/master/reactor.js) and include it in your application. When used outside of a module system, Reactor provides the same `Reactor`, `Observer`, `hide`, and `batch` components as global objects.
 
 
 Development & Testing
