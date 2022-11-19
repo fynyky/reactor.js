@@ -60,6 +60,15 @@ observer.start() // Prints 'reactor.foo is baz'
 observer.start() // Prints nothing since observer is already started
 observer() // Prints 'reactor.foo is baz' even if it is already running
 
+// Observers return values are themselves observable
+const trailingObserver = new Observer(() => {
+  const result = 'Did you hear: ' + observer.value
+  console.log(result)
+})
+trailingObserver() // Prints 'Did you hear: reactor.foo is baz'
+reactor.foo = 'blorp' // Prints 'reactor.foo is blorp' from observer
+                      // Also prints 'Did you hear: reactor.foo is blorp' from trailingObserver
+
 // Observers can be given parameters and remember these parameters when triggered
 const parameterizedObserver = new Observer((arg1, arg2) => {
   console.log(reactor.foo + arg1 + arg2)
