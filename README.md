@@ -283,6 +283,32 @@ reactor.b = "blue" // does not trigger the observer
 reactor.c = "cheese" // prints "reactor.c is cheese"
 ```
 
+An Observer's results are themselves observable via either the `value` property, or by triggering the observer via `observer()` and using the return value. This allows you to chain observers together.
+```javascript
+const reactor = new Reactor({ foo: 'bar' })
+const capitalizer = new Observer(() => {
+  return reactor.foo.toUpperCase()
+})()
+const printer = new Observer(() => {
+  console.log(capitalizer.value)
+})() // prints 'BAR'
+reactor.foo = 'baz' // Prints 'BAZ'
+```
+
+This works too:
+```javascript
+const reactor = new Reactor({ foo: 'bar' })
+const capitalizer = new Observer(() => {
+  return reactor.foo.toUpperCase()
+}) // Did not start the observer here
+const printer = new Observer(() => {
+  // Manually calls capitalizer like a function which actives it
+  // As well as accesses its return value as a dependency
+  console.log(capitalizer()) 
+})() // Starts printer which starts capitalizer
+reactor.foo = 'baz' // Prints 'BAZ'
+```
+
 You can stop an observer by just calling "stop()" on the returned observer object. This clears any existing dependencies and prevents triggering. You can restart the observer by just calling "start()". Starting is idempotent so calling "start()" on an already running observer will have no effect.
 ```javascript
 const reactor = new Reactor()
@@ -457,9 +483,6 @@ This is useful when you are making multiple data updates and want to avoid showi
 
 Note that only the observer triggering is postponed till the end. The actual reactor propertes are updated in place as expected. This means that you can have other logic with read-what-you-write semantics within the observer block working just fine.
 
-Caveats and Weirdness
----------------------
-TODO
 
 Development & Testing
 ---------------------
