@@ -603,9 +603,6 @@ class Observer extends Function {
     return observerInterface
   }
 }
-const observe = (execute) => {
-  return new Observer(execute)
-}
 
 // Unobserve is syntactic sugar to create a dummy observer to block the triggers
 // While also returning the contents of the block
@@ -698,7 +695,6 @@ class CompoundError extends Error {
 export {
   Reactor,
   Observer,
-  observe,
   hide,
   batch,
   shuck

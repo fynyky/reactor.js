@@ -1,5 +1,3 @@
-Note: Reactor.js is now on version 1.0 which is fundamentally incompatible with its previous incarnation. If you need the previous version refer to the 0.1 branch [here](https://github.com/fynyky/reactor.js/tree/0.1)
-
 Reactor.js
 ==========
 
@@ -61,14 +59,14 @@ const innerObserver = observe(() => {
 reactor.foo = "updated"; // prints "reactor.foo is updated"
 reactor.outer.inner = "cheese" // prints "reactor.outer.inner is cheese"
 
-// You can use "unobserve" to avoid particular dependencies in an observer
+// You can use "hide" to avoid particular dependencies in an observer
 // This is useful especially when using array methods that both read and write
 reactor.ticker = 1;
 reactor.names = ["Alice", "Bob", "Charles", "David"];
 const partialObserver = observe(() => {
   if (reactor.ticker) {
     // Unobserve passes through the return value of its block
-    const next = unobserve(() => reactor.names.pop());
+    const next = hide(() => reactor.names.pop());
     console.log("next ", next);
   }
 })(); // prints "next David"
