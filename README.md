@@ -1,121 +1,129 @@
-Note: Reactor.js is now on version 1.0 which is fundamentally incompatible with its previous incarnation. If you need the previous version refer to the 0.1 branch [here](https://github.com/fynyky/reactor.js/tree/0.1)
-
 Reactor.js
 ==========
 
-Reactor.js is a lightweight library for [reactive programming](http://en.wikipedia.org/wiki/Reactive_programming). It provides observer blocks that automatically track the reactive variables that they use and get retriggered if any of these variables are updated. This makes it easy to keep a complex data model consistent, or a user interface up to date when a model is changed.
+Reactor.js is a lightweight library for [reactive programming](http://en.wikipedia.org/wiki/Reactive_programming). It provides observer functions that automatically track the reactive variables that they use and get retriggered if any of these variables are updated. This makes it easy to keep a complex data model consistent, or a user interface up to date when a model is changed.
 
 Here's a quick example of what Reactor does:
 ```javascript
-const reactor = new Reactor({ foo: "bar" });
-
-observe(() => {
-  console.log("foo is ", reactor.foo);
-}); // prints "foo is bar"
-
-reactor.foo = "moo"; // prints "foo is moo"
+const reactor = new Reactor()
+reactor.foo = 'bar'
+const observer = new Observer(() => {
+  console.log('foo is ', reactor.foo)
+})
+observer() // prints "foo is bar"
+reactor.foo = 'moo' // prints "foo is moo"
 ```
-- You create a reactive object and an `observe` block that reads from that object. 
-- The observe block executes once on initial definition and automatically tracks which reactive properties it is using. 
-- Whenever the reactive property is updated, the observer is notified and executes its observed block again. 
+- Reactors work like normal objects that you can set and get properties on
+- Observers work like normal functions that you can define and call
+- When an observer reads a reactor it registers itself as a dependent
+- When a reactor is updated it automatically retriggers its dependents
 
-Reactor is designed to be unobtrusive and unopinionated. 
+Reactor.js is designed to be unobtrusive and unopinionated. 
 - There is no need to manually declare listeners or bindings. Reactor automatically keeps track of all that for you. 
 - It imposes no particular structure on your code. Any variable can be easily replaced with a reactive one.
 - There is no need to learn special syntax or a domain specific language. Reactors behave just like normal objects and you can observe any synchronous code.
 
-If you want to see Reactor.js in action, take a look at this [example todo list](https://jsfiddle.net/qr92xem4/)
+If you want to see Reactor.js in action, take a look at this [example todo list](https://jsfiddle.net/yL14mo79/)
+
+Installation
+------------------
+
+Reactor.js is [available on npm](https://npmjs.org/package/reactorjs). Install it by running:
+```
+$ npm install reactorjs
+```
+
+Import it using:
+```javascript
+import  { Reactor, Observer, hide, batch, shuck }  from 'reactorjs'
+```
 
 Summary
 -------
 
 ```javascript
-// You can wrap any object in a Reactor
-// - This lets it automatically track and notify observers
-// - Sub-objects are also wrapped in Reactors recursively
-const reactor = new Reactor({ 
-  foo: "bar",
-  outer: {
-    inner: "value"
-  }
-});
+import { Reactor, Observer, hide, batch, shuck } from 'reactorjs'
 
-// Reactors are mostly transparent, behaving just like a normal object
-reactor.foo; // "bar"
-reactor.name = "Bob";
-reactor.name; // "Bob"
+const reactor = new Reactor({ foo: 'bar' })
+const observer = new Observer(() => {
+  const result = 'reactor.foo is ' + reactor.foo // Sets a dependency on foo
+  console.log(result) 
+  return result
+})
+observer() // Prints 'reactor.foo is bar' and starts the observer
+reactor.foo = 'baz' // Prints 'reactor.foo is baz'
 
-// Use the "observe" function to create an Observer
-// Observers execute immediately upon creation
-const observer = observe(() => {
-  // Reading from a Reactor property automatically saves it as a dependency
-  console.log("reactor.foo is ", reactor.foo);
-}); // prints "reactor.foo is bar"
+observer.stop()
+reactor.foo = 'qux' // Prints nothing since observer is stopped
 
-// Dependency tracking works for sub-objects as well
-const innerObserver = observe(() => {
-  console.log("reactor.outer.inner is ", reactor.outer.inner);
-}); // prints "reactor.outer.inner is value"
+observer.start() // Prints 'reactor.foo is baz'
+observer.start() // Prints nothing since observer is already started
+observer() // Prints 'reactor.foo is baz' even if it is already running
 
-// Updating the property automatically notifies the observer
-reactor.foo = "updated"; // prints "reactor.foo is updated"
-reactor.outer.inner = "cheese" // prints "reactor.outer.inner is cheese"
+// Observers return values are themselves observable
+const trailingObserver = new Observer(() => {
+  const result = 'Did you hear: ' + observer.value
+  console.log(result)
+})
+trailingObserver() // Prints 'Did you hear: reactor.foo is baz'
+reactor.foo = 'blorp' // Prints 'reactor.foo is blorp' from observer
+                      // Also prints 'Did you hear: reactor.foo is blorp' from trailingObserver
 
-// You can use "unobserve" to avoid particular dependencies in an observer
-// This is useful especially when using array methods that both read and write
-reactor.ticker = 1;
-reactor.names = ["Alice", "Bob", "Charles", "David"];
-const partialObserver = observe(() => {
+// Observers can be given parameters and remember these parameters when triggered
+const parameterizedObserver = new Observer((arg1, arg2) => {
+  console.log(reactor.foo + arg1 + arg2)
+})
+parameterizedObserver('beep', 'bop') // Prints bazbeepbop
+reactor.foo = 'bla' // Prints blabeepbop
+
+// Observers can also access and remember the last `this` context
+const holdingObject = {
+  name: 'Mario',
+  greet: new Observer(function () { // Need to use traditional functions instead of arrow functions
+    console.log("Hello " + reactor.foo + " itsa me " +  this.name)
+  })
+}
+holdingObject.greet() // Prints "Hello bla itsa me Mario"
+reactor.foo = 'bonk' // Prints "Hello bonk itsa me Mario"
+holdingObject.name = 'Luigi' // Prints nothing since holdingObject is not a Reactor
+
+// hide allows you to avoid particular dependencies in an observer
+// This is useful especially when using Array methods that both read and write
+reactor.ticker = 1
+reactor.names = ["Alice", "Bob", "Charles", "David"]
+const partialObserver = new Observer(() => {
   if (reactor.ticker) {
-    // Unobserve passes through the return value of its block
-    const next = unobserve(() => reactor.names.pop());
-    console.log("next ", next);
+    // hide passes through the return value of its block
+    const next = hide(() => reactor.names.pop())
+    console.log("next ", next)
   }
-}); // prints "next David"
+})
+partialObserver() // prints "next David"
+reactor.ticker = 2 // prints "next Charles"
+reactor.names.push("Elsie") // Will not trigger the observer
 
-reactor.ticker += 1; // prints "next Charles"
-reactor.names.push("Elsie"); // Will not trigger the observer
+// batch postpones any observer triggers until it is complete
+// This allows grouping updates together
+const person = new Reactor({
+  firstName: 'Clark',
+  lastName: 'Kent'
+})
+new Observer(() => {
+  console.log('Look its ' + person.firstName + ' ' + person.lastName)
+})() // Prints 'Look its Clark Kent'
+batch(() => {
+  // None of the following updates will trigger the observer yet
+  person.firstName = "Bruce" 
+  person.lastName = "Wayne"
+}) // prints 'Look its Bruce Wayne'
 
-// You can stop an observer by calling stop()
-partialObserver.stop();
-reactor.ticker += 1;  // Will not trigger since observer is stopped
-
-// You can restart an observer by calling start()
-// This also retriggers the observed block
-partialObserver.start(); // prints "next Elsie"
-
-// Start is idempotent so starting an already running observer has no effect
-partialObserver.start(); // -
-partialObserver.start(); // -
-partialObserver.start(); // -
-
-// For convenience, you can call the function provided to the observer
-// This works regardless of whether the observer is started or stopped
-partialObserver(); // prints "next Bob"
-
-// You can provide a name to conveniently override old observers
-// This simplifies dynamic observer creation
-reactor.counter = 1
-const firstObserver = observe("counterReporter", () => {
-  console.log("first observer: ", reactor.counter);
-}); // prints "first observer: 1";
-reactor.counter += 1 // prints "first observer: 2"
-
-const secondObserver = observe("counterReporter", () => {
-  console.log("second observer: ", reactor.counter);
-}); // prints "second observer: 2";
-reactor.counter += 1; // prints "second observer: 3"
-                      // First observer has been overriden and does not trigger
+// shuck removes the Reactor layer and returns the base object
+// This is necessary for some native objects which dont work with proxies
+const mapReactor = new Reactor(new Map())
+Map.prototype.keys.call(mapReactor) // throws an Error
+Map.prototype.keys.call(shuck(mapReactor)) // works fine
 ```
 
-Comparison to Other Libraries
------------------------------
-
-Reactor is based on the same reactive principles as [Bacon.js](https://github.com/raimohanska/bacon.js) and [Knockout.js](http://knockoutjs.com/). The main difference is that Reactor is trying to be lightweight and keep the additional syntax and complexity to a minimum. Reactor sets dependencies for you automatically so there is no need to manually set subscriptions/listeners.
-
-Compared to Knockout, Reactor does not provide semantic bindings directly to HTML. Instead, users set the appropriate HTML modifying functions as Observers.
-
-Compared to Bacon, Reactor does not help to handle event streams.
 
 Reactors
 --------
@@ -124,54 +132,50 @@ A **Reactor** is an object wrapper which automatically tracks observers that rea
 
 You create a new Reactor by just calling its constructor.
 ```javascript
-const reactor = new Reactor();
+const reactor = new Reactor()
 ```
 
 You can also wrap an existing object with a Reactor by passing it to the constructor. Changes to the Reactor are passed through to the underlying object.
 ```javascript
 const reactor = new Reactor({
   foo: "bar"
-});
+})
 ```
 
 Reactors behave mostly like plain javascript objects.
 ```javascript
 const reactor = new Reactor({
   foo: "bar"
-});
-reactor.foo; // "bar"
-
-// You can set and get properties as usual
-reactor.cow = "moo";
-reactor.cow; = "moo"
-
+})
+// You can get and set properties as usual
+reactor.foo // "bar"
+reactor.cow = "moo"
 // defineProperty works normally as well
 Object.defineProperty(reactor, "milk", {
-  get() { return "chocolate"; }
-});
-reactor.milk; // "chocolate"
-
+  get() { return "chocolate" }
+})
+reactor.milk // "chocolate"
 // delete works too
-delete reactor.foo;
-reactor.foo; // undefined
+delete reactor.foo
+reactor.foo // undefined
 ```
 
 The key difference of Reactors is that they track when one of their properties is read by an observer and will notify that observer when the property is updated.
 
 ```javascript
-const reactor = new Reactor({ foo: "bar" });
+const reactor = new Reactor({ foo: "bar" })
 
-observe(() => {
-  console.log("foo is ", reactor.foo);
-}); // prints "foo is bar"
+new Observer(() => {
+  console.log("foo is ", reactor.foo)
+})() // prints "foo is bar"
 
-reactor.foo = "moo"; // prints "foo is moo"
+reactor.foo = "moo" // prints "foo is moo"
 
 Object.defineProperty(reactor, "foo", {
-  get() { return "meow"; }
-}); // prints "foo is meow"
+  get() { return "meow" }
+}) // prints "foo is meow"
 
-delete reactor.foo; // prints "foo is undefined"
+delete reactor.foo // prints "foo is undefined"
 ```
 
 Tracking is property specific so observers will not trigger if a different property is updated
@@ -179,19 +183,19 @@ Tracking is property specific so observers will not trigger if a different prope
 const reactor = new Reactor({
   foo: "bar",
   moo: "mar"
-});
+})
 
-observe(() => {
-  console.log("foo tracker is now", reactor.foo);
-}); // prints "foo tracker is now bar"
+new Observer(() => {
+  console.log("foo tracker is now", reactor.foo)
+})() // prints "foo tracker is now bar"
 
-observe(() => {
-  console.log("moo tracker is now", reactor.foo);
-}); // prints "moo tracker is now mar"
+new Observer(() => {
+  console.log("moo tracker is now", reactor.foo)
+})() // prints "moo tracker is now mar"
 
-reactor.foo = "bar2"; // prints "foo tracker is now bar2"
-reactor.moo = "mar2"; // prints "moo tracker is now mar2"
-reactor.goo = "goop"; // does not trigger any observers
+reactor.foo = "bar2" // prints "foo tracker is now bar2"
+reactor.moo = "mar2" // prints "moo tracker is now mar2"
+reactor.goo = "goop" // does not trigger any observers
 ```
 
 If reading a Reactor's property also returns an object, that object is recursively also wrapped in a Reactor before being returned. This allows observers to tracks dependencies in nested objects easily.
@@ -200,33 +204,60 @@ const reactor = new Reactor({
   outer: {
     inner: "cake"
   }
-});
+})
 
-observe(() => {
-  console.log("inner value is ", reactor.outer.inner);
-}); // prints "inner value is cake"
+new Observer(() => {
+  console.log("inner value is ", reactor.outer.inner)
+})() // prints "inner value is cake"
+```
+
+Reactors are implemented using [Proxy](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy) objects. This means reactors created from scratch typecheck as Reactors, but Reactors created from an existing object typecheck as the original object.
+
+```javascript
+const baseReactor = new Reactor()
+baseReactor instanceof Reactor // true
+const mapReactor = new Reactor(new Map())
+mapReactor instanceof Reactor // false
+mapReactor instanceof Map // true
+```
+
+This also has implications for native objects or objects which use private properties. Since proxies can't access native or private properties, some methods will fail. To get around this, we provide the `shuck` function which returns a reactor's internal object.
+
+```javascript
+// Native object example
+const mapReactor = new Reactor(new Map())
+Map.prototype.keys.apply(mapReactor) // throws an error
+Map.prototype.keys.apply(shuck(mapReactor)) // works fine
 ```
 
 Observers
 ---------
 
-An **Observer** is a code block that re-executes when one of the reactor propeties it read from is updated.
+An **Observer** is like a normal function that you can define and call. When an Observer reads from a Reactor it automatically tracks that dependency, and when that Reactor property is updated is automatically triggers the observer again.
 
-Observers are created by using "observe" passing it a function. This function is executed once immediately on creation. 
+Observers are created by passing a function to its constructor.
 ```javascript
-observe(() => {
+const observer = new Observer(() => {
   console.log("hello world")
-}); // prints "hello world"
+})
+observer() // prints "hello world" and starts the observer
+```
+
+For brevity observers can also be created and instantly executed like this
+```javascript
+new Observer(() => {
+  console.log("hello world")
+})() // prints "hello world" and starts the observer
 ```
 
 When an Observer reads a Reactor's property it gets saved as a dependent. When that property is updated it notifies the observer which re-executes its function. This happens automatically without any need to manually declare dependencies.
 ```javascript
-const reactor = new Reactor();
-observe(() => {
-  console.log("reactor.foo is ", reactor.foo);
-}); // prints "reactor.foo is undefined"
+const reactor = new Reactor()
+new Observer(() => {
+  console.log("reactor.foo is ", reactor.foo)
+})() // prints "reactor.foo is undefined"
 
-reactor.foo = "bar"; // prints "reactor.foo is bar";
+reactor.foo = "bar" // prints "reactor.foo is bar"
 ```
 
 An Observer's dependencies are dynamically determined. Only the dependencies actually read in the last execution of an observer can trigger it again. This means that Reactor reads that are only conditionally used will not trigger the observer unnecessarily.
@@ -235,136 +266,171 @@ const reactor = new Reactor({
   a: true,
   b: "bee",
   c: "cee"
-});
-observe(() => {
+})
+new Observer(() => {
   if (reactor.a) {
-    console.log("reactor.b is ", reactor.b);
+    console.log("reactor.b is ", reactor.b)
   } else {
-    console.log("reactor.c is ", reactor.c);
+    console.log("reactor.c is ", reactor.c)
   }
-}); // prints "reactor.b is bee"
+})() // prints "reactor.b is bee"
 
-reactor.b = "boop"; // prints "reactor.b is boop"
+reactor.b = "boop" // prints "reactor.b is boop"
 reactor.c = "cat" // does not trigger the observer
 
-reactor.a = false; // prints "reactor.c is cat"
-reactor.b = "blue"; // does not trigger the observer
-reactor.c = "cheese"; // prints "reactor.c is cheese"
+reactor.a = false // prints "reactor.c is cat"
+reactor.b = "blue" // does not trigger the observer
+reactor.c = "cheese" // prints "reactor.c is cheese"
+```
+
+An Observer's results are themselves observable via either the `value` property, or by triggering the observer via `observer()` and using the return value. This allows you to chain observers together.
+```javascript
+const reactor = new Reactor({ foo: 'bar' })
+const capitalizer = new Observer(() => {
+  return reactor.foo.toUpperCase()
+})()
+const printer = new Observer(() => {
+  console.log(capitalizer.value)
+})() // prints 'BAR'
+reactor.foo = 'baz' // Prints 'BAZ'
+```
+
+This works too:
+```javascript
+const reactor = new Reactor({ foo: 'bar' })
+const capitalizer = new Observer(() => {
+  return reactor.foo.toUpperCase()
+}) // Did not start the observer here
+const printer = new Observer(() => {
+  // Manually calls capitalizer like a function which actives it
+  // As well as accesses its return value as a dependency
+  console.log(capitalizer()) 
+})() // Starts printer which starts capitalizer
+reactor.foo = 'baz' // Prints 'BAZ'
 ```
 
 You can stop an observer by just calling "stop()" on the returned observer object. This clears any existing dependencies and prevents triggering. You can restart the observer by just calling "start()". Starting is idempotent so calling "start()" on an already running observer will have no effect.
 ```javascript
-const reactor = new Reactor();
-const observer = observe(() => {
-  console.log(reactor.foo);
-}); // prints "undefined"
+const reactor = new Reactor()
+const observer = new Observer(() => {
+  console.log(reactor.foo)
+})() // prints "undefined"
 
-reactor.foo = "bar"; // prints "bar"
+reactor.foo = "bar" // prints "bar"
 
-observer.stop();
+observer.stop()
 
 reactor.foo = "cheese" // does not trigger the observer
 
-observer.start(); // prints "cheese"
-observer.start(); // No effect
-observer.start(); // No effect
-observer.start(); // No effect
+observer.start() // prints "cheese"
+observer.start() // No effect
+observer.start() // No effect
+observer.start() // No effect
 
-reactor.foo = "moo"; // prints "moo"
+reactor.foo = "moo" // prints "moo"
 ```
 
-For convenience, you can call an observer with no arguments to execute like a normal function. This works regardless of whether an observer is stopped.
+For convenience, you can call an observer to execute like a normal function. This works regardless of whether an observer is stopped. Doing so starts the observer up again.
 
 ```javascript
-const reactor = new Reactor({ foo: "hello" });
-const observer = observe(() => {
-  console.log(reactor.foo);
-}); // prints "hello"
-reactor.foo = "hi"; // prints "hi"
-observer(); // prints "hi" again
+const reactor = new Reactor({ foo: "hello" })
+const observer = new Observer(() => {
+  console.log(reactor.foo)
+})() // prints "hello"
+reactor.foo = "hi" // prints "hi"
+observer() // prints "hi" again
 
-observer.stop();
+observer.stop()
 reactor.foo = "hola" // does not trigger the observer since its stopped
-observer(); // prints "hola"
+observer() // prints "hola"
 ```
-Note that calling an observer this way does not create any of the observer's dependencies. It is equivalent to just calling the plain function without the observer wrapper. 
 
-### Unobserve
+Like normal functions, observers can expect and be called with arguments. They remember the arguments from the last time they were called and reuse them when automatically triggered.
+
+```javascript
+const parameterizedObserver = new Observer((arg1, arg2) => {
+  console.log(reactor.foo + arg1 + arg2)
+})
+parameterizedObserver('beep', 'bop') // Prints bazbeepbop
+reactor.foo = 'bla' // Prints blabeepbop
+```
+
+Observers can also use and remember the last `this` context. Note that just like normal functions, for the `this` context to be bound to the holding object, it needs to be defined with the traditional `function` keyboard instead of es6 arrow functions. 
+```javascript
+const holdingObject = {
+  name: 'Mario',
+  greet: new Observer(function () { // Need to use of `function`
+    console.log("Hello " + reactor.foo + " itsa me " +  this.name)
+  })
+}
+holdingObject.greet() // Prints "Hello bla itsa me Mario"
+reactor.foo = 'bonk' // Prints "Hello bonk itsa me Mario"
+holdingObject.name = 'Luigi' // Prints nothing since holdingObject is not a Reactor
+```
+
+
+### Hide
 
 Sometimes you might want to read from a Reactor without becoming dependent on it. A common case for this is when using array modification methods. These often also read from the array in order to do the modification.
 ```javascript
-const taskList = new Reactor(["a", "b", "c", "d"]);
+const taskList = new Reactor(["a", "b", "c", "d"])
 
 // Creating the following observer will throw a LoopError
 // Because it both reads from and modifies the length property of taskList
 // As a result it triggers itself in the middle of execution
 // This loop is detected and creates an exception
-observe(() => {
+new Observer(() => {
   // Even though we only want to modify the array
   // pop() also reads the length property of the array
-  console.log(taskList.pop()); 
-});
+  console.log(taskList.pop()) 
+})()
 ```
 
-In these cases you can use "unobserve" to shield a block of code from creating dependencies. It takes a function and any reactor properties read inside that function will not be set as dependencies. Unobserve also passes through the return value of its function for syntactic simplicity.
+In these cases you can use "hide" to shield a block of code from creating dependencies. It takes a function and any reactor properties read inside that function will not be set as dependencies. `hide` also passes through the return value of its function for syntactic simplicity.
 ```javascript
-const taskList = new Reactor(["a", "b", "c", "d"]);
+const taskList = new Reactor(["a", "b", "c", "d"])
 
-observe(() => {
+new Observer(() => {
 
   console.log(
-    // Because we wrap pop() call in an unobserve block
+    // Because we wrap pop() call in an hide block
     // It is not create a depndency on the length property
     // Unlike our previous example
-    unobserve(() => taskList.pop())
-  ); 
+    hide(() => taskList.pop())
+  ) 
 
-}); // prints "d"
+})() // prints "d"
 
-taskList.push("e"); // does not trigger the observer
+taskList.push("e") // does not trigger the observer
 ```
 
-Note that only the reads inside the unobserve block are shielded from creating dependencies. The rest of the observe block still creates dependencies as normal.
+Note that only the reads inside the hide block are shielded from creating dependencies. The rest of the observe block still creates dependencies as normal.
 
 ### Overrides
-If you need to dynamically create observers, you often need to manually clear the old observers. Instead of manually stopping and making a new observer, you can just provide the existing observer a new execution function. 
-```javascript
-const reactor = new Reactor({ foo: "bar" });
-
-// The returned Observer object is itself a function
-let observerToBeOverriden = observe(() => {
-  console.log(reactor.foo);
-}); // prints "bar"
-
-reactor.foo = "moo"; // prints "moo"
-
-// Passing a new function to the observer object replaces the old function
-observerToBeOverriden(() => {
-  console.log("I am saying", reactor.foo);
-}); // prints "I am saying moo"
-
-reactor.foo = "blep"; // prints "I am saying blep"
-```
-
-You can also pass a key when creating an observer. When any other observer is created with the same key, it overrides the previous observer instead of creating a new one. 
+If you need to access the raw function the observer is wrapping you do so with the `execute` property.
 
 ```javascript
-const reactor = new Reactor({ foo: "bar" });
-
-const firstObserver = observe("fooTracker", () => {
-  console.log("first observer: ", reactor.foo);
-}); // prints "first observer: bar";
-reactor.foo = "moo"; // prints "first observer: moo"
-
-const secondObserver = observe("fooTracker", () => {
-  console.log("second observer: ", reactor.foo);
-}); // prints "second observer: moo";
-reactor.foo = "beep"; // prints "second observer: beep"
-
-firstObserver === secondObserver; // true
+const myFunction = () => {}
+const observer = new Observer(myFunction)
+myFunction === observer.execute // true
 ```
 
-The key can be any string, but it can also be an object. This can be useful for associating observers with specific UI elements. Key equality has the same semantics as ES6 Map objects.
+By setting this property you can change an observers internal logic. Doing so clears dependencies and retriggers the observer. Note that the previous `this` and arguments contexts will stay. 
+
+```javascript
+const reactor = new Reactor({ foo: "bar" })
+let observerToBeOverriden = new Observer((arg) => {
+  console.log(reactor.foo, 'and', arg)
+})
+observerToBeOverriden('blap') // prints "bar and blap"
+reactor.foo = "moo" // prints "moo and blap"
+
+// Setting the execute property replaces the old function
+observerToBeOverriden.execute = (arg) => {
+  console.log("I am saying", arg, reactor.foo)
+} // prints "I am saying blap moo"
+reactor.foo = "blep" // prints "I am saying blap blep"
+```
 
 ### Batching
 One problem with automatic watchers is that you might end up with multiple repeated triggering when you're updating a whole lot of information all at once. The following code shows an example where you want to update multiple properties, but each property update prematurely triggers the observer since you are not done updating yet.
@@ -375,11 +441,11 @@ const person = new Reactor({
   lastName: "Skywalker",
   faction: "Jedi",
   rank: "Knight"
-});
+})
 
 // This observer tracks multiple properties 
 // and so will be triggered when any of the properties get updated
-const observer = observe(() => {
+const observer = new Observer(() => {
   console.log(
     "I am " +
     person.firstName + 
@@ -389,15 +455,15 @@ const observer = observe(() => {
     person.faction + 
     " " + 
     person.rank
-  );
-}); // prints "I am Anakin Skywalker, Jedi Knight"
+  )
+})() // prints "I am Anakin Skywalker, Jedi Knight"
 
 // The following updates will each trigger the observer even though we only 
 // want to trigger the observer once all the updates are complete
-person.firstName = "Darth"; // prints "I am Darth Skywalker, Jedi Knight"
-person.lastName = "Vader"; // prints "I am Darth Vader, Jedi Knight"
-person.faction = "Sith"; // prints "I am Darth Vader, Sith Knight"
-person.rank = "Lord"; // prints "I am Darth Vader, Sith Lord"
+person.firstName = "Darth" // prints "I am Darth Skywalker, Jedi Knight"
+person.lastName = "Vader" // prints "I am Darth Vader, Jedi Knight"
+person.faction = "Sith" // prints "I am Darth Vader, Sith Knight"
+person.rank = "Lord" // prints "I am Darth Vader, Sith Lord"
 ```
 
 Reactor provides the `batch` keyword, which allows you to batch multiple updates together and only trigger the appropriate observers once at the end of the batch block. So the last part of the previous example can be turned into:
@@ -406,36 +472,16 @@ Reactor provides the `batch` keyword, which allows you to batch multiple updates
 // Triggers are deduplicated so any observer is triggered at most once
 batch(() => {
   // None of the following updates will trigger the observer yet
-  person.firstName = "Darth"; 
-  person.lastName = "Vader";
-  person.faction = "Sith";
-  person.rank = "Lord";
-}); // prints "I am Darth Vader, Sith Lord"
+  person.firstName = "Darth" 
+  person.lastName = "Vader"
+  person.faction = "Sith"
+  person.rank = "Lord"
+}) // prints "I am Darth Vader, Sith Lord"
 ```
 
 This is useful when you are making multiple data updates and want to avoid showing an "incomplete" view of the data to observers.
 
 Note that only the observer triggering is postponed till the end. The actual reactor propertes are updated in place as expected. This means that you can have other logic with read-what-you-write semantics within the observer block working just fine.
-
-Installation & Use
---------------------
-
-Reactor.js is [available on npm](https://npmjs.org/package/reactorjs). You can install it by running
-```
-$ npm install reactorjs
-```
-
-Inside you application you can include the necessary components by running
-```javascript
-const { 
-  Reactor, 
-  observe,
-  unobserve
-} = require("reactorjs");
-```
-
-If you want to just use Reactor.js directly without using npm, you can download [Reactor.js](https://github.com/fynyky/reactor.js/raw/master/reactor.js) and include it in your application. When used outside of a module system, Reactor provides the same `Reactor`, `observe`, `unobserve`, and `batch` components as global objects.
-
 
 Development & Testing
 ---------------------
@@ -444,3 +490,13 @@ Tests are stored in `test.js` to be run using Mocha.
 Run `npm install` to install the the dev dependencies.
 
 To run the tests run `npm test`.
+
+
+Comparison to Other Libraries
+-----------------------------
+
+Reactor is based on the same reactive principles as [Bacon.js](https://github.com/raimohanska/bacon.js) and [Knockout.js](http://knockoutjs.com/). The main difference is that Reactor is trying to be lightweight and keep the additional syntax and complexity to a minimum. Reactor sets dependencies for you automatically so there is no need to manually set subscriptions/listeners.
+
+Compared to Knockout, Reactor does not provide semantic bindings directly to HTML. Instead, users set the appropriate HTML modifying functions as Observers.
+
+Compared to Bacon, Reactor does not help to handle event streams.
