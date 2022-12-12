@@ -483,7 +483,6 @@ This is useful when you are making multiple data updates and want to avoid showi
 
 Note that only the observer triggering is postponed till the end. The actual reactor propertes are updated in place as expected. This means that you can have other logic with read-what-you-write semantics within the observer block working just fine.
 
-
 Development & Testing
 ---------------------
 Tests are stored in `test.js` to be run using Mocha.
