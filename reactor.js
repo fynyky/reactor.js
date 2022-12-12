@@ -1,4 +1,4 @@
-import { WeakRefMap, WeakRefSet } from 'weak-ref-collections'
+import { WeakRefSet } from 'weak-ref-collections'
 
 // Global stack to automatically track dependencies
 // - When an observer is updated, it first puts itself on the dependency stack
@@ -14,41 +14,22 @@ const dependencyStack = []
 // each others interfaces to access internal core variables
 // In the constructor of each of them, they will map their external interfaces
 // to their internal cores
-const coreExtractor = new WeakMap()
+const signalCoreExtractor = new WeakMap()
+const reactorCoreExtractor = new WeakMap()
 
 // A batcher is used to postpone observer triggers and batch them together
 // When "batch" is called it adds sets a batcher to this global variable
 // When a Signal is updated it checks if a batcher is set
 // If it is, it adds that observer to this set instead of triggering it
-// At the end of the exeution, the batch call then calls all the observers
+// At the end of the execution, the batch call then calls all the observers
 // Then clears the batcher again
 let batcher = null
 
-// Definition is a shell class to identify dynamically calculated variables
-// Accessed through the "define" function
-// Class itself is not meant to be instantiated directly
-// It is only for internal type checking
-// -----------------------------------------------------------------------------
-// Examples
-// let a = new Signal(define(() => Date.now()))
-// let b = new Signal(1);
-// b = new Signal(define(() => {
-//   return "hello it is now " + a();
-// }));
-// let c = new Reactor();
-// c.foo = define(() => "the message is " + b());
-class Definition {
-  constructor (definition) {
-    if (typeof definition === 'function') {
-      this.definition = definition
-      return this
-    }
-    throw new TypeError('Cannot create definition with a non-function')
-  }
-}
-// Expose a define "keyword" instead of the class itself
-// This seems nicer syntactic sugar than "new Definition(...)" each time
-const define = (definition) => new Definition(definition)
+// Cache of objects to their reactor proxies
+// The same object should always get turned into the same Reactor
+// This allows for consistent dependency tracking
+// across multiple reads of the same object
+const reactorCache = new WeakMap()
 
 // Signals are observable functions representing values
 // - Read a signal by calling it with no arguments
@@ -62,9 +43,8 @@ const define = (definition) => new Definition(definition)
 // let a = new Signal(1)          Initializes it with value 1
 // a()                            Returns 1
 // a(2)                           Sets the value to 2
-// a(define(() => Date.now()))    Sets a dynamic getter instead of static value
 const Signals = new WeakSet()
-class Signal {
+class Signal extends Function {
   // Signals are made up of 2 main parts
   // - The core: The properties & methods which lets signals work
   // - The interface: The function returned to the user to use
@@ -73,17 +53,15 @@ class Signal {
     // All actual functionality & state should be built into the core
     // Should be completely agnostic to syntactic sugar
     const signalCore = {
-
       // Signal state
-      value: null, // The set value
-      dependents: new Set(), // The Observers which rely on this Signal
-      reactorCache: new WeakMap(), // Cache of objects to their reactor proxies
-      // Allows for consistent dependency tracking
-      // across multiple reads of the same object
-      removeSelf: () => {}, // callback set by parent Reactor to allow removal
+      // The set value. Purposely commented out to be undefined as a base
+      // value: undefined,
+      // The Observers which rely on this Signal
+      dependents: new Set(),
+      // callback set by parent Reactor to allow removal
       // Used to delete Signals with no dependents
       // To reduce memory leaks
-
+      removeSelf: () => {},
       // Life of a read
       // - check to see who is asking
       // - register them as a dependent and register self as their dependency
@@ -98,36 +76,32 @@ class Signal {
           this.dependents.add(dependent)
           dependent.addDependency(this)
         }
-        // Return the appropriate static or calculated value
-        const output = (this.value instanceof Definition)
-          ? this.value.definition()
-          : this.value
+        const output = this.value
+
+        // If it's not an object then just return it right away
+        // Cleaner and faster than the alternative approach of constructing a Reactor
+        // and catching an error
+        if (
+          // Need to do this because typeof null is object for some reason
+          output === null || (
+            typeof output !== 'function' &&
+            typeof output !== 'object'
+          )
+        ) return output
+
         // Wrap the output in a Reactor if it's an object
         // No need to wrap it if its already a Reactor
         if (Reactors.has(output)) return output
-        // Check to see if we've wrapped this object before
-        // This allows consistency of dependencies with repeated read calls
-        let reactor = this.reactorCache.get(output)
-        if (reactor) return reactor
         // If not then wrap and store it for future reads
-        try {
-          reactor = new Reactor(output)
-          this.reactorCache.set(output, reactor)
-          return reactor
-        // Assume TypeError means it was not an object
-        // In that case just return the plain output
-        } catch (error) {
-          if (error.name === 'TypeError') return output
-          throw error
-        }
+        return new Reactor(output)
       },
 
       // Life of a write
-      // - If the new value is a Definition then save it as a getter
-      // - Otherwise just store the provided value
+      // - Store the provided value
       // - Trigger any dependent Observers while collecting errors thrown
       // - Throw a CompoundError if necessary
       write (newValue) {
+        // Avoid triggering observers if same value is written
         if (this.value === newValue) return (this.value = newValue)
         // Save the new value/definition
         const output = (this.value = newValue)
@@ -155,11 +129,12 @@ class Signal {
         }
         return output
       },
-
       // Used by observers to remove themselves from this as dependents
       // Also removesSelf from any owners if there are no more dependents
       removeDependent (dependent) {
         this.dependents.delete(dependent)
+        // TODO should we be doing this? clean self up if no dependents
+        // What if you want it to stick around for future reads
         if (this.dependents.size === 0) this.removeSelf()
       }
 
@@ -168,23 +143,29 @@ class Signal {
     // The interface function returned to the user to utilize the signal
     // This is done to abstract away the messiness of how the signals work
     // Should contain no additional functionality and be purely syntactic sugar
-    const signalInterface = function (value) {
-      // An empty call is treated as a read
-      if (arguments.length === 0) return signalCore.read()
-      // A non empty call is treated as a write
-      return signalCore.write(value)
-    }
+    super()
+    const signalInterface = new Proxy(this, {
+      apply (target, thisArg, args) {
+        // An empty call is treated as a read
+        if (args.length === 0) return signalCore.read()
+        // A non empty call is treated as a write
+        return signalCore.write(args[0])
+      }
+    })
 
     // Register the Signal for debugging/typechecking purposes
-    coreExtractor.set(signalInterface, signalCore)
+    signalCoreExtractor.set(signalInterface, signalCore)
     Signals.add(signalInterface)
 
     // Initialize with the provided value before returning
     signalInterface(initialValue)
     return signalInterface
   }
-};
+}
 
+// WeakSet of all Reactors to check if something is a Reactor
+// Need to implement it this way because you can check instanceof Proxies
+const Reactors = new WeakSet()
 // Reactors are observable object proxies
 // - They mostly function transparently passing calls to the internal object
 // - The main difference is that they track and notify Observers automatically
@@ -194,39 +175,71 @@ class Signal {
 // When a Reactor property is updated it automatically notifies dependents
 // -----------------------------------------------------------------------------
 // Examples
-// let a = new Reactor()          Initializes a new empty Reactor object
+// const a = new Reactor()          Initializes a new empty Reactor object
 // a.foo = 2
 // a.foo                          Returns 2 as expected
-// a.bar = define(function() {    Sets a dynamic getter using defineProperty
-//   return this.foo;
-// });
-// let b = new Reactor({          Wraps an existing object into a Reactor
+// const b = new Reactor({          Wraps an existing object into a Reactor
 //   quu: "mux"
 //   moo: {
 //     cheese: "banana"
 //   }
 // })
-// WeakSet of all Reactors to check if something is a Reactor
-// Need to implement it this way because you can check instanceof Proxies
-const Reactors = new WeakSet()
 class Reactor {
   constructor (initializedSource) {
+    // If the source is already a reactor then do nothing and return it
+    // No double wrapping of reactors allowed
+    if (Reactors.has(initializedSource)) return initializedSource
+
+    // Check to see if we've wrapped this object before
+    // This allows consistency of dependencies with repeated read calls
+    const existingReactor = reactorCache.get(initializedSource)
+    if (existingReactor) return existingReactor
+
     // The source is the internal proxied object
     // If no source is provided then provide a new default object
-    if (arguments.length === 0) initializedSource = {}
+    if (arguments.length === 0) initializedSource = this
 
     // The "guts" of a Reactor containing properties and methods
     // All actual functionality & state should be built into the core
     // Should be completely agnostic to syntactic sugar
     const reactorCore = {
       source: initializedSource,
+      // Dependency tracking not for any particular property
+      // but for the reactor overall
       selfSignal: new Signal(null),
 
       // Function calls on reactor properties are automatically batched
       // This allows compound function calls like "Array.push"
       // to only trigger one round of observer updates
       apply (thisArg, argumentsList) {
-        return batch(() => Reflect.apply(this.source, thisArg, argumentsList))
+        return batch(() => {
+          // For native object methods which cant use a Proxy as `this`
+          // try again with the underlying object
+          // Some limitations if the failed attempt has side effects prior to throwing an error
+          // this will double them
+          // Generally acceptable because native objects should be expected to not leave a mess
+          // Potentially some issues in user defined objects getting wrapped in Reactor
+          // using private properties and leaving a mess on error
+          // Also this still wont fix being unable to pass the proxy to static methods
+          // `proxiedMap.keys()` will work because keys gets wrapped by this handler
+          // `Map.prototype.keys.call(proxiedMap)` won't work because it doesnt get wrapped
+          try {
+            return Reflect.apply(this.source, thisArg, argumentsList)
+          } catch (error) {
+            if (error.name === 'TypeError') {
+              const core = reactorCoreExtractor.get(thisArg)
+              if (typeof core !== 'undefined') {
+                // Note that this.source and core.source are different
+                // core.source is the underlying object
+                // this.source is the function which is being called with the object as `this`
+                return Reflect.apply(this.source, core.source, argumentsList)
+              }
+            }
+            // If any other type of error, or if there's nothing to unwrap throw error anyway
+            // because then its not a problem with Reactor wrapping
+            throw error
+          }
+        })
       },
 
       // Instead of reading a property directly
@@ -237,7 +250,7 @@ class Reactor {
       get (property, receiver) {
         // Disable unnecessary wrapping for unmodifiable properties
         // Needed because Array prototype checking fails if wrapped
-        // Specificaly [].map();
+        // Specificaly [].map()
         const descriptor = Object.getOwnPropertyDescriptor(
           this.source, property
         )
@@ -254,9 +267,31 @@ class Reactor {
             : new Signal()
         // User accessor signals to give the actual output
         // This enables automatic dependency tracking
-        const signalCore = coreExtractor.get(this.getSignals[property])
+        const signalCore = signalCoreExtractor.get(this.getSignals[property])
         signalCore.removeSelf = () => delete this.getSignals[property]
-        const currentValue = Reflect.get(this.source, property, receiver)
+        const currentValue = (() => {
+          // Handle getters which require hidden/native properties
+          // If putting the proxy as `this` fails then reveal the underlying object
+          // There are limitations though
+          // - If the getter have any side effects on error this will trigger them twice
+          // - If the getter also reads other public properties this will not build dependencies
+          // For example this will fail to build a dependency on `this.normalProp` if proxied
+          // get (prop) {
+          //   return this.#hiddenProp + this.normalProp
+          // }
+          // This is sort of a necessary limitation of dealing with native code though
+          // Better than failing overall?
+          // An alternative is to detect the "nativeness" of an object and pass through
+          // That seems quite messy though
+          try {
+            return Reflect.get(this.source, property, receiver)
+          } catch (error) {
+            // We trim to TypeError to minimize unnecessary double retries to actual proxy problems
+            // but it could still happen for other TypeErrors
+            if (error.name === 'TypeError') return Reflect.get(this.source, property, this.source)
+            throw error
+          }
+        })()
         signalCore.value = currentValue
         return signalCore.read()
       },
@@ -266,45 +301,15 @@ class Reactor {
       // We trap defineProperty instead of set because it avoids the ambiguity
       // of access through the prototype chain
       defineProperty (property, descriptor) {
-        // Automatically transform a Definition set into a getter
-        // Identical to calling Object.defineProperty with a getter directly
-        // This is just syntactic sugar and does not provide new functionality
-        if (descriptor.value instanceof Definition) {
-          const newDescriptor = {
-            get: descriptor.value.definition,
-            // Copy the prexisting configurable and enumerable properties
-            // Default to true if undefined
-            // Apparent bug in v8 where you are unable to modify
-            // the descriptor with it false
-            // https://bugs.chromium.org/p/v8/issues/detail?id=7884
-            configurable: (descriptor.configurable === undefined
-              ? true
-              : descriptor.configurable
-            ),
-            enumerable: (descriptor.enumerable === undefined
-              ? true
-              : descriptor.enumerable
-            )
-          }
-          // Translate the writable property into the existence of a setter
-          // Default to true
-          if (descriptor.writable || descriptor.writable === undefined) {
-            newDescriptor.set = (value) => {
-              delete this.source[property]
-              this.source[property] = value
-            }
-          }
-          descriptor = newDescriptor
-        };
         const didSucceed = Reflect.defineProperty(
           this.source, property, descriptor
         )
-        // Notify dependents before returning
+        // Trigger dependents before returning
         this.trigger(property)
         return didSucceed
       },
 
-      // Transparently delete the property but also notify dependents
+      // Transparently delete the property but also trigger dependents
       deleteProperty (property) {
         const didSucceed = Reflect.deleteProperty(this.source, property)
         this.trigger(property)
@@ -325,7 +330,7 @@ class Reactor {
             : new Signal(null)
         // User accessor signals to give the actual output
         // This enables automatic dependency tracking
-        const signalCore = coreExtractor.get(this.hasSignals[property])
+        const signalCore = signalCoreExtractor.get(this.hasSignals[property])
         signalCore.removeSelf = () => delete this.hasSignals[property]
         const currentValue = Reflect.has(this.source, property)
         signalCore.value = currentValue
@@ -335,7 +340,7 @@ class Reactor {
       // Subscribe to the overall reactor by reading the dummy signal
       ownKeys () {
         const currentKeys = Reflect.ownKeys(this.source)
-        const signalCore = coreExtractor.get(this.selfSignal)
+        const signalCore = signalCoreExtractor.get(this.selfSignal)
         signalCore.value = currentKeys
         return signalCore.read()
       },
@@ -351,7 +356,7 @@ class Reactor {
         const hasValue = Reflect.has(this.source, property)
         // For ownKeys you need to manually calculate the set comparison
         const currentOwnKeysValue = Reflect.ownKeys(this.source)
-        const oldOwnKeysValue = coreExtractor.get(this.selfSignal).value
+        const oldOwnKeysValue = signalCoreExtractor.get(this.selfSignal).value
         const ownKeysChanged = (() => {
           const currentSet = new Set(currentOwnKeysValue)
           const oldSet = new Set(oldOwnKeysValue)
@@ -389,7 +394,7 @@ class Reactor {
       defineProperty (target, property, descriptor) {
         if (target === reactorCore.source) {
           return reactorCore.defineProperty(property, descriptor)
-        };
+        }
         throw new Error('Proxy target does not match initialized object')
       },
       deleteProperty (target, property) {
@@ -407,73 +412,74 @@ class Reactor {
       ownKeys (target) {
         if (target === reactorCore.source) {
           return reactorCore.ownKeys()
-        };
+        }
         throw new Error('Proxy target does not match initialized object')
       }
     })
     // Register the reactor for debugging/typechecking purposes
-    coreExtractor.set(reactorInterface, reactorCore)
     Reactors.add(reactorInterface)
+    reactorCoreExtractor.set(reactorInterface, reactorCore)
+    reactorCache.set(initializedSource, reactorInterface)
     return reactorInterface
   }
 }
 
 // Observers are functions which automatically track their dependencies
-// They are triggered first on initialization
-// They are automatically retriggered whenever a dependency is updated
+// Once triggered they automatically retrigger whenever a dependency is updated
+// A dependency is any read of Signal or property of a Reactor
+// Triggering an observer with parameters saves them for future auto triggers
 // Observers can be stopped and restarted
 // Starting after stopping causes the Observer to execute again
 // Starting does nothing if an Observer is already awake
-// To prevent infinite loops an error is thrown if an Observer triggers itself
 // -----------------------------------------------------------------------------
 // Examples
-// let a = new Signal(1);
-// let b = new Reactor();
+// let a = new Signal(1)
+// let b = new Reactor()
 // b.foo = "bar"
 // let observer = new Observer(() => {        This will trigger whenever
-//   console.log("a is now " + a());          a or b.foo are updated
-//   console.log("b.foois now " + b.foo);
+//   console.log("a is now " + a())          a or b.foo are updated
+//   console.log("b.foois now " + b.foo)
 // })
-// a(2);                                      This will trigger an update
+// observer()
+// a(2)                                      This will trigger an update
 //
-// observer.stop();                           This will block triggers
+// observer.stop()                           This will block triggers
 // b.foo = "cheese"                           No trigger since we stopped it
 //
-// observer.start();                          Will rerun the function
+// observer.start()                          Will rerun the function
 //                                            and allow updates again
 //
-// observer.start();                          Does nothing since already started
-const observerRegistry = new WeakRefMap()
-class Observer {
-  constructor (key, execute, unobserve) {
-    // The triggered and observed block of code
+// observer.start()                          Does nothing since already started
+class Observer extends Function {
+  constructor (execute) {
+    // Parameter validation
     if (typeof execute !== 'function') {
       throw new TypeError('Cannot create observer with a non-function')
-    }
-
-    // Check to see if there's an existing observer to override
-    // instead of making a new one
-    if (typeof key !== 'undefined' && key !== null) {
-      const existingObserver = observerRegistry.get(key)
-      if (existingObserver) return existingObserver(execute)
     }
 
     // Internal engine of an Observer for how it works
     // All actual functionality & state should be built into the core
     // Should be completely agnostic to syntactic sugar
     const observerCore = {
+      // Core function the observer is wrapping
       execute,
-      unobserve, // flag on whether this is a unobserve block
+      // Whether automatic triggers will be accepted
+      awake: false,
+      // The Signals the execution block reads from
+      // Cleared and rebuilt at every trigger
+      // Store dependencies weakly to avoid memory loops
+      // They're only stored to break the connection later anyway
+      dependencies: new WeakRefSet(),
+      // Stored return value of the last successful execute
+      // Stored in a Signal which makes it observable itself
+      value: new Signal(),
+      // Flag on whether this is a unobserve block
       // Avoids creating dependencies in that case
-      awake: true, // Whether further triggers and updates are allowed
-      triggering: false, // Whether the block is currently executing
-      // prevents further triggers
-      dependencies: new WeakRefSet(), // The Signals the execution block reads from
-      // at last trigger
 
       // Symmetrically removes dependencies
       clearDependencies () {
         // Go upstream to break the connection
+        if (this.dependencies === null) return
         this.dependencies.forEach(dependency => {
           dependency.removeDependent(this)
         })
@@ -481,104 +487,134 @@ class Observer {
         this.dependencies = new WeakRefSet()
       },
 
-      // Store dependencies weakly to avoid memory loops
-      // They're only stored to break the connection later anyway
+      // External call to add a dependency
+      // Wrapped to to encapsulate implementation
       addDependency (dependency) {
         this.dependencies.add(dependency)
       },
 
-      // Trigger the execution block and find its dependencies
+      // Trigger the execute block and build dependencies
+      // Does nothing if observer is asleep
+      // If it was awake return true
+      // If it was asleep return false
       trigger () {
-        // Avoid infinite loops by throwing an error if we
-        // try to trigger an already triggering observer
-        if (this.triggering) {
-          throw new LoopError(
-            'observer attempted to activate itself while already executing'
-          )
-        }
-        // Execute the observed function after setting the dependency stack
         if (this.awake) {
           this.clearDependencies()
-          if (unobserve) dependencyStack.push(null)
-          else dependencyStack.push(this)
-          this.triggering = true
-          try { this.execute() } finally {
+          // Put self on the dependency stack
+          // So any signals read by execute know who is calling
+          dependencyStack.push(this)
+          let result
+          // Wrap execute in a try block so that
+          // dependency stack is popped even if an error is occured
+          // Allows users to catch errors themselves and handle them
+          try {
+            result = this.execute.apply(this.thisContext, this.argsContext)
+          } finally {
             dependencyStack.pop()
-            this.triggering = false
           }
+          // Store the result as a subscribable signal
+          // This will trigger any downstream observers
+          // which depend on this observers value
+          this.value(result)
+          return true
         }
+        return false
+      },
+
+      // Redefines the observer with a new exec function
+      // Maintains the context, Signal dependents, and awake status
+      redefine (newExecute) {
+        if (typeof newExecute !== 'function') {
+          throw new TypeError('Cannot create observer with a non-function')
+        }
+        this.clearDependencies()
+        this.execute = newExecute
+        // If awake this will update the value Signal and notify observers downstream
+        // If alseep this will correctly do nothing leaving value to the last triggered value
+        return this.trigger()
       },
 
       // Pause the observer preventing further triggers
+      // Returns false if it was already asleep
+      // Returns true if it was awake
       stop () {
+        if (!this.awake) return false
         this.awake = false
         this.clearDependencies()
+        return true
       },
 
       // Restart the observer if it is not already awake
+      // Returns false is already awake
+      // Returns true if it was woken up
       start () {
-        if (!this.awake) {
-          this.awake = true
-          this.trigger()
-        }
+        if (this.awake) return false
+        this.awake = true
+        this.trigger()
+        return true
       }
 
     }
 
     // Public interace to hide the ugliness of how observers work
-    const observerInterface = function (execute) {
-      // AN empty call is a manual "one time" trigger of the block
-      if (arguments.length === 0) return observerCore.execute()
-      // A non-empty call is used to redfine the observer
-      if (typeof execute !== 'function') {
-        throw new TypeError('Cannot create observer with a non-function')
+    // An empty call force triggers the block and turns it on
+    // A call with arguments gets those arguments passed as a context
+    // for that and future retriggers
+    super()
+    const observerInterface = new Proxy(this, {
+      apply (target, thisArg, args) {
+        observerCore.thisContext = thisArg
+        observerCore.argsContext = args
+        observerCore.awake = true
+        observerCore.trigger()
+        return observerCore.value()
+      },
+      construct (target, args, receiver) {
+        return Reflect.construct(observerCore.execute, args)
       }
-      // reset all the core
-      observerCore.clearDependencies()
-      observerCore.awake = true
-      observerCore.triggering = false
-      observerCore.execute = execute
-      observerCore.trigger()
-      return observerInterface
-    }
-    observerInterface.stop = () => observerCore.stop()
+    })
     observerInterface.start = () => observerCore.start()
-
-    // Register the observer for potential overriding later
-    coreExtractor.set(observerInterface, observerCore)
-    if (typeof key !== 'undefined') {
-      observerRegistry.set(key, observerInterface)
+    observerInterface.stop = () => observerCore.stop()
+    // Note that setting a new context does not cause the observer to trigger
+    // The observer will need to be started and triggered
+    // Named setContext instead of exposing context property for cleaner syntax
+    // `context` property is an array but trivial case of giving a single context argument
+    // Should be expected to work but it doesnt
+    observerInterface.setThisContext = (that) => {
+      observerCore.thisContext = that
     }
-
-    // Trigger once on initialization
-    observerCore.trigger()
+    observerInterface.setArgsContext = (...args) => {
+      observerCore.argsContext = args
+    }
+    // Expose the wrapped execute function
+    // Setting it keeps the context and dependents
+    // but puts the observer back to sleep
+    Object.defineProperty(observerInterface, 'execute', {
+      get () { return observerCore.execute },
+      set (newValue) { return observerCore.redefine(newValue) }
+    })
+    // Allow reads of the last return value of execute
+    // As a Signal this itself is observable and
+    // builds dependencies if done within another observer
+    Object.defineProperty(observerInterface, 'value', {
+      get () { return observerCore.value() }
+    })
+    // Does not trigger on initialization until () or .start() are called
     return observerInterface
   }
-}
-const observe = (arg1, arg2) => {
-  // Argument parsing
-  // If only one argument is given then it needs to be an execute block
-  // If 2 are presented then the first one is treated as an override key
-  let key
-  let execute
-  if (typeof arg2 === 'undefined') {
-    execute = arg1
-  } else {
-    key = arg1
-    execute = arg2
-  }
-  return new Observer(key, execute)
 }
 
 // Unobserve is syntactic sugar to create a dummy observer to block the triggers
 // While also returning the contents of the block
-const unobserve = (execute) => {
-  let output
-  const observer = new Observer(null, () => {
-    output = execute()
-  }, true)
-  observer.stop()
-  return output
+const hide = (execute) => {
+  let result
+  dependencyStack.push(null)
+  try {
+    result = execute()
+  } finally {
+    dependencyStack.pop()
+  }
+  return result
 }
 
 // Method for allowing users to batch multiple observer updates together
@@ -588,18 +624,22 @@ const batch = (execute) => {
     // Set a global batcher so signals know not to trigger observers immediately
     // Using a set allows the removal of redundant triggering in observers
     batcher = new Set()
+    let batchedObservers = []
     // Execute the given block and collect the triggerd observers
-    result = execute()
+    try {
+      result = execute()
+    } finally {
+      // Clear the batching mode
+      // This needs to be done before observer triggering in case any observers
+      // subsequently themselves trigger batches
+      // This also needs to be done first before throwing errors
+      // Otherwise the thrown errors will mean we never unset the batcher
+      // This will cause subsequent triggers to get stuck in this dead batcher
+      // Never to be executed
+      batchedObservers = Array.from(batcher) // Make a copy to freeze it
+      batcher = null
+    }
 
-    // Clear the batching mode
-    // This needs to be done before observer triggering in case any observers
-    // subsequently themselves trigger batches
-    // This also needs to be done first before throwing errors
-    // Otherwise the thrown errors will mean we never unset the batcher
-    // This will cause subsequent triggers to get stuck in this dead batcher
-    // Never to be executed
-    const batchedObservers = Array.from(batcher) // Make a copy to freeze it
-    batcher = null
     // Trigger the collected observers
     // If an error occurs, collect it and keep going
     // A conslidated error will be thrown at the end of propagation
@@ -623,21 +663,20 @@ const batch = (execute) => {
   return result
 }
 
-// Custom Error class to indicate loops in observer triggering
-class LoopError extends Error {
-  constructor (...args) {
-    super(...args)
-    this.name = this.constructor.name
-    return this
-  }
+// Method for extracting a the internal object from the Reactor
+const shuck = (reactor) => {
+  const core = reactorCoreExtractor.get(reactor)
+  if (core) return core.source
+  // In this case its a normal object. No need to shuck
+  return reactor
 }
 
-// Custom Error class to consolidate multiple errors together
+// Custom Error to consolidate multiple errors together
 class CompoundError extends Error {
   constructor (message, errorList) {
     // Flatten any compound errors in the error list
     errorList = errorList.flatMap(error => {
-      if (error instanceof CompoundError) return error.errorList
+      if (error instanceof CompoundError) return error.cause
       return error
     })
     // Build the message to display all the component errors
@@ -647,8 +686,7 @@ class CompoundError extends Error {
         error.stack != null ? error.stack : error.toString()
       message = message + '\n' + errorDescription
     }
-    super(message)
-    this.errorList = errorList
+    super(message, { cause: errorList })
     this.name = this.constructor.name
     return this
   }
@@ -656,8 +694,8 @@ class CompoundError extends Error {
 
 export {
   Reactor,
-  observe,
-  unobserve,
+  Observer,
+  hide,
   batch,
-  define
+  shuck
 }
