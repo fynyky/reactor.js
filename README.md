@@ -23,7 +23,7 @@ Reactor.js is designed to be unobtrusive and unopinionated.
 - It imposes no particular structure on your code. Any variable can be easily replaced with a reactive one.
 - There is no need to learn special syntax or a domain specific language. Reactors behave just like normal objects and you can observe any synchronous code.
 
-If you want to see Reactor.js in action, take a look at this [example todo list](https://jsfiddle.net/yL14mo79/)
+If you want to see Reactor.js in action, take a look at this [example todo list](https://jsfiddle.net/uy0v16za/7)
 
 Installation
 ------------------
