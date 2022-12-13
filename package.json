@@ -11,6 +11,7 @@
       "optimize": true
     }
   },
+  "files": ["dist/index.*"],
   "devDependencies": {
     "mocha": "^10.1.0",
     "parcel": "^2.8.1",
