@@ -6,7 +6,7 @@ import {
   hide,
   batch,
   shuck
-} from './reactor.js'
+} from '../src/reactor.js'
 
 describe('Reactor', () => {
   it('initializes without error', () => new Reactor())
