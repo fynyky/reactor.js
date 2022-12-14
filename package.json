@@ -1,15 +1,27 @@
 {
   "name": "reactorjs",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Simple reactive programming without frameworks",
-  "main": "reactor.js",
+  "source": "src/index.js",
+  "main": "dist/index.js",
+  "targets": {
+    "main": {
+      "context": "browser",
+      "includeNodeModules": true,
+      "optimize": true
+    }
+  },
+  "files": ["dist/index.*"],
   "devDependencies": {
     "mocha": "^10.1.0",
+    "parcel": "^2.8.1",
     "standard": "^17.0.0"
   },
   "scripts": {
     "lint": "standard --fix",
-    "test": "standard && mocha",
+    "build": "parcel build",
+    "test": "standard && mocha test/reactor.test.js",
+    "browserTest": "parcel serve test/elementary.test.html",
     "prepublish": "npm test"
   },
   "repository": {
