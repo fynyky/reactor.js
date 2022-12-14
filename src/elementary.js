@@ -134,7 +134,7 @@ const isQuerySelector = (testString) => (
 // First argument is the element to create or wrap
 // Subsequent arguments are children to attach
 // Returns the element with all the stuff attached
-export const el = (descriptor, ...children) => {
+const el = (descriptor, ...children) => {
   // Create the new element or wrap an existing one
   // If its an existing element dont do anything
   let self
@@ -276,7 +276,7 @@ export const el = (descriptor, ...children) => {
 
 // shorthand for attribute setting
 // el('foo', attribute('id', 'bar'))
-export function attr (attribute, value) {
+function attr (attribute, value) {
   return ($) => {
     $.setAttribute(attribute, value)
   }
@@ -284,9 +284,15 @@ export function attr (attribute, value) {
 
 // shorthand for binding
 // el('input', attribute('type', 'text'), bind(rx, 'foo'))
-export function bind (reactor, key) {
+function bind (reactor, key) {
   return ($) => {
     $.oninput = () => { reactor[key] = $.value }
     return new Observer(() => { $.value = reactor[key] })
   }
+}
+
+export {
+  el,
+  attr,
+  bind
 }
