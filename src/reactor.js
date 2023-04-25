@@ -103,6 +103,9 @@ class Signal extends Function {
       write (newValue) {
         // Avoid triggering observers if same value is written
         if (this.value === newValue) return (this.value = newValue)
+        // Avoid triggering observers in case of arrays/objects with same values
+        // Note that arrays with the same elements, but in different order will still trigger
+        if (JSON.stringify(this.value) === JSON.stringify(newValue)) return (this.value = newValue)
         // Save the new value/definition
         const output = (this.value = newValue)
         // Trigger dependents
