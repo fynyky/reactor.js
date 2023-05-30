@@ -1,4 +1,19 @@
 /* eslint-env browser */
+
+// Provides a function `el` that enables a declarative syntax for DOM generation
+// in plain javascript. The first argument is what type of element to create.
+// The subsequent arguments are appended as child nodes. If the "child" argument
+// is a function, it is executed in the context of the parent node.
+
+// By nesting `el` calls we have a plain javascript alternative to HTML that
+// also allows for inline logic. This unifies the DOM and closure hierarchy,
+// creating a single consistent context for UI creation.
+
+// TODO write how it handles Observers
+// Observers are automatically disabled when out of DOM
+
+// TODO write how this thing is structured
+
 import { Observer, shuck } from './reactor.js'
 
 // Manually updated list of valid HTML tags
