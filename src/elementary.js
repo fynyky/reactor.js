@@ -16,8 +16,9 @@
 
 import { Observer, shuck } from './reactor.js'
 
-// Manually updated list of valid HTML tags
-// Used to know when to create a named tag and when to create a div by default
+// Manually compiled list of valid HTML tags. Used when creating a new `el`
+// If the string matches a named tag it will create that element
+// If it does not match it will just make a div with the string as a class name
 const VALID_HTML_TAGS = Object.freeze([
   'a', 'abbr', 'acronym', 'address', 'applet', 'area', 'article', 'aside', 'audio',
   'b', 'bdi', 'base', 'basefont', 'bdo', 'big', 'blockquote', 'body', 'br', 'button',
@@ -43,14 +44,18 @@ const VALID_HTML_TAGS = Object.freeze([
   'wbr'
 ])
 
-// Maps normal Elements to their elInterface which enables the magic
-// Used to stop the observers when disconnected from the document
-const elCache = new WeakMap()
+// This library stores its state in separate objects rather than on the elements
+// themselves. This both avoids polluting the properties of the element, and
+// hides access to them by closure. Using a WeakMap avoids leaking memory for
+// elements no longer relevant.
+// Used to stop the observers when they are disconnected from the document
+const elPropMap = new WeakMap()
 
-// Setup a mutation observer
-// If an element is removed from the document then turn it off
-// Have to account for nodes being added to removed outside of the document
-const documentObserver = new MutationObserver((mutationList, mutationObserver) => {
+// Whenever an element is added to the DOM turn its observers on
+// Whenever an element is removed from the DOM turn its observers off
+// Note: MutationObserver is native class and unrelated to reactor.js observers
+// TODO account for children being added to elements outside of the document
+const docObserver = new MutationObserver((mutationList, mutationObserver) => {
   // Compile a flat set of added/removed elements
   const addedAndRemovedElements = new Set()
   for (const mutationRecord of mutationList) {
@@ -65,29 +70,30 @@ const documentObserver = new MutationObserver((mutationList, mutationObserver) =
       }
     }
   }
-  // Do stuff to the nodes
+  // Start or stop observers if the element is in or out of the document
+  // TODO iterate here more efficiently. It currently might repeat traversal of
+  // child nodes
   for (const mutatedElement of addedAndRemovedElements) {
     subtreeDo(mutatedElement, (element) => {
-      const elementElInterface = elCache.get(element)
-      if (elementElInterface) {
+      const elProps = elPropMap.get(element)
+      if (elProps) {
         if (document.contains(element)) {
-          for (const obs of elementElInterface.observers) {
-            obs.start()
-          }
+          for (const obs of elProps.observers) obs.start()
         } else {
-          for (const obs of elementElInterface.observers) {
-            obs.stop()
-          }
+          for (const obs of elProps.observers) obs.stop()
         }
       }
     })
   }
 })
-documentObserver.observe(document, { subtree: true, childList: true })
+docObserver.observe(document, { subtree: true, childList: true })
 
-// Tracks when observer comment placeholders are removed
-// When they are remove their partner as well and deactivate their observer
-// Maps the observer start end and observer itself to each other
+// When an observer is attached to an element, a pair of comment nodes are
+// created to mark the "location" of the observer within the parent.
+// These comments are meant to act as proxies for the observer within the DOM.
+// When a comment is removed, so is its partner and the observer they represent
+// This defines the MutationObserver but it is only activated on the creation of
+// an `el` element
 const observerTrios = new WeakMap()
 const commentObserver = new MutationObserver((mutationList, mutationObserver) => {
   for (const mutationRecord of mutationList) {
@@ -137,6 +143,7 @@ function getNodesBetween (startNode, endNode) {
 // Problem is that a plain text string is a valid tag search
 // We check for the common cases of . # and [
 // Just skip starting with tag search
+// TODO improve this to actually detect valid query selector
 const isQuerySelector = (testString) => (
   typeof testString === 'string' && (
     testString.startsWith('.') ||
@@ -168,29 +175,36 @@ const el = (descriptor, ...children) => {
     newElement.className = descriptor
     self = newElement
   } else {
-    throw new TypeError('el descriptor expects string or existing Element')
+    throw new TypeError('el descriptor expects a string or an existing Element')
   }
 
-  // Now that we know who we are
-  // See if there's already a wrapper
-  // Place to store el specific properties and methods
-  // without polluting the Element
-  let elInterface = elCache.get(self)
+  // Now that we know who we are we initialize the el properties
+  // These are properties necessary for this library to work without polluting
+  // the base element
+  let elInterface = elPropMap.get(self)
+  // See if there's already el properties associated with this element
   if (typeof elInterface === 'undefined') {
     elInterface = {
-      // Map of observers to a Set of elements they create
-      // Should this be weakrefmap?
+      // Set of observers connected to the element
+      // TODO is this necessary? Or are the comment nodes enough?
+      // Could potentially just crawl the comment nodes to find connected obs
       observers: new Set()
     }
-    elCache.set(self, elInterface)
+    elPropMap.set(self, elInterface)
   }
+
+  // Attach the comment MutationObserver to cleanly remove observer children
   commentObserver.observe(self, { subtree: false, childList: true })
 
   // For the children
   // If its a string, then just append it as a text node child
   // If its an existing element, then append it as a child
   // If its a function, execute it in the context. Append return values
-  // If its an observer ???
+  // If its an observer then append a pair of comment nodes as placeholders
+  // The contents of the observer will be inserted between the placeholders
+  // If it is an array, decompose it and try to add each of its elements
+  // If it is a Promise, add a comment placeholder which will be replaced
+  // when the promise returns
   function append (child, insertionPoint) {
     // If the insertion point given is no longer attached
     // Then abort the insertion
@@ -241,18 +255,24 @@ const el = (descriptor, ...children) => {
       observerTrios.set(observerEndNode, observerTrio)
       observerTrios.set(child, observerTrio)
 
-      // Observe the observer to append the results
-      // Check if the bookmarks are still attached before acting
-      // Clear everything in between the bookmarks (including observers)
-      // Then insert new content between them
+      // Create meta-observer to observe the observer
+      // When the observer returns a new value
+      // The meta-observer appends the results
+      // This pattern is used so that the library user can write observers
+      // just returning a value and not worry about the attachment logic
       new Observer(() => {
         const result = child.value
+        // Check if the bookmarks are still attached before acting
+        // TODO do a more comprehensive check for start node too
         if (typeof result !== 'undefined' && observerEndNode.parentNode === self) {
+          // Clear everything in between the bookmarks (including observers)
           const oldChildren = getNodesBetween(observerStartNode, observerEndNode)
           for (const oldChild of oldChildren) {
             oldChild.remove()
+            // TODO this may not be necessary as handled by the comment observer
             observerTrios.get(oldChild)?.clear()
           }
+          // Then insert new content between them
           append(result, observerEndNode)
         }
       }).start()
@@ -265,8 +285,9 @@ const el = (descriptor, ...children) => {
       if (!document.contains(self)) child.stop()
 
     // Need this to come after cos observers are functions themselves
-    // we use call(self, self) to provide this for traditional functions
+    // we use call(self, self) to provide `this` for traditional functions
     // and to provide (ctx) => {...} for arrow functions
+    // TODO document this better
     } else if (typeof child === 'function') {
       const result = child.call(self, self)
       // TODO wrap this in a try block (fail cleanly if nothing to append?)
@@ -290,7 +311,7 @@ const el = (descriptor, ...children) => {
 }
 
 // shorthand for attribute setting
-// el('foo', attribute('id', 'bar'))
+// el('foo', attr('id', 'bar'))
 function attr (attribute, value) {
   return ($) => {
     $.setAttribute(attribute, value)
@@ -298,7 +319,7 @@ function attr (attribute, value) {
 }
 
 // shorthand for binding
-// el('input', attribute('type', 'text'), bind(rx, 'foo'))
+// el('input', attr('type', 'text'), bind(rx, 'foo'))
 function bind (reactor, key) {
   return ($) => {
     $.oninput = () => { reactor[key] = $.value }
