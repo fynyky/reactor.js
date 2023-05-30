@@ -18,7 +18,7 @@ import { Observer, shuck } from './reactor.js'
 
 // Manually updated list of valid HTML tags
 // Used to know when to create a named tag and when to create a div by default
-const validHTMLTags = Object.freeze([
+const VALID_HTML_TAGS = Object.freeze([
   'a', 'abbr', 'acronym', 'address', 'applet', 'area', 'article', 'aside', 'audio',
   'b', 'bdi', 'base', 'basefont', 'bdo', 'big', 'blockquote', 'body', 'br', 'button',
   'canvas', 'caption', 'center', 'cite', 'code', 'col', 'colgroup', 'command',
@@ -163,7 +163,7 @@ const el = (descriptor, ...children) => {
   // Default to div otherwise
   } else if (typeof descriptor === 'string') {
     const firstWord = descriptor.split(' ')[0]
-    const tag = validHTMLTags.includes(firstWord) ? firstWord : 'div'
+    const tag = VALID_HTML_TAGS.includes(firstWord) ? firstWord : 'div'
     const newElement = document.createElement(tag)
     newElement.className = descriptor
     self = newElement
