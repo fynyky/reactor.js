@@ -209,6 +209,8 @@ const el = (descriptor, ...children) => {
     // If the insertion point given is no longer attached
     // Then abort the insertion
     if (insertionPoint && insertionPoint.parentElement !== self) return false
+    // Handle the null case
+    if (typeof child === 'undefined' || child === null) return false
     // Strings are just appended as text
     if (typeof child === 'string') {
       const textNode = document.createTextNode(child)
@@ -226,20 +228,20 @@ const el = (descriptor, ...children) => {
         append(value, promisePlaceholder)
         promisePlaceholder.remove()
       })
-    // Observers work similarly to functions
-    // but with comment "bookends" on to demark their position
-    // On initial commitment. Observers work like normal functions
-    // On subsequent triggers. Observers first clear everything
-    // between bookends
+    // When an Observers is appended we insert comment nodes as "bookends" to
+    // mark its position. On initial commitment Observers work like normal
+    // functions. They execute and the return value if any is appended between
+    // the bookends. On subsequent triggers, everything between the bookends
+    // is first cleared before the new result is appended
     } else if (child instanceof Observer) {
       elInterface.observers.add(child)
       // Start with the bookends marking the observer domain
+      // Keep a mapping of the bookends to the observer
+      // Lets the observer be cleaned up later when the any comment is removed
       const observerStartNode = document.createComment('observerStart')
       const observerEndNode = document.createComment('observerEnd')
       self.insertBefore(observerStartNode, insertionPoint)
       self.insertBefore(observerEndNode, insertionPoint)
-      // Keep a mapping of the bookends to the observer
-      // Lets the observer be cleaned up when the owning comment is removed
       const observerTrio = {
         start: observerStartNode,
         end: observerEndNode,
@@ -254,44 +256,49 @@ const el = (descriptor, ...children) => {
       observerTrios.set(observerStartNode, observerTrio)
       observerTrios.set(observerEndNode, observerTrio)
       observerTrios.set(child, observerTrio)
-
       // Create meta-observer to observe the observer
       // When the observer returns a new value
       // The meta-observer appends the results
       // This pattern is used so that the library user can write observers
       // just returning a value and not worry about the attachment logic
       new Observer(() => {
+        // Since the child is an Observer and Observers themselves are Reactors
+        // reading the value here binds the meta-observer to retrigger whenever
+        // the child observer retriggers
         const result = child.value
         // Check if the bookmarks are still attached before acting
-        // TODO do a more comprehensive check for start node too
-        if (typeof result !== 'undefined' && observerEndNode.parentNode === self) {
-          // Clear everything in between the bookmarks (including observers)
+        if (
+          observerStartNode.parentNode === self &&
+          observerEndNode.parentNode === self
+        ) {
+          // Clear everything between the bookmarks
           const oldChildren = getNodesBetween(observerStartNode, observerEndNode)
-          for (const oldChild of oldChildren) {
-            oldChild.remove()
-            // TODO this may not be necessary as handled by the comment observer
-            observerTrios.get(oldChild)?.clear()
-          }
+          for (const oldChild of oldChildren) oldChild.remove()
           // Then insert new content between them
           append(result, observerEndNode)
         }
+        // If either of the bookmarks is missing or no longer attached something
+        // weird has happened so do nothing
+        // In theory the comment observer should detect the missing comment and
+        // remove the other one and disable the observer
       }).start()
-      // Kickoff the observer with a context of self
+      // Kickoff the child observer with a context of self
+      // If it is not yet in the document then stop observer from triggering further
       child.setThisContext(self)
       child.setArgsContext(self)
       child.stop()
       child.start()
-      // If it is not yet in the document then stop observer from triggering further
       if (!document.contains(self)) child.stop()
 
-    // Need this to come after cos observers are functions themselves
-    // we use call(self, self) to provide `this` for traditional functions
-    // and to provide (ctx) => {...} for arrow functions
-    // TODO document this better
+    // When a normal function is provided it is executed immediately and its
+    // output (if any) is appended.
+    // The function has access to the parent element via either `this` for
+    // traditional functions or by the first argument for arrow functions
+    // e.g. (ctx) => {...}
+    // Need this condition to come after Observers since they are functions too
     } else if (typeof child === 'function') {
       const result = child.call(self, self)
-      // TODO wrap this in a try block (fail cleanly if nothing to append?)
-      if (typeof result !== 'undefined') append(result, insertionPoint)
+      append(result, insertionPoint)
     // Arrays are handled recursively
     // Works for any sort of iterable
     } else if (typeof child?.[Symbol.iterator] === 'function') {
@@ -302,6 +309,8 @@ const el = (descriptor, ...children) => {
     } else {
       throw new TypeError('expects string, function, an Element, or an Array of them')
     }
+    // If it successfully appended something return true
+    return true
   }
   children.forEach((child) => append(child))
 
@@ -310,7 +319,7 @@ const el = (descriptor, ...children) => {
   return self
 }
 
-// shorthand for attribute setting
+// Shorthand for setting an attribute
 // el('foo', attr('id', 'bar'))
 function attr (attribute, value) {
   return ($) => {
@@ -318,7 +327,7 @@ function attr (attribute, value) {
   }
 }
 
-// shorthand for binding
+// Shorthand for 2-way binding to a reactor
 // el('input', attr('type', 'text'), bind(rx, 'foo'))
 function bind (reactor, key) {
   return ($) => {
