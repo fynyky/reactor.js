@@ -44,13 +44,6 @@ const VALID_HTML_TAGS = Object.freeze([
   'wbr'
 ])
 
-// This library stores its state in separate objects rather than on the elements
-// themselves. This both avoids polluting the properties of the element, and
-// hides access to them by closure. Using a WeakMap avoids leaking memory for
-// elements no longer relevant.
-// Used to stop the observers when they are disconnected from the document
-const elPropMap = new WeakMap()
-
 // Whenever an element is added to the DOM turn its observers on
 // Whenever an element is removed from the DOM turn its observers off
 // Note: MutationObserver is native class and unrelated to reactor.js observers
@@ -161,22 +154,6 @@ const el = (descriptor, ...children) => {
     throw new TypeError('el descriptor expects a string or an existing Element')
   }
 
-  // Now that we know who we are we initialize the el properties
-  // These are properties necessary for this library to work without polluting
-  // the base element
-  let elInterface = elPropMap.get(self)
-  // See if there's already el properties associated with this element
-  if (typeof elInterface === 'undefined') {
-    elInterface = {
-      // Set of observers connected to the element
-      // TODO is this necessary? Or are the comment nodes enough?
-      // Could potentially just crawl the comment nodes to find connected obs
-      // Depends if I need to maintain referencs to observers to keep them alive
-      observers: new Set()
-    }
-    elPropMap.set(self, elInterface)
-  }
-
   // Attach the MutationObserver to cleanly remove observer markers
   bookmarkObserver.observe(self, { childList: true })
 
@@ -218,7 +195,6 @@ const el = (descriptor, ...children) => {
     // the bookends. On subsequent triggers, everything between the bookends
     // is first cleared before the new result is appended
     } else if (child instanceof Observer) {
-      elInterface.observers.add(child)
       // Start with the bookends marking the observer domain
       // Keep a mapping of the bookends to the observer
       // Lets the observer be cleaned up later when the any comment is removed
@@ -234,7 +210,6 @@ const el = (descriptor, ...children) => {
           this.start.remove()
           this.end.remove()
           this.observer.stop()
-          elInterface.observers.delete(this.observer)
         }
       }
       observerTrios.set(observerStartNode, observerTrio)
