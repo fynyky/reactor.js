@@ -54,36 +54,20 @@ const elPropMap = new WeakMap()
 // Whenever an element is added to the DOM turn its observers on
 // Whenever an element is removed from the DOM turn its observers off
 // Note: MutationObserver is native class and unrelated to reactor.js observers
-// TODO account for children being added to elements outside of the document
 const docObserver = new MutationObserver((mutationList, mutationObserver) => {
-  // Compile a flat set of added/removed elements
-  const addedAndRemovedElements = new Set()
   for (const mutationRecord of mutationList) {
     for (const addedNode of Array.from(mutationRecord.addedNodes)) {
-      if (addedNode.nodeType === Node.ELEMENT_NODE) {
-        addedAndRemovedElements.add(addedNode)
+      const comments = getAllComments(addedNode)
+      for (const comment of comments) {
+        observerTrios.get(comment)?.observer.start()
       }
     }
     for (const removedNode of Array.from(mutationRecord.removedNodes)) {
-      if (removedNode.nodeType === Node.ELEMENT_NODE) {
-        addedAndRemovedElements.add(removedNode)
+      const comments = getAllComments(removedNode)
+      for (const comment of comments) {
+        observerTrios.get(comment)?.observer.stop()
       }
     }
-  }
-  // Start or stop observers if the element is in or out of the document
-  // TODO iterate here more efficiently. It currently might repeat traversal of
-  // child nodes
-  for (const mutatedElement of addedAndRemovedElements) {
-    subtreeDo(mutatedElement, (element) => {
-      const elProps = elPropMap.get(element)
-      if (elProps) {
-        if (document.contains(element)) {
-          for (const obs of elProps.observers) obs.start()
-        } else {
-          for (const obs of elProps.observers) obs.stop()
-        }
-      }
-    })
   }
 })
 docObserver.observe(document, { subtree: true, childList: true })
@@ -95,7 +79,7 @@ docObserver.observe(document, { subtree: true, childList: true })
 // This defines the MutationObserver but it is only activated on the creation of
 // an `el` element
 const observerTrios = new WeakMap()
-const commentObserver = new MutationObserver((mutationList, mutationObserver) => {
+const bookmarkObserver = new MutationObserver((mutationList, mutationObserver) => {
   for (const mutationRecord of mutationList) {
     for (const removedNode of Array.from(mutationRecord.removedNodes)) {
       observerTrios.get(removedNode)?.clear()
@@ -103,21 +87,20 @@ const commentObserver = new MutationObserver((mutationList, mutationObserver) =>
   }
 })
 
-// Helper function to do things to all elements in a subtree
-function subtreeDo (target, callback) {
-  if (!(target instanceof Element)) {
-    throw new TypeError(
-      'target is not an instance of Element'
-    )
+// Helper function to get all comment nodes for a given subtree
+function getAllComments(root) {
+  const commentIterator = document.createNodeIterator(
+    root,
+    NodeFilter.SHOW_COMMENT,
+    () => NodeFilter.FILTER_ACCEPT
+  )
+  const commentList = []
+  let nextComment = commentIterator.nextNode()
+  while (nextComment !== null) {
+    commentList.push(nextComment)
+    nextComment = commentIterator.nextNode()
   }
-  if (!(typeof callback === 'function')) {
-    throw new TypeError(
-      'callback is not a function'
-    )
-  }
-  const descendents = target.getElementsByTagName('*')
-  callback(target)
-  for (const descendent of descendents) callback(descendent)
+  return commentList
 }
 
 // Helper function to get all nodes between 2 nodes
@@ -188,13 +171,14 @@ const el = (descriptor, ...children) => {
       // Set of observers connected to the element
       // TODO is this necessary? Or are the comment nodes enough?
       // Could potentially just crawl the comment nodes to find connected obs
+      // Depends if I need to maintain referencs to observers to keep them alive
       observers: new Set()
     }
     elPropMap.set(self, elInterface)
   }
 
-  // Attach the comment MutationObserver to cleanly remove observer children
-  commentObserver.observe(self, { subtree: false, childList: true })
+  // Attach the MutationObserver to cleanly remove observer markers
+  bookmarkObserver.observe(self, { childList: true })
 
   // For the children
   // If its a string, then just append it as a text node child
@@ -261,8 +245,9 @@ const el = (descriptor, ...children) => {
       // The meta-observer appends the results
       // This pattern is used so that the library user can write observers
       // just returning a value and not worry about the attachment logic
+      // TODO - group meta-observer with the rest of it to be cleared together
       new Observer(() => {
-        // Since the child is an Observer and Observers themselves are Reactors
+        // Since the child is an Observer and Observers values are Signals
         // reading the value here binds the meta-observer to retrigger whenever
         // the child observer retriggers
         const result = child.value
