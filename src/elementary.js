@@ -9,10 +9,10 @@
 // also allows for inline logic. This unifies the DOM and closure hierarchy,
 // creating a single consistent context for UI creation.
 
-// TODO write how it handles Observers
-// Observers are automatically disabled when out of DOM
-
-// TODO write how this thing is structured
+// When an Observer from reactor.js is passed as a child argument, it's return
+// is automatically attached to the parent each time the observer triggers,
+// replacing the previous iterations if any. Attached Observers are also
+// automatically disabled when their parent element is removed from the DOM.
 
 import { Observer, shuck } from './reactor.js'
 
@@ -46,6 +46,8 @@ const VALID_HTML_TAGS = Object.freeze([
 
 // Whenever an element is added to the DOM turn its observers on
 // Whenever an element is removed from the DOM turn its observers off
+// This avoids leaking "orphan" observers that stay alive updating nodes that
+// no longer are relevant.
 // Note: MutationObserver is native class and unrelated to reactor.js observers
 const docObserver = new MutationObserver((mutationList, mutationObserver) => {
   for (const mutationRecord of mutationList) {
@@ -70,7 +72,7 @@ docObserver.observe(document, { subtree: true, childList: true })
 // These comments are meant to act as proxies for the observer within the DOM.
 // When a comment is removed, so is its partner and the observer they represent
 // This defines the MutationObserver but it is only activated on the creation of
-// an `el` element
+// each `el` element.
 const observerTrios = new WeakMap()
 const bookmarkObserver = new MutationObserver((mutationList, mutationObserver) => {
   for (const mutationRecord of mutationList) {
@@ -81,7 +83,7 @@ const bookmarkObserver = new MutationObserver((mutationList, mutationObserver) =
 })
 
 // Helper function to get all comment nodes for a given subtree
-function getAllComments(root) {
+function getAllComments (root) {
   const commentIterator = document.createNodeIterator(
     root,
     NodeFilter.SHOW_COMMENT,
