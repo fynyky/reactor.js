@@ -298,8 +298,12 @@ function bind (reactor, key) {
   }
 }
 
+// Shorthand for making new observers
+const ob = (x) => new Observer(x)
+
 export {
   el,
+  ob,
   attr,
   bind
 }
