@@ -125,7 +125,8 @@ function getNodesBetween (startNode, endNode) {
 const isQuerySelector = (testString) => (
   typeof testString === 'string' && (
     testString.startsWith('.') ||
-    testString.startsWith('#')
+    testString.startsWith('#') ||
+    testString.startsWith('[')
   )
 )
 
