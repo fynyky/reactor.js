@@ -4,7 +4,7 @@ Reactor.js
 Reactor.js is a simple reactive front-end library. It provides 
 - `Reactor` objects that store reactive variables
 - `Observer` functions that automatically track the reactive variables that they use and retrigger if any of these variables are updated. The function `ob` is shorthand for `new Observer`
-- A function `el` that allows declarative DOM creation in javascript
+- A function `el` that allows declarative element creation in javascript
 
 Here's a quick example of what Reactor does:
 ```javascript
@@ -22,7 +22,6 @@ document.body.appendChild(
     el('p more class names', ob(() => ('My name is ' + rx.name)))
   )                                                 
 )
-// This produces
 // <main class="main">
 //   <h1 class="h1">Hello World!</h1>
 //   <h2 class="h2" id="foo">returned text</h2>
@@ -31,27 +30,26 @@ document.body.appendChild(
 // </main>
 
 rx.name = 'Darth'                                   
-// Changes
 //   <p class="p more class names">My name is Anakin</p>
-// To
+// Changes to
 //   <p class="p more class names">My name is Darth</p>
 ```
 - `Reactor` objects work like normal objects that you can set and get properties on
 - `Observer` functions work like normal functions that you can define and call
-- `Observer` functions are created by wrapping a function with `ob()`
 - When an `Observer` reads a `Reactor` it registers itself as a dependent
 - When a `Reactor` is updated it automatically retriggers the dependent `Observer` functions
 
 - `el` creates a DOM element
 - The first argument is the type of element it creates
 - Subsequent arguments are appended as children
-- Functions given as arguments are run with the context of the parent element
-- `Observer` functions that return child nodes automatically replace those nodes when retriggered
+- Function children are run with the context of the parent element
+- Function return values are appended as children
+- `Observer` functions automatically replace their child nodes when retriggered
 
 Reactor.js is designed to be unobtrusive and unopinionated. 
 - No special syntax to learn. Everything is just plain javascript
 - There is no need to manually declare listeners or bindings. Reactor automatically keeps track of all that for you. 
-- Use it for the whole front-end or just a few components. Elements created by Reactor are just normal DOM elements and any variable can be easily replaced with a reactive one without changing the rest of your codebase.
+- Use it for the whole front-end or just a few components. Elements created by Reactor are just normal DOM elements, and any variable can be easily replaced with a reactive one without changing the rest of your codebase.
 
 Installation - TODO update this to test how to include on frontends
 ------------
@@ -124,35 +122,55 @@ el('h1', aPromise) // Creates <h1 class="h1"><!-- promisePlaceholder --></h1>
                    // Places a comment to be replaced when the promise resolves
 aPromise.resolve('resolved!') // Becomes <h1 class="h1">resolved!</h1>
 
-// Demo of how el works with reactors and observers
+
+// Example of how el works with reactors and observers
 // Full explanation of how Observers and Reactors work comes later on
 // Attached observers use comments to bookmark their children 
-let rx = new Reactor({foo: 'foo'})
-let reactiveEl = el('h1', ob(() => rx.foo)) // Creates 
-                           // <h1 class="h1">
-                             // <!-- observerStart -->
-                             // foo
-                             // <!-- observerEnd -->
-                           // </h1>
+let rx = new Reactor({ foo: 'foo' })
+let reactiveEl = el('h1', ob(() => rx.foo)) 
+// Creates 
+// <h1 class="h1">
+  // <!-- observerStart -->
+  // foo
+  // <!-- observerEnd -->
+// </h1>
+
 document.body.appendChild(reactiveEl) // Attached observers sleep when their 
                                       // parent is out of the DOM
                                       // Need to attach it for reactivity
 
 // When updated anything inbetween the bookmarks gets replaces
-rx.foo = 'bar'  // Creates 
-                // <h1 class="h1">
-                  // <!-- observerStart -->
-                  // bar
-                  // <!-- observerEnd -->
-                // </h1>
+rx.foo = 'bar'  
+// Updates to 
+// <h1 class="h1">
+  // <!-- observerStart -->
+  // bar
+  // <!-- observerEnd -->
+// </h1>
 
 
 el('h1', ['foo', 'bar', 'qux']) // Creates <h1 class="h1">foobarqux</h1>
                                 // Arrays or any iterable are done recursively
                                 
-                                
+// attr is shorthand for setting attributes
+// These 2 are equivalent
+el('h1', attr('id', 'foo'))
+el('h1', self => self.setAttribute('id', 'foo'))
 
+// bind is shorthand for 2 way binding with a reactor
+// These 2 are equivalent
+el('h1', bind(rx, 'foo'))
+el('h1', self => {
+  self.oninput = () => { rx['foo'] = self.value }
+  return new Observer(() => { self.value = rx['foo'] })
+})
 
+// ob is shorthand for creating Observers
+// These 2 are equivalent
+ob(function(){})
+new Observer(function(){})
+
+// Reactors and Observers
 const reactor = new Reactor({ foo: 'bar' })
 const observer = new Observer(() => {
   const result = 'reactor.foo is ' + reactor.foo // Sets a dependency on foo
