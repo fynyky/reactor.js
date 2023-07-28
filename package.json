@@ -1,6 +1,6 @@
 {
   "name": "reactorjs",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Simple reactive programming without frameworks",
   "source": "src/index.js",
   "main": "dist/index.js",
@@ -11,7 +11,9 @@
       "optimize": true
     }
   },
-  "files": ["dist/index.*"],
+  "files": [
+    "dist/index.*"
+  ],
   "devDependencies": {
     "mocha": "^10.1.0",
     "parcel": "^2.8.1",
@@ -19,10 +21,12 @@
   },
   "scripts": {
     "lint": "standard --fix",
-    "build": "parcel build",
+    "build": "rm -rf dist/ && parcel build",
+    "prepare": "npm run build",
+    "pretest": "npm run build",
     "test": "standard && mocha test/reactor.test.js",
-    "browserTest": "parcel serve test/elementary.test.html",
-    "prepublish": "npm test"
+    "browserTest": "npm run pretest && parcel serve test/elementary.test.html",
+    "prepublishOnly": "npm test"
   },
   "repository": {
     "type": "git",
