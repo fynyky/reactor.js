@@ -17,8 +17,8 @@ const rx = new Reactor({
 document.body.appendChild(                          
   el('main',   
     el('h1', 'Hello World!'),
-    el('h2', (x) => { x.id ='foo' }, () => 'returned text')
-    el('defaults to div', ['this', 'is', 'an', 'array'])
+    el('h2', (x) => { x.id ='foo' }, () => 'returned text'),
+    el('defaults to div', ['this', 'is', 'an', 'array']),
     el('p more class names', ob(() => ('My name is ' + rx.name)))
   )                                                 
 )
