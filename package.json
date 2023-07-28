@@ -19,10 +19,11 @@
   },
   "scripts": {
     "lint": "standard --fix",
-    "build": "parcel build",
+    "build": "npm run lint && rm -rf dist/ && parcel build",
+    "pretest": "npm run build",
     "test": "standard && mocha test/reactor.test.js",
-    "browserTest": "parcel serve test/elementary.test.html",
-    "prepublish": "npm test"
+    "browserTest": "npm run pretest && parcel serve test/elementary.test.html",
+    "prepublishOnly": "npm test"
   },
   "repository": {
     "type": "git",

@@ -51,7 +51,7 @@ Reactor.js is designed to be unobtrusive and unopinionated.
 - There is no need to manually declare listeners or bindings. Reactor automatically keeps track of all that for you. 
 - Use it for the whole front-end or just a few components. Elements created by Reactor are just normal DOM elements, and any variable can be easily replaced with a reactive one without changing the rest of your codebase.
 
-Installation - TODO update this to test how to include on frontends
+Installation
 ------------
 
 Reactor.js is [available on npm](https://npmjs.org/package/reactorjs). Install it by running:
