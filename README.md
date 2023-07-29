@@ -51,6 +51,9 @@ Reactor.js is designed to be unobtrusive and unopinionated.
 - There is no need to manually declare listeners or bindings. Reactor automatically keeps track of all that for you. 
 - Use it for the whole front-end or just a few components. Elements created by Reactor are just normal DOM elements, and any variable can be easily replaced with a reactive one without changing the rest of your codebase.
 
+You try it yourself in a JSFiddle [here](https://jsfiddle.net/0voez9qn/)
+
+
 Installation
 ------------
 
@@ -73,6 +76,14 @@ import  {
   shuck
 }  from 'reactorjs'
 ```
+
+It is also available directly from [unpkg](unpkg.com). You can import it in javascript using
+```javascript
+import { el, attr, bind, ob, Reactor, Observer, hide, batch, shuck } from 'https://unpkg.com/reactorjs'
+```
+
+
+
 
 Summary 
 -------
