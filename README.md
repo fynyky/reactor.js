@@ -14,13 +14,13 @@ const rx = new Reactor({
   name: 'Anakin' 
 })
 
-document.body.appendChild(                          
+document.body.appendChild(
   el('main',   
     el('h1', 'Hello World!'),
     el('h2', (x) => { x.id ='foo' }, () => 'returned text'),
     el('defaults to div', ['this', 'is', 'an', 'array']),
     el('p more class names', ob(() => ('My name is ' + rx.name)))
-  )                                                 
+  )
 )
 // <main class="main">
 //   <h1 class="h1">Hello World!</h1>
@@ -29,7 +29,7 @@ document.body.appendChild(
 //   <p class="p more class names">My name is Anakin</p>
 // </main>
 
-rx.name = 'Darth'                                   
+rx.name = 'Darth'
 //   <p class="p more class names">My name is Anakin</p>
 // Changes to
 //   <p class="p more class names">My name is Darth</p>
@@ -38,21 +38,19 @@ rx.name = 'Darth'
 - `Observer` functions work like normal functions that you can define and call
 - When an `Observer` reads a `Reactor` it registers itself as a dependent
 - When a `Reactor` is updated it automatically retriggers the dependent `Observer` functions
-
 - `el` creates a DOM element
-- The first argument is the type of element it creates
-- Subsequent arguments are appended as children
-- Function children are run with the context of the parent element
-- Function return values are appended as children
-- `Observer` functions automatically replace their child nodes when retriggered
+  - The first argument is the type of element it creates
+  - Subsequent arguments are appended as children
+  - Function children are run with the context of the parent element
+  - Function return values are appended as children
+  - `Observer` functions automatically replace their child nodes when retriggered
 
-Reactor.js is designed to be unobtrusive and unopinionated. 
+Reactor.js is meant to be unobtrusive and unopinionated. 
 - No special syntax to learn. Everything is just plain javascript
 - There is no need to manually declare listeners or bindings. Reactor automatically keeps track of all that for you. 
 - Use it for the whole front-end or just a few components. Elements created by Reactor are just normal DOM elements, and any variable can be easily replaced with a reactive one without changing the rest of your codebase.
 
 You try it yourself in a JSFiddle [here](https://jsfiddle.net/0voez9qn/)
-
 
 Installation
 ------------
@@ -83,184 +81,215 @@ import { el, attr, bind, ob, Reactor, Observer, hide, batch, shuck } from 'https
 ```
 
 
+Elements
+--------
+The function `el(description, children...)` builds DOM elements. It appends the `children` arguments to a parent element created/referenced by the `description`.
 
-
-Summary 
--------
+The `description` can be a `String` or an existing `Element`. If given a `String` it creates a new `Element` whose classes are the entire description, and the tag type is the first word of the description.
 
 ```javascript
-import { 
-  el, attr, bind, ob,
-  Reactor, Observer, hide, batch, shuck 
-} from 'reactorjs'
-
-// el(description, children...)
-el('h1') // Creates a h1 element with a class "h1"
-
-el('notAValidTag') // Creates a div with class "notAValidTag"
-                   // Anything not a valid html tag defaults to a div
-
-el('notATag header body h1') // Creates a div with classes "notATag header body h1"
-                             // Only the first word is used for tag type
-                             // Subsequent words are just added as classes
-
-el('.foo') // Strings starting with '.' or '#' are parsed as query selectors
-el('#foo') // They try to find a matching element instead of making a new one
-
-let aDiv = document.createElement('div')
-el(aDiv) // Uses the provided element instead of creating a new one
-
-
-el('h1', 'foo') // Creates <h1 class="h1">foo</h1>
-                // Strings provided as children are inserted as text nodes
-
-el('h1', aDiv)  // Creates <h1 class="h1"><div></div></h1>
-                // Elements provided as children are just appended
-
-el('h1', function(){this.id = 'foo'}) // Creates <h1 class="h1" id="foo"></h1>
-                                      // Functions provided as children are 
-                                      // executed in the context of the parent
-
-el('h1', x => { x.id = 'foo' }) // Also creates <h1 class="h1" id="foo"></h1>
-                                // The parent is also provided as an argument
-                                // This allows arrow functions to work
-
-el('h1', () => "return value") // Creates <h1 class="h1">return value</h1>
-                               // Return values are appended as children
-
-let aPromise = new Promise()
-el('h1', aPromise) // Creates <h1 class="h1"><!-- promisePlaceholder --></h1>
-                   // Places a comment to be replaced when the promise resolves
-aPromise.resolve('resolved!') // Becomes <h1 class="h1">resolved!</h1>
-
-
-// Example of how el works with reactors and observers
-// Full explanation of how Observers and Reactors work comes later on
-// Attached observers use comments to bookmark their children 
-let rx = new Reactor({ foo: 'foo' })
-let reactiveEl = el('h1', ob(() => rx.foo)) 
-// Creates 
-// <h1 class="h1">
-  // <!-- observerStart -->
-  // foo
-  // <!-- observerEnd -->
-// </h1>
-
-document.body.appendChild(reactiveEl) // Attached observers sleep when their 
-                                      // parent is out of the DOM
-                                      // Need to attach it for reactivity
-
-// When updated anything inbetween the bookmarks gets replaces
-rx.foo = 'bar'  
-// Updates to 
-// <h1 class="h1">
-  // <!-- observerStart -->
-  // bar
-  // <!-- observerEnd -->
-// </h1>
-
-
-el('h1', ['foo', 'bar', 'qux']) // Creates <h1 class="h1">foobarqux</h1>
-                                // Arrays or any iterable are done recursively
-                                
-// attr is shorthand for setting attributes
-// These 2 are equivalent
-el('h1', attr('id', 'foo'))
-el('h1', self => self.setAttribute('id', 'foo'))
-
-// bind is shorthand for 2 way binding with a reactor
-// These 2 are equivalent
-el('h1', bind(rx, 'foo'))
-el('h1', self => {
-  self.oninput = () => { rx['foo'] = self.value }
-  return new Observer(() => { self.value = rx['foo'] })
-})
-
-// ob is shorthand for creating Observers
-// These 2 are equivalent
-ob(function(){})
-new Observer(function(){})
-
-// Reactors and Observers
-const reactor = new Reactor({ foo: 'bar' })
-const observer = new Observer(() => {
-  const result = 'reactor.foo is ' + reactor.foo // Sets a dependency on foo
-  console.log(result) 
-  return result
-})
-observer() // Prints 'reactor.foo is bar' and starts the observer
-reactor.foo = 'baz' // Prints 'reactor.foo is baz'
-
-observer.stop()
-reactor.foo = 'qux' // Prints nothing since observer is stopped
-
-observer.start() // Prints 'reactor.foo is baz'
-observer.start() // Prints nothing since observer is already started
-observer() // Prints 'reactor.foo is baz' even if it is already running
-
-// Observers return values are themselves observable
-const trailingObserver = new Observer(() => {
-  const result = 'Did you hear: ' + observer.value
-  console.log(result)
-})
-trailingObserver() // Prints 'Did you hear: reactor.foo is baz'
-reactor.foo = 'blorp' // Prints 'reactor.foo is blorp' from observer
-                      // Also prints 'Did you hear: reactor.foo is blorp' from trailingObserver
-
-// Observers can be given parameters and remember these parameters when triggered
-const parameterizedObserver = new Observer((arg1, arg2) => {
-  console.log(reactor.foo + arg1 + arg2)
-})
-parameterizedObserver('beep', 'bop') // Prints bazbeepbop
-reactor.foo = 'bla' // Prints blabeepbop
-
-// Observers can also access and remember the last `this` context
-const holdingObject = {
-  name: 'Mario',
-  greet: new Observer(function () { // Need to use traditional functions instead of arrow functions
-    console.log("Hello " + reactor.foo + " itsa me " +  this.name)
-  })
-}
-holdingObject.greet() // Prints "Hello bla itsa me Mario"
-reactor.foo = 'bonk' // Prints "Hello bonk itsa me Mario"
-holdingObject.name = 'Luigi' // Prints nothing since holdingObject is not a Reactor
-
-// hide allows you to avoid particular dependencies in an observer
-// This is useful especially when using Array methods that both read and write
-reactor.ticker = 1
-reactor.names = ["Alice", "Bob", "Charles", "David"]
-const partialObserver = new Observer(() => {
-  if (reactor.ticker) {
-    // hide passes through the return value of its block
-    const next = hide(() => reactor.names.pop())
-    console.log("next ", next)
-  }
-})
-partialObserver() // prints "next David"
-reactor.ticker = 2 // prints "next Charles"
-reactor.names.push("Elsie") // Will not trigger the observer
-
-// batch postpones any observer triggers until it is complete
-// This allows grouping updates together
-const person = new Reactor({
-  firstName: 'Clark',
-  lastName: 'Kent'
-})
-new Observer(() => {
-  console.log('Look its ' + person.firstName + ' ' + person.lastName)
-})() // Prints 'Look its Clark Kent'
-batch(() => {
-  // None of the following updates will trigger the observer yet
-  person.firstName = "Bruce" 
-  person.lastName = "Wayne"
-}) // prints 'Look its Bruce Wayne'
-
-// shuck removes the Reactor layer and returns the base object
-// This is necessary for some native objects which dont work with proxies
-const mapReactor = new Reactor(new Map())
-Map.prototype.keys.call(mapReactor) // throws an Error
-Map.prototype.keys.call(shuck(mapReactor)) // works fine
+el('h1 foo bar')
 ```
+```html
+<h1 class="h1 foo bar"></h1>
+```
+
+If the first word is not a valid HTML tag it defaults to making a div
+
+```javascript
+el('foo bar')
+```
+```html
+<div class="foo bar"></div>
+```
+
+If given an existing `Element` it does nothing on its own but uses the provided `Element` as a target for appending the `children`. For example you can append things to the document body by doing
+```javascript
+el(document.body, 'hello world')
+```
+```html
+<html>
+  <body>hello world</body>
+</html>
+```
+
+For convenience, if the `String` provided starts with `#` or `.` then instead of creating a new `Element` the description will be used as a [selector](https://developer.mozilla.org/en-US/docs/Web/API/Document_object_model/Locating_DOM_elements_using_selectors) and will try to find an existing `Element` in the document.
+
+```javascript
+el('#foo') // Finds an element with id="foo"
+el('.bar') // Finds an element whose classes contain "bar"
+```
+
+This is admittedly a bit crude but should handle the most common cases. For cases which fall outside of this you can just use `document.querySelector` directly and provide the Element as the argument.
+
+```javascript
+el(document.querySelector('some query'))
+```
+
+--------------------------------------------------------------------------------
+
+Text arguments provided as `children` are appended as text nodes
+```javascript
+el(h1, 'hello world')
+```
+```html
+<h1 class="h1">hello world</h1>
+```
+`Element` arguments are just appended directly
+```javascript
+el(h1, document.createElement('div'))
+```
+```html
+<h1 class="h1"><div></div></h1>
+```
+Since `el` itself returns elements, this allows nesting of `el` calls to declaratively create the DOM
+
+```javascript
+el(document.body,
+  el('main', 
+    el('h1', 'Title Text'),
+    el('p', 'Paragraph text'),
+  )
+)
+```
+```html
+<html>
+  <body>
+    <h1 class="h1">Title Text</h1>
+    <p class="p">Paragraph text</p>
+  </body>
+</html>
+```
+
+--------------------------------------------------------------------------------
+
+`Function` arguments are run in the context of the parent. This allows arbitrary manipulation of the parent such as attaching listeners, setting styles, etc 
+
+```javascript
+el('h1', function() {
+  this.id = 'foo'
+  this.onClick = () => console.log('clicked!')
+  this.style.color = 'red'
+})
+```
+```html
+<h1 class="h1" id="foo"></h1>
+```
+
+The parent is also provided as the first argument to the function when it is called. This allows [arrow functions](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions) to work
+
+```javascript
+el('h1', x => {
+  x.id = 'foo'
+  x.onClick = () => console.log('clicked!')
+  x.style.color = 'red'
+})
+```
+```html
+<h1 class="h1" id="foo"></h1>
+```
+If the function returns a value, that value is appended as a child
+```javascript
+el('h1', 
+  x => {
+    return 'some text'
+  }, 
+  x => ' more text'
+)
+```
+```html
+<h1 class="h1">some text more text</h1>
+```
+
+The `attr(attribute, value)` function is provided as a shorthand for `x => { x.setAttribute(attribute, value) }`. This allows easy setting of attributes like this 
+```javascript
+el('h1', attr('id', 'foo'))
+```
+```html
+<h1 class="h1" id="foo"></h1>
+```
+
+Similarly the `bind(reactor, value)` function is provided as a shorthand for 
+```javascript
+x => {
+  x.oninput = () => { reactor[key] = x.value }
+  return new Observer(() => { x.value = reactor[key] })
+}
+```
+This allows for easy 2-way binding for input fields and `Reactor` objects
+
+```javascript
+const rx = new Reactor({ name: 'foo' })
+el('input', bind(rx, 'name'))
+```
+
+
+--------------------------------------------------------------------------------
+
+`Array` arguments are flattened and its elements recursively appended
+
+```javascript
+el('h1',[
+  'some text',
+  document.createElement('div'),
+  x => 'boop'
+])
+```
+```html
+<h1 class="h1">some text<div></div>boop</h1>
+```
+
+--------------------------------------------------------------------------------
+
+`Promise` arguments create a comment placeholder.
+```javascript
+let somePromise = new Promise()
+el('h1', somePromise)
+```
+```html
+<h1 class="h1"><!-- promisePlaceholder --></h1>
+```
+When the `Promise` returns this placeholder is replaced with the Promise value
+```javascript
+somePromise.resolve('resolved!')
+```
+```html
+<h1 class="h1">resolved!</h1>
+```
+--------------------------------------------------------------------------------
+
+`Observer` functions from Reactor.js are handled very similarly to functions. They are executed in the context of the parent. However they also leave a
+set of comments bookmarking the children they produce.
+
+```javascript
+const rx = new Reactor({ name: 'foo' })
+el('h1', ob(() => rx.name ))
+```
+```html
+<h1 class="h1">
+  <!-- observerStart -->
+  foo
+  <!-- observerEnd -->
+</h1>
+```
+
+When the `Observer` is retriggered, everything between the bookmarks is removed and replaced with the new output
+
+
+```javascript
+rx.name = 'bar'
+```
+```html
+<h1 class="h1">
+  <!-- observerStart -->
+  bar
+  <!-- observerEnd -->
+</h1>
+```
+
+Read below for more details on how `Observer` functions work
+
+Note: for `Observer` functions attached as children via `el`, they are deactivated automatically when their parent is not attached to the document. This should not affect most use cases since the `Observer` is reactivated when the parent is reattached to the document. But note that unattached elements just being held in memory will not be changing.
 
 
 Reactors
@@ -620,6 +649,185 @@ batch(() => {
 This is useful when you are making multiple data updates and want to avoid showing an "incomplete" view of the data to observers.
 
 Note that only the observer triggering is postponed till the end. The actual reactor propertes are updated in place as expected. This means that you can have other logic with read-what-you-write semantics within the observer block working just fine.
+
+
+
+Summary 
+-------
+
+```javascript
+import { 
+  el, attr, bind, ob,
+  Reactor, Observer, hide, batch, shuck 
+} from 'reactorjs'
+
+// el(description, children...)
+el('h1') // Creates a h1 element with a class "h1"
+
+el('notAValidTag') // Creates a div with class "notAValidTag"
+                   // Anything not a valid html tag defaults to a div
+
+el('notATag header body h1') // Creates a div with classes "notATag header body h1"
+                             // Only the first word is used for tag type
+                             // Subsequent words are just added as classes
+
+el('.foo') // Strings starting with '.' or '#' are parsed as query selectors
+el('#foo') // They try to find a matching element instead of making a new one
+
+let aDiv = document.createElement('div')
+el(aDiv) // Uses the provided element instead of creating a new one
+
+
+el('h1', 'foo') // Creates <h1 class="h1">foo</h1>
+                // Strings provided as children are inserted as text nodes
+
+el('h1', aDiv)  // Creates <h1 class="h1"><div></div></h1>
+                // Elements provided as children are just appended
+
+el('h1', function(){this.id = 'foo'}) // Creates <h1 class="h1" id="foo"></h1>
+                                      // Functions provided as children are 
+                                      // executed in the context of the parent
+
+el('h1', x => { x.id = 'foo' }) // Also creates <h1 class="h1" id="foo"></h1>
+                                // The parent is also provided as an argument
+                                // This allows arrow functions to work
+
+el('h1', () => "return value") // Creates <h1 class="h1">return value</h1>
+                               // Return values are appended as children
+
+let aPromise = new Promise()
+el('h1', aPromise) // Creates <h1 class="h1"><!-- promisePlaceholder --></h1>
+                   // Places a comment to be replaced when the promise resolves
+aPromise.resolve('resolved!') // Becomes <h1 class="h1">resolved!</h1>
+
+
+// Example of how el works with reactors and observers
+// Full explanation of how Observers and Reactors work comes later on
+// Attached observers use comments to bookmark their children 
+let rx = new Reactor({ foo: 'foo' })
+let reactiveEl = el('h1', ob(() => rx.foo)) 
+// Creates 
+// <h1 class="h1">
+  // <!-- observerStart -->
+  // foo
+  // <!-- observerEnd -->
+// </h1>
+
+document.body.appendChild(reactiveEl) // Attached observers sleep when their 
+                                      // parent is out of the DOM
+                                      // Need to attach it for reactivity
+
+// When updated anything inbetween the bookmarks gets replaces
+rx.foo = 'bar'  
+// Updates to 
+// <h1 class="h1">
+  // <!-- observerStart -->
+  // bar
+  // <!-- observerEnd -->
+// </h1>
+
+
+el('h1', ['foo', 'bar', 'qux']) // Creates <h1 class="h1">foobarqux</h1>
+                                // Arrays or any iterable are done recursively
+                                
+// attr is shorthand for setting attributes
+// These 2 are equivalent
+el('h1', attr('id', 'foo'))
+el('h1', self => self.setAttribute('id', 'foo'))
+
+// bind is shorthand for 2 way binding with a reactor
+// These 2 are equivalent
+el('h1', bind(rx, 'foo'))
+el('h1', self => {
+  self.oninput = () => { rx['foo'] = self.value }
+  return new Observer(() => { self.value = rx['foo'] })
+})
+
+// ob is shorthand for creating Observers
+// These 2 are equivalent
+ob(function(){})
+new Observer(function(){})
+
+// Reactors and Observers
+const reactor = new Reactor({ foo: 'bar' })
+const observer = new Observer(() => {
+  const result = 'reactor.foo is ' + reactor.foo // Sets a dependency on foo
+  console.log(result) 
+  return result
+})
+observer() // Prints 'reactor.foo is bar' and starts the observer
+reactor.foo = 'baz' // Prints 'reactor.foo is baz'
+
+observer.stop()
+reactor.foo = 'qux' // Prints nothing since observer is stopped
+
+observer.start() // Prints 'reactor.foo is baz'
+observer.start() // Prints nothing since observer is already started
+observer() // Prints 'reactor.foo is baz' even if it is already running
+
+// Observers return values are themselves observable
+const trailingObserver = new Observer(() => {
+  const result = 'Did you hear: ' + observer.value
+  console.log(result)
+})
+trailingObserver() // Prints 'Did you hear: reactor.foo is baz'
+reactor.foo = 'blorp' // Prints 'reactor.foo is blorp' from observer
+                      // Also prints 'Did you hear: reactor.foo is blorp' from trailingObserver
+
+// Observers can be given parameters and remember these parameters when triggered
+const parameterizedObserver = new Observer((arg1, arg2) => {
+  console.log(reactor.foo + arg1 + arg2)
+})
+parameterizedObserver('beep', 'bop') // Prints bazbeepbop
+reactor.foo = 'bla' // Prints blabeepbop
+
+// Observers can also access and remember the last `this` context
+const holdingObject = {
+  name: 'Mario',
+  greet: new Observer(function () { // Need to use traditional functions instead of arrow functions
+    console.log("Hello " + reactor.foo + " itsa me " +  this.name)
+  })
+}
+holdingObject.greet() // Prints "Hello bla itsa me Mario"
+reactor.foo = 'bonk' // Prints "Hello bonk itsa me Mario"
+holdingObject.name = 'Luigi' // Prints nothing since holdingObject is not a Reactor
+
+// hide allows you to avoid particular dependencies in an observer
+// This is useful especially when using Array methods that both read and write
+reactor.ticker = 1
+reactor.names = ["Alice", "Bob", "Charles", "David"]
+const partialObserver = new Observer(() => {
+  if (reactor.ticker) {
+    // hide passes through the return value of its block
+    const next = hide(() => reactor.names.pop())
+    console.log("next ", next)
+  }
+})
+partialObserver() // prints "next David"
+reactor.ticker = 2 // prints "next Charles"
+reactor.names.push("Elsie") // Will not trigger the observer
+
+// batch postpones any observer triggers until it is complete
+// This allows grouping updates together
+const person = new Reactor({
+  firstName: 'Clark',
+  lastName: 'Kent'
+})
+new Observer(() => {
+  console.log('Look its ' + person.firstName + ' ' + person.lastName)
+})() // Prints 'Look its Clark Kent'
+batch(() => {
+  // None of the following updates will trigger the observer yet
+  person.firstName = "Bruce" 
+  person.lastName = "Wayne"
+}) // prints 'Look its Bruce Wayne'
+
+// shuck removes the Reactor layer and returns the base object
+// This is necessary for some native objects which dont work with proxies
+const mapReactor = new Reactor(new Map())
+Map.prototype.keys.call(mapReactor) // throws an Error
+Map.prototype.keys.call(shuck(mapReactor)) // works fine
+```
 
 Development & Testing
 ---------------------
