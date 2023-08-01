@@ -14,7 +14,7 @@ const rx = new Reactor({
   name: 'Anakin' 
 })
 
-document.body.appendChild(
+el(document.body,
   el('main',   
     el('h1', 'Hello World!'),
     el('h2', (x) => { x.id ='foo' }, () => 'returned text'),
@@ -103,7 +103,7 @@ el('foo bar')
 <div class="foo bar"></div>
 ```
 
-If given an existing `Element` it does nothing on its own but uses the provided `Element` as a target for appending the `children`. For example you can append things to the document body by doing
+If given an existing `Element` it does nothing on its own but uses the provided element as a target for applying the `children` arguments. For example you can append things to the document body by doing
 ```javascript
 el(document.body, 'hello world')
 ```
@@ -113,14 +113,14 @@ el(document.body, 'hello world')
 </html>
 ```
 
-For convenience, if the `String` provided starts with `#` or `.` then instead of creating a new `Element` the description will be used as a [selector](https://developer.mozilla.org/en-US/docs/Web/API/Document_object_model/Locating_DOM_elements_using_selectors) and will try to find an existing `Element` in the document.
+For convenience, if the string provided starts with `#` or `.` then instead of creating a new element, the description will be used as a [selector](https://developer.mozilla.org/en-US/docs/Web/API/Document_object_model/Locating_DOM_elements_using_selectors) and will try to find an existing matching element in the document.
 
 ```javascript
 el('#foo') // Finds an element with id="foo"
 el('.bar') // Finds an element whose classes contain "bar"
 ```
 
-This is admittedly a bit crude but should handle the most common cases. For cases which fall outside of this you can just use `document.querySelector` directly and provide the Element as the argument.
+This is admittedly a bit crude but should handle the most common cases. For cases which fall outside of this you can just use `document.querySelector` directly and provide the element as the argument.
 
 ```javascript
 el(document.querySelector('some query'))
@@ -128,7 +128,7 @@ el(document.querySelector('some query'))
 
 --------------------------------------------------------------------------------
 
-Text arguments provided as `children` are appended as text nodes
+`String` arguments provided as `children` are appended as text nodes
 ```javascript
 el(h1, 'hello world')
 ```
@@ -201,7 +201,11 @@ el('h1',
 <h1 class="h1">some text more text</h1>
 ```
 
-The `attr(attribute, value)` function is provided as a shorthand for `x => { x.setAttribute(attribute, value) }`. This allows easy setting of attributes like this 
+The `attr(attribute, value)` function is provided as a shorthand for 
+```javascript
+$ => { $.setAttribute(attribute, value) }
+```
+This allows easy setting of attributes like this 
 ```javascript
 el('h1', attr('id', 'foo'))
 ```
@@ -211,9 +215,9 @@ el('h1', attr('id', 'foo'))
 
 Similarly the `bind(reactor, value)` function is provided as a shorthand for 
 ```javascript
-x => {
-  x.oninput = () => { reactor[key] = x.value }
-  return new Observer(() => { x.value = reactor[key] })
+$ => {
+  $.oninput = () => { reactor[key] = $.value }
+  return new Observer(() => { $.value = reactor[key] })
 }
 ```
 This allows for easy 2-way binding for input fields and `Reactor` objects
@@ -249,7 +253,7 @@ el('h1', somePromise)
 ```html
 <h1 class="h1"><!-- promisePlaceholder --></h1>
 ```
-When the `Promise` returns this placeholder is replaced with the Promise value
+When the promise resolves this placeholder is replaced with the resolved value
 ```javascript
 somePromise.resolve('resolved!')
 ```
@@ -273,7 +277,7 @@ el('h1', ob(() => rx.name ))
 </h1>
 ```
 
-When the `Observer` is retriggered, everything between the bookmarks is removed and replaced with the new output
+When the observer is retriggered, everything between the bookmarks is removed and replaced with the new output
 
 
 ```javascript
@@ -287,22 +291,21 @@ rx.name = 'bar'
 </h1>
 ```
 
-Read below for more details on how `Observer` functions work
+Read below for more details on how observers work
 
-Note: for `Observer` functions attached as children via `el`, they are deactivated automatically when their parent is not attached to the document. This should not affect most use cases since the `Observer` is reactivated when the parent is reattached to the document. But note that unattached elements just being held in memory will not be changing.
-
+Note: for observers attached as children via `el` they are deactivated automatically when their parent is not attached to the document. This should not affect most use cases since the observer is reactivated when the parent is reattached to the document. But note that unattached elements just being held in memory will not be changing.
 
 Reactors
 --------
 
-A **Reactor** is an object wrapper which automatically tracks observers that read its properties and notifies these observers when those properties are updated.
+A `Reactor` is an object wrapper which automatically tracks `Observer` functions that read its properties and notifies the observers when those properties are updated.
 
-You create a new Reactor by just calling its constructor.
+You create a new reactor by just calling its constructor.
 ```javascript
 const reactor = new Reactor()
 ```
 
-You can also wrap an existing object with a Reactor by passing it to the constructor. Changes to the Reactor are passed through to the underlying object.
+You can also wrap an existing object with a reactor by passing it to the constructor. Changes to the reactor are passed through to the underlying object.
 ```javascript
 const reactor = new Reactor({
   foo: "bar"
@@ -327,7 +330,7 @@ delete reactor.foo
 reactor.foo // undefined
 ```
 
-The key difference of Reactors is that they track when one of their properties is read by an observer and will notify that observer when the property is updated.
+The key difference of `Reactor` objects is that they track when one of their properties is read by an `Observer` function and will notify that observer when the property is updated.
 
 ```javascript
 const reactor = new Reactor({ foo: "bar" })
@@ -365,7 +368,7 @@ reactor.moo = "mar2" // prints "moo tracker is now mar2"
 reactor.goo = "goop" // does not trigger any observers
 ```
 
-If reading a Reactor's property also returns an object, that object is recursively also wrapped in a Reactor before being returned. This allows observers to tracks dependencies in nested objects easily.
+If reading a reactor's property also returns an object, that object is recursively also wrapped in a reactor before being returned. This allows observers to tracks dependencies in nested objects easily.
 ```javascript
 const reactor = new Reactor({
   outer: {
@@ -400,9 +403,9 @@ Map.prototype.keys.apply(shuck(mapReactor)) // works fine
 Observers
 ---------
 
-An **Observer** is like a normal function that you can define and call. When an Observer reads from a Reactor it automatically tracks that dependency, and when that Reactor property is updated is automatically triggers the observer again.
+An `Observer` is like a normal function that you can define and call. When an `Observer` reads from a `Reactor` it automatically tracks that dependency, and when that reactor's property is updated it automatically triggers the observer again.
 
-Observers are created by passing a function to its constructor.
+`Observer` functions are created by passing a function to its constructor.
 ```javascript
 const observer = new Observer(() => {
   console.log("hello world")
@@ -417,7 +420,14 @@ new Observer(() => {
 })() // prints "hello world" and starts the observer
 ```
 
-When an Observer reads a Reactor's property it gets saved as a dependent. When that property is updated it notifies the observer which re-executes its function. This happens automatically without any need to manually declare dependencies.
+For further simplicity the shorthand `ob` is also provided that is equivalent to `new Observer`
+```javascript
+ob(() => {
+  console.log("hello world")
+})() // prints "hello world" and starts the observer
+```
+
+When an `Observer` reads a `Reactor` property it gets saved as a dependent. When that property is updated it notifies the observer which reruns its function. This happens automatically without any need to manually declare dependencies.
 ```javascript
 const reactor = new Reactor()
 new Observer(() => {
@@ -427,7 +437,7 @@ new Observer(() => {
 reactor.foo = "bar" // prints "reactor.foo is bar"
 ```
 
-An Observer's dependencies are dynamically determined. Only the dependencies actually read in the last execution of an observer can trigger it again. This means that Reactor reads that are only conditionally used will not trigger the observer unnecessarily.
+An observer's dependencies are dynamically determined. Only the dependencies actually read in the last execution of an observer can trigger it again. This means that Reactor reads that are only conditionally used will not trigger the observer unnecessarily.
 ```javascript
 const reactor = new Reactor({
   a: true,
@@ -450,7 +460,7 @@ reactor.b = "blue" // does not trigger the observer
 reactor.c = "cheese" // prints "reactor.c is cheese"
 ```
 
-An Observer's results are themselves observable via either the `value` property, or by triggering the observer via `observer()` and using the return value. This allows you to chain observers together.
+An observer's results are themselves observable via either the `value` property, or by triggering the observer via `observer()` and using the return value. This allows you to chain observers together.
 ```javascript
 const reactor = new Reactor({ foo: 'bar' })
 const capitalizer = new Observer(() => {
@@ -476,7 +486,7 @@ const printer = new Observer(() => {
 reactor.foo = 'baz' // Prints 'BAZ'
 ```
 
-You can stop an observer by just calling "stop()" on the returned observer object. This clears any existing dependencies and prevents triggering. You can restart the observer by just calling "start()". Starting is idempotent so calling "start()" on an already running observer will have no effect.
+You can stop an observer by just calling `stop()` on the returned observer object. This clears any existing dependencies and prevents triggering. You can restart the observer by just calling `start()`. Starting is idempotent so calling `start()` on an already running observer will have no effect.
 ```javascript
 const reactor = new Reactor()
 const observer = new Observer(() => {
@@ -497,7 +507,7 @@ observer.start() // No effect
 reactor.foo = "moo" // prints "moo"
 ```
 
-For convenience, you can call an observer to execute like a normal function. This works regardless of whether an observer is stopped. Doing so starts the observer up again.
+For convenience, you can call an observer to execute like a normal function. This works regardless of whether the observer is stopped. Doing so starts the observer up again.
 
 ```javascript
 const reactor = new Reactor({ foo: "hello" })
@@ -538,7 +548,7 @@ holdingObject.name = 'Luigi' // Prints nothing since holdingObject is not a Reac
 
 ### Hide
 
-Sometimes you might want to read from a Reactor without becoming dependent on it. A common case for this is when using array modification methods. These often also read from the array in order to do the modification.
+Sometimes you might want to read from a reactor without becoming dependent on it. A common case for this is when using array modification methods. These often also read from the array in order to do the modification.
 ```javascript
 const taskList = new Reactor(["a", "b", "c", "d"])
 
@@ -633,7 +643,7 @@ person.faction = "Sith" // prints "I am Darth Vader, Sith Knight"
 person.rank = "Lord" // prints "I am Darth Vader, Sith Lord"
 ```
 
-Reactor provides the `batch` keyword, which allows you to batch multiple updates together and only trigger the appropriate observers once at the end of the batch block. So the last part of the previous example can be turned into:
+The `batch` function is provided to allow you to batch multiple updates together and only trigger the appropriate observers once at the end of the batch block. So the last part of the previous example can be turned into:
 ```javascript
 // batch postpones any observer triggers that originate from inside it
 // Triggers are deduplicated so any observer is triggered at most once
@@ -650,11 +660,8 @@ This is useful when you are making multiple data updates and want to avoid showi
 
 Note that only the observer triggering is postponed till the end. The actual reactor propertes are updated in place as expected. This means that you can have other logic with read-what-you-write semantics within the observer block working just fine.
 
-
-
 Summary 
 -------
-
 ```javascript
 import { 
   el, attr, bind, ob,
@@ -836,9 +843,3 @@ Tests are stored in `test.js` to be run using Mocha.
 Run `npm install` to install the the dev dependencies.
 
 To run the tests run `npm test`.
-
-
-Comparison to Other Libraries
------------------------------
-
-Reactor is based on the same reactive principles as [Bacon.js](https://github.com/raimohanska/bacon.js) and [Knockout.js](http://knockoutjs.com/). The main difference is that Reactor is trying to be lightweight and keep the additional syntax and complexity to a minimum. Reactor sets dependencies for you automatically so there is no need to manually set subscriptions/listeners.
