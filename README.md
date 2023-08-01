@@ -360,7 +360,7 @@ new Observer(() => {
 })() // prints "foo tracker is now bar"
 
 new Observer(() => {
-  console.log("moo tracker is now", reactor.foo)
+  console.log("moo tracker is now", reactor.moo)
 })() // prints "moo tracker is now mar"
 
 reactor.foo = "bar2" // prints "foo tracker is now bar2"
