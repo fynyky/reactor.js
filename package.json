@@ -1,6 +1,6 @@
 {
   "name": "reactorjs",
-  "version": "2.1.2",
+  "version": "3.0.0",
   "description": "Simple library for reactive programming",
   "source": "src/index.js",
   "main": "dist/index.js",
