@@ -25,7 +25,7 @@ Reactor.js is meant to be unobtrusive and unopinionated.
 - There is no need to manually declare listeners or bindings. Reactor.js automatically keeps track of all that for you. 
 - It imposes no particular structure on your code. Any variable can be easily replaced with a reactive one without changing the rest of your codebase.
 
-If you want to see Reactor.js in action, take a look at this [example todo list](https://jsfiddle.net/jgt46s0a/38/)
+If you want to see Reactor.js in action, take a look at this [example todo list](https://jsfiddle.net/jgt46s0a/39/)
 
 Note: v2 of Reactor.js previously had some UI elements. This has been split out into a separate project [Elementary](https://github.com/fynyky/elementary) that is built ontop of Reactor.js. For v3 Reactor is focusing on just the core reactive components.
 
