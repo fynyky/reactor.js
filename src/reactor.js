@@ -16,6 +16,7 @@ const dependencyStack = []
 // to their internal cores
 const signalCoreExtractor = new WeakMap()
 const reactorCoreExtractor = new WeakMap()
+const observerCoreExtractor = new WeakMap()
 
 // A batcher is used to postpone observer triggers and batch them together
 // When "batch" is called it adds sets a batcher to this global variable
@@ -49,6 +50,7 @@ class Signal extends Function {
   // - The core: The properties & methods which lets signals work
   // - The interface: The function returned to the user to use
   constructor (initialValue) {
+    
     // The "guts" of a Signal containing properties and methods
     // All actual functionality & state should be built into the core
     // Should be completely agnostic to syntactic sugar
@@ -450,6 +452,7 @@ class Reactor {
 //                                            and allow updates again
 //
 // observer.start()                          Does nothing since already started
+const Observers = new WeakSet()
 class Observer extends Function {
   constructor (execute) {
     // Parameter validation
@@ -599,6 +602,11 @@ class Observer extends Function {
     Object.defineProperty(observerInterface, 'value', {
       get () { return observerCore.value() }
     })
+
+    // Register the observer for debugging/typechecking purposes
+    observerCoreExtractor.set(observerInterface, observerCore)
+    Observers.add(observerInterface)
+
     // Does not trigger on initialization until () or .start() are called
     return observerInterface
   }
@@ -695,9 +703,13 @@ class CompoundError extends Error {
 }
 
 export {
+  Signal,
   Reactor,
   Observer,
   hide,
   batch,
-  shuck
+  shuck,
+  signalCoreExtractor,
+  reactorCoreExtractor,
+  observerCoreExtractor
 }
