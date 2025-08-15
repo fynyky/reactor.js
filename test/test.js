@@ -379,6 +379,13 @@ describe('Reactor', () => {
         })
       })
     })
+
+    it('should fail to initialize with multiple arguments', () => {
+      assert.throws(() => new Reactor({}, {}), {
+        name: 'Error',
+        message: 'Reactor constructor takes at most one argument'
+      })
+    })
   })
 
   describe('Reads properties from the proxied Object', () => {

@@ -208,6 +208,10 @@ class Reactor {
     const existingReactor = reactorCache.get(initializedSource)
     if (existingReactor) return existingReactor
 
+    if (arguments.length > 1) {
+      throw new Error('Reactor constructor takes at most one argument')
+    }
+
     // The source is the internal proxied object
     // If no source is provided then provide a new default object
     if (arguments.length === 0) initializedSource = this
