@@ -250,7 +250,7 @@ class Reactor {
           try {
             return Reflect.apply(this.source, thisArg, argumentsList)
           } catch (error) {
-            if (error.name === 'TypeError') {
+            if (error.name === 'TypeError' && error.message.includes('called on incompatible receiver #')) {
               const core = reactorCoreExtractor.get(thisArg)
               if (typeof core !== 'undefined') {
                 // Note that this.source and core.source are different
@@ -310,9 +310,9 @@ class Reactor {
           try {
             return Reflect.get(this.source, property, receiver)
           } catch (error) {
-            // We trim to TypeError to minimize unnecessary double retries to actual proxy problems
+            // We trim to specific "incompatible receiver" TypeErrors to minimize unnecessary double retries to actual proxy problems
             // but it could still happen for other TypeErrors
-            if (error.name === 'TypeError') return Reflect.get(this.source, property, this.source)
+            if (error.name === 'TypeError' && error.message.includes('incompatible receiver')) return Reflect.get(this.source, property, this.source)
             throw error
           }
         })()
