@@ -556,39 +556,39 @@ describe('Reactor', () => {
   it('fails to initialize with non-object', () => {
     assert.throws(() => new Reactor(true), {
       name: 'TypeError',
-      message: 'Cannot create proxy with a non-object as target or handler'
+      message: 'Reactor source must be an Object'
     })
     assert.throws(() => new Reactor(false), {
       name: 'TypeError',
-      message: 'Cannot create proxy with a non-object as target or handler'
+      message: 'Reactor source must be an Object'
     })
     assert.throws(() => new Reactor(null), {
       name: 'TypeError',
-      message: 'Cannot create proxy with a non-object as target or handler'
+      message: 'Reactor source must be an Object'
     })
     assert.throws(() => new Reactor(undefined), {
       name: 'TypeError',
-      message: 'Cannot create proxy with a non-object as target or handler'
+      message: 'Reactor source must be an Object'
     })
     assert.throws(() => new Reactor(1), {
       name: 'TypeError',
-      message: 'Cannot create proxy with a non-object as target or handler'
+      message: 'Reactor source must be an Object'
     })
     assert.throws(() => new Reactor(0), {
       name: 'TypeError',
-      message: 'Cannot create proxy with a non-object as target or handler'
+      message: 'Reactor source must be an Object'
     })
     assert.throws(() => new Reactor('a'), {
       name: 'TypeError',
-      message: 'Cannot create proxy with a non-object as target or handler'
+      message: 'Reactor source must be an Object'
     })
     assert.throws(() => new Reactor(''), {
       name: 'TypeError',
-      message: 'Cannot create proxy with a non-object as target or handler'
+      message: 'Reactor source must be an Object'
     })
     assert.throws(() => new Reactor(Symbol('dummyTest')), {
       name: 'TypeError',
-      message: 'Cannot create proxy with a non-object as target or handler'
+      message: 'Reactor source must be an Object'
     })
   })
 

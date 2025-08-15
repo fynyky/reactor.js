@@ -32,6 +32,15 @@ let batcher = null
 // across multiple reads of the same object
 const reactorCache = new WeakMap()
 
+// Helper function for checking if something is an object
+function isObject (x) {
+  // functions are objects also but typeof to function
+  // nulls are not objects but typeof to objects
+  // the last bit is to check for nulls
+  const type = typeof (x)
+  return ((type === 'function' || type === 'object') && !!x)
+}
+
 // Signals are observable functions representing values
 // - Read a signal by calling it with no arguments
 // - Write to a signal by calling it with the desired value as an argument
@@ -82,19 +91,8 @@ class Signal extends Function {
         // If it's not an object then just return it right away
         // Cleaner and faster than the alternative approach of constructing a Reactor
         // and catching an error
-        if (
-          // Need to do this because typeof null is object for some reason
-          output === null || (
-            typeof output !== 'function' &&
-            typeof output !== 'object'
-          )
-        ) return output
-
-        // Wrap the output in a Reactor if it's an object
-        // No need to wrap it if its already a Reactor
-        if (Reactors.has(output)) return output
-        // If not then wrap and store it for future reads
-        return new Reactor(output)
+        if (isObject(output)) return new Reactor(output)
+        else return output
       },
 
       // Life of a write
@@ -132,19 +130,8 @@ class Signal extends Function {
         // If it's not an object then just return it right away
         // Cleaner and faster than the alternative approach of constructing a Reactor
         // and catching an error
-        if (
-          // Need to do this because typeof null is object for some reason
-          output === null || (
-            typeof output !== 'function' &&
-            typeof output !== 'object'
-          )
-        ) return output
-
-        // Wrap the output in a Reactor if it's an object
-        // No need to wrap it if its already a Reactor
-        if (Reactors.has(output)) return output
-        // If not then wrap and store it for future reads
-        return new Reactor(output)
+        if (isObject(output)) return new Reactor(output)
+        else return output
       },
       // Used by observers to remove themselves from this as dependents
       // Also removesSelf from any owners if there are no more dependents
@@ -215,6 +202,13 @@ class Reactor {
     // The source is the internal proxied object
     // If no source is provided then provide a new default object
     if (arguments.length === 0) initializedSource = this
+
+    // Early rejection for non-objects
+    // Could be handled later by proxy creation, but cleaner to have the logic here
+    // Can use the same function as Signal does for it's wrapping
+    if (!isObject(initializedSource)) {
+      throw new TypeError('Reactor source must be an Object')
+    }
 
     // The "guts" of a Reactor containing properties and methods
     // All actual functionality & state should be built into the core
