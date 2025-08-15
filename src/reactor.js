@@ -160,7 +160,7 @@ class Signal extends Function {
     Signals.add(signalInterface)
 
     // Initialize with the provided value before returning
-    signalInterface(initialValue)
+    signalCore.write(initialValue)
     return signalInterface
   }
 }
