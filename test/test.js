@@ -61,7 +61,7 @@ describe('Signal', () => {
     it('should initialize with a Promise')
 
     describe('Edge cases', () => {
-      it('should initialize empty', () => {
+      it('should initialize with no arguments', () => {
         assert.doesNotThrow(new Signal())
       })
       it.skip('should not initialize with multiple arguments', () => {
