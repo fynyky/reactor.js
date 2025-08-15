@@ -155,6 +155,10 @@ class Signal extends Function {
     super()
     const signalInterface = new Proxy(this, {
       apply (target, thisArg, args) {
+        // Early rejection for multiple arguments
+        if (args.length > 1) {
+          throw new Error('Signal objects take at most one argument for writes and zero arguments for reads')
+        }
         // An empty call is treated as a read
         if (args.length === 0) return signalCore.read()
         // A non empty call is treated as a write
