@@ -64,8 +64,11 @@ describe('Signal', () => {
       it('should initialize with no arguments', () => {
         assert.doesNotThrow(new Signal())
       })
-      it.skip('should not initialize with multiple arguments', () => {
-        assert.throws(new Signal('foo', 'bar'))
+      it('should not initialize with multiple arguments', () => {
+        assert.throws(() => new Signal('foo', 'bar'), {
+          name: 'Error',
+          message: 'Signal constructor takes at most one argument'
+        })
       })
     })
   })

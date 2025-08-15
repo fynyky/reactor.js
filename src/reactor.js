@@ -59,6 +59,11 @@ class Signal extends Function {
   // - The core: The properties & methods which lets signals work
   // - The interface: The function returned to the user to use
   constructor (initialValue) {
+    // Early rejection for multiple arguments
+    if (arguments.length > 1) {
+      throw new Error('Signal constructor takes at most one argument')
+    }
+
     // The "guts" of a Signal containing properties and methods
     // All actual functionality & state should be built into the core
     // Should be completely agnostic to syntactic sugar
