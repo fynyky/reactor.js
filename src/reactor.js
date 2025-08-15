@@ -628,6 +628,7 @@ const batch = (execute) => {
     // Execute the given block and collect the triggerd observers
     try {
       result = execute()
+      // TODO Catch the error and throw it after the batching is done
     } finally {
       // Clear the batching mode
       // This needs to be done before observer triggering in case any observers
@@ -643,6 +644,7 @@ const batch = (execute) => {
     // Trigger the collected observers
     // If an error occurs, collect it and keep going
     // A conslidated error will be thrown at the end of propagation
+    // TODO consider: batch wrap the subsequent triggers as well?
     const errorList = []
     batchedObservers.forEach(observer => {
       try { observer.trigger() } catch (error) { errorList.push(error) }

@@ -1,6 +1,7 @@
 Reactor.js
 ==========
 
+<!-- TODO Rewrite readme to remove elemental stuff -->
 Reactor.js is a simple reactive front-end library. It provides 
 - `Reactor` objects that store reactive variables
 - `Observer` functions that automatically track the reactive variables that they use and retrigger if any of these variables are updated. The function `ob` is shorthand for `new Observer`

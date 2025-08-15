@@ -25,7 +25,6 @@
     "prepare": "npm run build",
     "pretest": "npm run build",
     "test": "standard && mocha test/reactor.test.js",
-    "browserTest": "npm run pretest && parcel serve test/elementary.test.html",
     "prepublishOnly": "npm test"
   },
   "repository": {
