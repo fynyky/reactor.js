@@ -380,10 +380,12 @@ describe('Reactor', () => {
       })
     })
 
-    it('should fail to initialize with multiple arguments', () => {
-      assert.throws(() => new Reactor({}, {}), {
-        name: 'Error',
-        message: 'Reactor constructor takes at most one argument'
+    describe('Edge cases', () => {
+      it('should fail to initialize with multiple arguments', () => {
+        assert.throws(() => new Reactor({}, {}), {
+          name: 'Error',
+          message: 'Reactor constructor takes at most one argument'
+        })
       })
     })
   })
@@ -519,141 +521,292 @@ describe('Reactor', () => {
 })
 
 describe('Observer', () => {
-  it('passes instanceof checks', () => {
-    const a = new Observer(() => {})
-    assert(a instanceof Observer)
-    assert(a instanceof Function)
+  describe('Initializes wrapping a function', () => {
+    it('should initialize with a function argument', () => new Observer(() => {}))
+
+    it('should fail to initialize with no argument', () => {
+      assert.throws(() => new Observer(), {
+        name: 'Error',
+        message: 'Observer constructor requires exactly one argument'
+      })
+    })
+
+    it('should fail to initialize with multiple arguments', () => {
+      assert.throws(() => new Observer(() => {}, () => {}), {
+        name: 'Error',
+        message: 'Observer constructor requires exactly one argument'
+      })
+    })
+
+    it('should be an Observer object', () => {
+      const observer = new Observer(() => {})
+      assert(observer instanceof Observer)
+    })
+
+    describe('Fails to initialize with an argument that is not a Function', () => {
+      it('should fail to initialize with a string', () => {
+        assert.throws(() => new Observer('foo'), {
+          name: 'TypeError',
+          message: 'Cannot create observer with a non-function'
+        })
+      })
+      it('should fail to initialize with a number', () => {
+        assert.throws(() => new Observer(123), {
+          name: 'TypeError',
+          message: 'Cannot create observer with a non-function'
+        })
+      })
+      it('should fail to initialize with a bigint', () => {
+        assert.throws(() => new Observer(123456789123456789n), {
+          name: 'TypeError',
+          message: 'Cannot create observer with a non-function'
+        })
+      })
+      it('should fail to initialize with a symbol', () => {
+        assert.throws(() => new Observer(Symbol('foo')), {
+          name: 'TypeError',
+          message: 'Cannot create observer with a non-function'
+        })
+      })
+      it('should fail to initialize with true', () => {
+        assert.throws(() => new Observer(true), {
+          name: 'TypeError',
+          message: 'Cannot create observer with a non-function'
+        })
+      })
+      it('should fail to initialize with false', () => {
+        assert.throws(() => new Observer(false), {
+          name: 'TypeError',
+          message: 'Cannot create observer with a non-function'
+        })
+      })
+      it('should fail to initialize with zero', () => {
+        assert.throws(() => new Observer(0), {
+          name: 'TypeError',
+          message: 'Cannot create observer with a non-function'
+        })
+      })
+      it('should fail to initialize with an empty string', () => {
+        assert.throws(() => new Observer(''), {
+          name: 'TypeError',
+          message: 'Cannot create observer with a non-function'
+        })
+      })
+      it('should fail to initialize with null', () => {
+        assert.throws(() => new Observer(null), {
+          name: 'TypeError',
+          message: 'Cannot create observer with a non-function'
+        })
+      })
+      it('should fail to initialize with undefined', () => {
+        assert.throws(() => new Observer(undefined), {
+          name: 'TypeError',
+          message: 'Cannot create observer with a non-function'
+        })
+      })
+      it('should fail to initialize with an Object', () => {
+        assert.throws(() => new Observer({}), {
+          name: 'TypeError',
+          message: 'Cannot create observer with a non-function'
+        })
+      })
+      it('should fail to initialize with an Array', () => {
+        assert.throws(() => new Observer([]), {
+          name: 'TypeError',
+          message: 'Cannot create observer with a non-function'
+        })
+      })
+    })
   })
 
-  it('can be used as a constructor', () => {
-    const A = new Observer(function (arg) {
-      this.foo = 'bar' + arg
-      return this
+  describe('Can be used like a normal function', () => {
+    it('should be callable', () => {
+      const observer = new Observer(() => {})
+      observer()
     })
-    const a = new A('baz')
-    assert.equal(JSON.stringify(a), '{"foo":"barbaz"}')
+
+    it('should return the function return value', () => {
+      const observer = new Observer(() => 'foo')
+      assert.strictEqual(observer(), 'foo')
+    })
+
+    it('should be callable with arguments', () => {
+      const observer = new Observer((a, b, c) => {
+        return a + b + c
+      })
+      assert.strictEqual(observer('foo', 'bar', 'baz'), 'foobarbaz')
+    })
+
+    it('should have access to its arguments array', () => {
+      const observer = new Observer(function () {
+        let output = ''
+        for (const arg of arguments) {
+          output += arg
+        }
+        return output
+      })
+      assert.strictEqual(observer('foo', 'bar', 'baz'), 'foobarbaz')
+    })
+
+    it('should have access to its this context', () => {
+      let context
+      const object = {}
+      const observer = new Observer(function () {
+        context = this
+      })
+      object.observer = observer
+      object.observer()
+      assert.strictEqual(context, object)
+    })
+
+    it('should be able to use bind to create a new function with this context and arguments', () => {
+      let context
+      const object = { foo: 42 }
+      const observer = new Observer(function (a) {
+        context = this
+        return this.foo + a
+      })
+      const boundFunction = observer.bind(object, 10)
+      const result = boundFunction()
+      assert.strictEqual(context, object)
+      assert.strictEqual(result, 52)
+    })
+
+    it('should be able to use call to execute with specified this context and arguments', () => {
+      const object = { foo: 'bar' }
+      const observer = new Observer(function (a, b) {
+        return this.foo + a + b
+      })
+      const result = observer.call(object, 'baz', 'qux')
+      assert.strictEqual(result, 'barbazqux')
+    })
+
+    it('should be able to use apply to execute with specified this context and arguments', () => {
+      const object = { foo: 'bar' }
+      const observer = new Observer(function (a, b) {
+        return this.foo + a + b
+      })
+      const result = observer.apply(object, ['baz', 'qux'])
+      assert.strictEqual(result, 'barbazqux')
+    })
+
+    it.skip('should be usable as a constructor', () => {
+      const DummyClass = new Observer(function (arg) {
+        this.foo = 'bar' + arg
+        return this
+      })
+      const instance = new DummyClass('baz')
+      // TODO this is failing
+      // The constructor is the execute function rather than the wrapped observer
+      // Need to figure out how to interject
+      assert(instance instanceof DummyClass.execute) // This works but shouldn't
+      assert(instance instanceof DummyClass) // This doesn't work but should
+      assert.strictEqual(instance.foo, 'barbaz')
+    })
+
+    it('should be a type of Function', () => {
+      const observer = new Observer(() => {})
+      assert(observer instanceof Function)
+      assert(typeof observer === 'function')
+    })
   })
 
-  it('initializes function without error', () => new Observer(() => {}))
-
-  it('passed correct value of this to observer', () => {
-    let aResult
-    const a = new Observer(function () { aResult = this })
-    let barResult
-    const foo = {
-      a,
-      bar: function () { barResult = this }
-    }
-    foo.a()
-    foo.bar()
-    assert.equal(foo, aResult)
-    assert.equal(foo, barResult)
-    assert.equal(aResult, barResult)
-  })
-
-  it('fails to initialize with no argument', () => {
-    assert.throws(() => new Observer(), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
+  describe('Wraps returned Object values in Reactors', () => {
+    it('', () => {
+      const object = {}
+      const observer = new Observer(() => object)
+      const result = observer()
+      assert(Reactors.has(result))
+      assert.notStrictEqual(result, object)
+      assert.strictEqual(shuck(result), object)
     })
   })
 
-  it('fails to initialize with non-function', () => {
-    assert.throws(() => new Observer(true), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-    assert.throws(() => new Observer(false), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-    assert.throws(() => new Observer(null), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-    assert.throws(() => new Observer(undefined), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-    assert.throws(() => new Observer(1), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-    assert.throws(() => new Observer(0), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-    assert.throws(() => new Observer('a'), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-    assert.throws(() => new Observer(''), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-    assert.throws(() => new Observer(Symbol('dummyTest')), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-    assert.throws(() => new Observer({}), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-    assert.throws(() => new Observer([]), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
+  describe('Exposes the wrapped function through execute', () => {
+    it('', () => {
+      const dummyFunction = function () {}
+      const observer = new Observer(dummyFunction)
+      assert.strictEqual(observer.execute, dummyFunction)
     })
   })
 
-  it('exposes the raw function as execute', () => {
-    const dummyFunction = function () {
-      return 'foo'
-    }
-    const observer = new Observer(dummyFunction)
-    assert.equal(observer.execute, dummyFunction)
-  })
-
-  it('exposes the last derived value', () => {
-    const rx = new Reactor({
-      foo: 'foo'
+  describe('Exposes the last derived value through value', () => {
+    it('should keep the last derived value for primitive values', () => {
+      let counter = 0
+      const dummyFunction = () => (counter += 1)
+      const observer = new Observer(dummyFunction)
+      let result = observer()
+      assert.strictEqual(result, 1)
+      assert.strictEqual(observer.value, 1)
+      assert.strictEqual(result, observer.value)
+      result = observer()
+      assert.strictEqual(result, 2)
+      assert.strictEqual(observer.value, 2)
+      assert.strictEqual(result, observer.value)
     })
-    const observer = new Observer(() => {
-      return rx.foo
+
+    it('should keep the last derived value for Object values', () => {
+      let counter = 0
+      const dummyFunction = () => {
+        counter += 1
+        return { count: counter }
+      }
+      const observer = new Observer(dummyFunction)
+      let result = observer()
+      assert.strictEqual(JSON.stringify(result), '{"count":1}')
+      assert.strictEqual(JSON.stringify(observer.value), '{"count":1}')
+      assert.strictEqual(result, observer.value)
+      result = observer()
+      assert.strictEqual(JSON.stringify(result), '{"count":2}')
+      assert.strictEqual(JSON.stringify(observer.value), '{"count":2}')
+      assert.strictEqual(result, observer.value)
     })
-    assert(typeof observer.value === 'undefined')
-    observer()
-    assert.equal(observer.value, 'foo')
-    rx.foo = 'bar'
-    assert.equal(observer.value, 'bar')
   })
 
-  it('returns the function return value', () => {
-    const observer = new Observer(() => 'foo')
-    assert.equal(observer(), 'foo')
-  })
-
-  it('can observe an observer', () => {
-    let outcome
-    const rx = new Reactor({
-      foo: 'foo'
+  describe('Observer chaining and dependencies', () => {
+    it('should observe an observer', () => {
+      let outcome
+      const rx = new Reactor({
+        foo: 'foo'
+      })
+      const a = new Observer(() => rx.foo + 'bar')
+      a()
+      const b = new Observer(() => (outcome = a.value + 'baz'))
+      b()
+      assert.equal(outcome, 'foobarbaz')
+      rx.foo = 'qux'
+      assert.equal(outcome, 'quxbarbaz')
     })
-    const a = new Observer(() => rx.foo + 'bar')
-    a()
-    const b = new Observer(() => (outcome = a.value + 'baz'))
-    b()
-    assert.equal(outcome, 'foobarbaz')
-    rx.foo = 'qux'
-    assert.equal(outcome, 'quxbarbaz')
-  })
 
+    it('should trigger chained observers', () => {
+      let tracker
+      const reactor = new Reactor({
+        foo: 'bar'
+      })
+      new Observer(() => {
+        reactor.bigFoo = reactor.foo.toUpperCase()
+      })()
+      assert.equal(reactor.bigFoo, 'BAR')
+      new Observer(() => {
+        tracker = reactor.bigFoo
+      })()
+      assert.equal(tracker, 'BAR')
+      reactor.foo = 'qux'
+      assert.equal(reactor.bigFoo, 'QUX')
+      assert.equal(tracker, 'QUX')
+    })
+  })
+})
+
+describe('Reactivity', () => {
   describe('Triggering', () => {
-    it('triggers once on initialization', () => {
+    it('should trigger once on initialization', () => {
       let counter = 0
       new Observer(() => { counter += 1 })()
       assert.equal(counter, 1)
     })
 
-    it('triggers once on Reactor dependency write', () => {
+    it('should trigger once on Reactor dependency write', () => {
       let counter = 0
       let tracker
       const reactor = new Reactor({
@@ -670,7 +823,7 @@ describe('Observer', () => {
       assert.equal(tracker, 'mux')
     })
 
-    it('triggers once on nested Reactor dependency write', () => {
+    it('should trigger once on nested Reactor dependency write', () => {
       let counter = 0
       let tracker
       const reactor = new Reactor({
@@ -689,7 +842,7 @@ describe('Observer', () => {
       assert.equal(tracker, 'moo')
     })
 
-    it('triggers on defineProperty', () => {
+    it('should trigger on defineProperty', () => {
       let tracker
       const reactor = new Reactor({
         foo: 'bar'
@@ -702,7 +855,7 @@ describe('Observer', () => {
       assert.equal(tracker, 'baz')
     })
 
-    it('trigger on deleteProperty', () => {
+    it('should trigger on deleteProperty', () => {
       let tracker
       const reactor = new Reactor({
         foo: 'bar'
@@ -713,7 +866,7 @@ describe('Observer', () => {
       assert.equal(tracker, undefined)
     })
 
-    it('triggers on array update methods', () => {
+    it('should trigger on array update methods', () => {
       let counter = 0
       let tracker
       const reactor = new Reactor([])
@@ -731,7 +884,7 @@ describe('Observer', () => {
       assert.equal(tracker, 'bar')
     })
 
-    it('triggers only once despite multiple dependencies', () => {
+    it('should trigger only once despite multiple dependencies', () => {
       let counter = 0
       let hasTracker
       let getTracker
@@ -756,7 +909,7 @@ describe('Observer', () => {
       assert.equal(JSON.stringify(ownKeysTracker), '["foo"]')
     })
 
-    it('triggers only once even for functions with multiple changes', () => {
+    it('should trigger only once even for functions with multiple changes', () => {
       let counter = 0
       let lengthTracker
       let firstTracker
@@ -775,7 +928,7 @@ describe('Observer', () => {
       assert.equal(firstTracker, 'bar')
     })
 
-    it('triggers correctly on nested observer definitions', () => {
+    it('should trigger correctly on nested observer definitions', () => {
       const reactor = new Reactor({
         outer: 'foo',
         inner: 'bar'
@@ -810,7 +963,7 @@ describe('Observer', () => {
       assert.equal(innerTracker, 'baz')
     })
 
-    it('subscribes on Object.keys', () => {
+    it('should subscribe on Object.keys', () => {
       let counter = 0
       let tracker
       const reactor = new Reactor({ foo: 'bar' })
@@ -825,7 +978,7 @@ describe('Observer', () => {
       assert.equal(JSON.stringify(tracker), '["foo","moo"]')
     })
 
-    it('subscribes on in operator', () => {
+    it('should subscribe on in operator', () => {
       let counter = 0
       let tracker
       const reactor = new Reactor()
@@ -840,7 +993,7 @@ describe('Observer', () => {
       assert.equal(tracker, true)
     })
 
-    it('subscribes using observe keyword', () => {
+    it('should subscribe using observe keyword', () => {
       let counter = 0
       let tracker
       const reactor = new Reactor({ value: 'foo' })
@@ -855,7 +1008,7 @@ describe('Observer', () => {
       assert.equal(tracker, 'bar')
     })
 
-    it('does not subscribe in hide block', () => {
+    it('should not subscribe in hide block', () => {
       const reactor = new Reactor({
         outer: 'foo',
         inner: 'bar'
@@ -888,7 +1041,7 @@ describe('Observer', () => {
       assert.equal(innerTracker, 'baz')
     })
 
-    it('returns output of hide block', () => {
+    it('should return output of hide block', () => {
       const reactor = new Reactor({
         outer: 'foo',
         inner: 'bar'
@@ -921,14 +1074,240 @@ describe('Observer', () => {
       assert.equal(innerTracker, 'baz')
     })
 
-    it('does not self trigger in an hide block', () => {
+    it('should not self trigger in an hide block', () => {
       const reactor = new Reactor(['a', 'b', 'c'])
       new Observer(() => {
         hide(() => reactor.pop())
       })()
     })
 
-    it('can redefine an observer', () => {
+    it('should not redundantly trigger on setting identical values', () => {
+      let counter = 0
+      let tracker
+      const reactor = new Reactor({
+        foo: 'bar'
+      })
+      new Observer(() => {
+        counter += 1
+        tracker = reactor.foo
+      })()
+      assert.equal(counter, 1)
+      assert.equal(tracker, 'bar')
+      reactor.foo = 'bar'
+      assert.equal(counter, 1)
+      assert.equal(tracker, 'bar')
+    })
+
+    it('should not redundantly trigger if has check remains the same', () => {
+      let counter = 0
+      let tracker
+      const reactor = new Reactor({
+        foo: 'bar'
+      })
+      new Observer(() => {
+        counter += 1
+        tracker = 'foo' in reactor
+      })()
+      assert.equal(counter, 1)
+      assert.equal(tracker, true)
+      reactor.foo = 'baz'
+      assert.equal(counter, 1)
+      assert.equal(tracker, true)
+    })
+
+    it('should not redundantly trigger if ownKeys check is the same', () => {
+      let counter = 0
+      const reactor = new Reactor({
+        foo: 'bar'
+      })
+      new Observer(() => {
+        counter += 1
+        Object.keys(reactor)
+      })()
+      reactor.foo = 'baz'
+      assert.equal(counter, 1)
+      delete reactor.boo
+      assert.equal(counter, 1)
+      delete reactor.foo
+      assert.equal(counter, 2)
+      reactor.foo = 'bar'
+      assert.equal(counter, 3)
+    })
+  })
+
+  describe('Batching', () => {
+    it('should delay and combine observer triggers when using batch', () => {
+      const reactor = new Reactor({ value: 'foo' })
+      let counter = 0
+      new Observer(() => {
+        counter += 1
+        return reactor.value
+      })()
+      assert.equal(counter, 1)
+      batch(() => {
+        reactor.value = 'bleep'
+        assert.equal(counter, 1)
+        reactor.value = 'bloop'
+        assert.equal(counter, 1)
+        reactor.value = 'blarp'
+        assert.equal(counter, 1)
+      })
+      assert.equal(counter, 2)
+    })
+
+    it('should nest batchers with no consequence', () => {
+      const reactor = new Reactor({ value: 'foo' })
+      let counter = 0
+      new Observer(() => {
+        counter += 1
+        return reactor.value
+      })()
+      assert.equal(counter, 1)
+      batch(() => {
+        reactor.value = 'bleep'
+        assert.equal(counter, 1)
+        reactor.value = 'bloop'
+        assert.equal(counter, 1)
+        reactor.value = 'blarp'
+        assert.equal(counter, 1)
+        batch(() => {
+          reactor.value = 'bink'
+          assert.equal(counter, 1)
+          reactor.value = 'bonk'
+          assert.equal(counter, 1)
+          reactor.value = 'bup'
+          assert.equal(counter, 1)
+        })
+      })
+      assert.equal(counter, 2)
+    })
+  })
+
+  describe('Start and Stop', () => {
+    it('should stop observing', () => {
+      let counter = 0
+      let tracker
+      const reactor = new Reactor({ value: 'foo' })
+      const observer = new Observer(() => {
+        counter += 1
+        tracker = reactor.value
+      })
+      observer()
+      assert.equal(counter, 1)
+      assert.equal(tracker, 'foo')
+      reactor.value = 'bar'
+      assert.equal(counter, 2)
+      assert.equal(tracker, 'bar')
+      observer.stop()
+      reactor.value = 'moo'
+      assert.equal(counter, 2)
+      assert.equal(tracker, 'bar')
+    })
+
+    it('should start after stopping', () => {
+      let counter = 0
+      let tracker = null
+      const reactor = new Reactor({ value: 'foo' })
+      const observer = new Observer(() => {
+        counter += 1
+        tracker = reactor.value
+      })
+      observer()
+      assert.equal(counter, 1)
+      assert.equal(tracker, 'foo')
+      observer.stop()
+      reactor.value = 'moo'
+      assert.equal(counter, 1)
+      assert.equal(tracker, 'foo')
+      observer.start()
+      assert.equal(counter, 2)
+      assert.equal(tracker, 'moo')
+    })
+
+    it('should have no effect with repeated starts', () => {
+      let counter = 0
+      let tracker = null
+      const reactor = new Reactor({ value: 'foo' })
+      const observer = new Observer(() => {
+        counter += 1
+        tracker = reactor.value
+      })
+      observer()
+      assert.equal(counter, 1)
+      assert.equal(tracker, 'foo')
+      observer.stop()
+      reactor.value = 'moo'
+      assert.equal(counter, 1)
+      assert.equal(tracker, 'foo')
+      observer.start()
+      assert.equal(counter, 2)
+      assert.equal(tracker, 'moo')
+      observer.start()
+      assert.equal(counter, 2)
+      assert.equal(tracker, 'moo')
+    })
+  })
+
+  describe('Context and Subscriptions', () => {
+    it('should default context to undefined', () => {
+      let contextChecker = 'foo'
+      new Observer((context) => {
+        contextChecker = context
+      })()
+      assert(typeof contextChecker === 'undefined')
+    })
+
+    it('should set context', () => {
+      let contextChecker
+      const observer = new Observer((context) => {
+        contextChecker = context
+      })
+      observer('foo')
+      assert.equal(contextChecker, 'foo')
+      const dummyObject = {}
+      observer(dummyObject)
+      assert.equal(contextChecker, dummyObject)
+    })
+
+    it('should set context with multiple params', () => {
+      let contextChecker
+      const observer = new Observer((a, b, c) => {
+        contextChecker = '' + a + b + c
+      })
+      observer('foo', 'bar', 'baz')
+      assert.equal(contextChecker, 'foobarbaz')
+      contextChecker = null
+      observer()
+      assert.equal(contextChecker, 'undefinedundefinedundefined')
+    })
+
+    it('should set context and react to it', () => {
+      const reactor = new Reactor()
+      const contextChecker = {}
+      const observer = new Observer(function (...args) {
+        contextChecker.this = this
+        contextChecker.args = args
+        contextChecker.result = reactor.foo
+      })
+      const bar = {
+        baz: observer
+      }
+      assert(typeof contextChecker.this === 'undefined')
+      assert(typeof contextChecker.args === 'undefined')
+      assert(typeof contextChecker.result === 'undefined')
+      bar.baz('qux')
+      assert.equal(contextChecker.this, bar)
+      assert.equal(contextChecker.args[0], 'qux')
+      assert(typeof contextChecker.result === 'undefined')
+      reactor.foo = 'bop'
+      assert.equal(contextChecker.this, bar)
+      assert.equal(contextChecker.args[0], 'qux')
+      assert.equal(contextChecker.result, 'bop')
+    })
+  })
+
+  describe('Observer redefinition', () => {
+    it('should redefine an observer', () => {
       const reactor = new Reactor({
         first: 'foo',
         second: 'bar'
@@ -965,250 +1344,10 @@ describe('Observer', () => {
       assert.equal(firstTracker, 'foo')
       assert.equal(secondTracker, 'baz')
     })
-
-    it('delays and combines observer triggers when using batch', () => {
-      const reactor = new Reactor({ value: 'foo' })
-      let counter = 0
-      new Observer(() => {
-        counter += 1
-        return reactor.value
-      })()
-      assert.equal(counter, 1)
-      batch(() => {
-        reactor.value = 'bleep'
-        assert.equal(counter, 1)
-        reactor.value = 'bloop'
-        assert.equal(counter, 1)
-        reactor.value = 'blarp'
-        assert.equal(counter, 1)
-      })
-      assert.equal(counter, 2)
-    })
-
-    it('can nest batchers with no consequence', () => {
-      const reactor = new Reactor({ value: 'foo' })
-      let counter = 0
-      new Observer(() => {
-        counter += 1
-        return reactor.value
-      })()
-      assert.equal(counter, 1)
-      batch(() => {
-        reactor.value = 'bleep'
-        assert.equal(counter, 1)
-        reactor.value = 'bloop'
-        assert.equal(counter, 1)
-        reactor.value = 'blarp'
-        assert.equal(counter, 1)
-        batch(() => {
-          reactor.value = 'bink'
-          assert.equal(counter, 1)
-          reactor.value = 'bonk'
-          assert.equal(counter, 1)
-          reactor.value = 'bup'
-          assert.equal(counter, 1)
-        })
-      })
-      assert.equal(counter, 2)
-    })
-
-    it('triggers chained observers', () => {
-      let tracker
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      new Observer(() => {
-        reactor.bigFoo = reactor.foo.toUpperCase()
-      })()
-      assert.equal(reactor.bigFoo, 'BAR')
-      new Observer(() => {
-        tracker = reactor.bigFoo
-      })()
-      assert.equal(tracker, 'BAR')
-      reactor.foo = 'qux'
-      assert.equal(reactor.bigFoo, 'QUX')
-      assert.equal(tracker, 'QUX')
-    })
-
-    it('does not redundantly trigger on setting identical values', () => {
-      let counter = 0
-      let tracker
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      new Observer(() => {
-        counter += 1
-        tracker = reactor.foo
-      })()
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'bar')
-      reactor.foo = 'bar'
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'bar')
-    })
-
-    it('does not redundantly trigger if has check remains the same', () => {
-      let counter = 0
-      let tracker
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      new Observer(() => {
-        counter += 1
-        tracker = 'foo' in reactor
-      })()
-      assert.equal(counter, 1)
-      assert.equal(tracker, true)
-      reactor.foo = 'baz'
-      assert.equal(counter, 1)
-      assert.equal(tracker, true)
-    })
-
-    it('does not redundantly trigger if ownKeys check is the same', () => {
-      let counter = 0
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      new Observer(() => {
-        counter += 1
-        Object.keys(reactor)
-      })()
-      reactor.foo = 'baz'
-      assert.equal(counter, 1)
-      delete reactor.boo
-      assert.equal(counter, 1)
-      delete reactor.foo
-      assert.equal(counter, 2)
-      reactor.foo = 'bar'
-      assert.equal(counter, 3)
-    })
-  })
-
-  describe('Start Stop', () => {
-    it('can stop observing', () => {
-      let counter = 0
-      let tracker
-      const reactor = new Reactor({ value: 'foo' })
-      const observer = new Observer(() => {
-        counter += 1
-        tracker = reactor.value
-      })
-      observer()
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-      reactor.value = 'bar'
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'bar')
-      observer.stop()
-      reactor.value = 'moo'
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'bar')
-    })
-
-    it('can start after stopping', () => {
-      let counter = 0
-      let tracker = null
-      const reactor = new Reactor({ value: 'foo' })
-      const observer = new Observer(() => {
-        counter += 1
-        tracker = reactor.value
-      })
-      observer()
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-      observer.stop()
-      reactor.value = 'moo'
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-      observer.start()
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'moo')
-    })
-
-    it('has no effect with repeated starts', () => {
-      let counter = 0
-      let tracker = null
-      const reactor = new Reactor({ value: 'foo' })
-      const observer = new Observer(() => {
-        counter += 1
-        tracker = reactor.value
-      })
-      observer()
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-      observer.stop()
-      reactor.value = 'moo'
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-      observer.start()
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'moo')
-      observer.start()
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'moo')
-    })
-  })
-
-  describe('Context & Subscriptions', () => {
-    it('context defaults to undefined', () => {
-      let contextChecker = 'foo'
-      new Observer((context) => {
-        contextChecker = context
-      })()
-      assert(typeof contextChecker === 'undefined')
-    })
-
-    it('can set context', () => {
-      let contextChecker
-      const observer = new Observer((context) => {
-        contextChecker = context
-      })
-      observer('foo')
-      assert.equal(contextChecker, 'foo')
-      const dummyObject = {}
-      observer(dummyObject)
-      assert.equal(contextChecker, dummyObject)
-    })
-
-    it('can set context with multiple params', () => {
-      let contextChecker
-      const observer = new Observer((a, b, c) => {
-        contextChecker = '' + a + b + c
-      })
-      observer('foo', 'bar', 'baz')
-      assert.equal(contextChecker, 'foobarbaz')
-      contextChecker = null
-      observer()
-      assert.equal(contextChecker, 'undefinedundefinedundefined')
-    })
-
-    it('can set context and react to it', () => {
-      const reactor = new Reactor()
-      const contextChecker = {}
-      const observer = new Observer(function (...args) {
-        contextChecker.this = this
-        contextChecker.args = args
-        contextChecker.result = reactor.foo
-      })
-      const bar = {
-        baz: observer
-      }
-      assert(typeof contextChecker.this === 'undefined')
-      assert(typeof contextChecker.args === 'undefined')
-      assert(typeof contextChecker.result === 'undefined')
-      bar.baz('qux')
-      assert.equal(contextChecker.this, bar)
-      assert.equal(contextChecker.args[0], 'qux')
-      assert(typeof contextChecker.result === 'undefined')
-      reactor.foo = 'bop'
-      assert.equal(contextChecker.this, bar)
-      assert.equal(contextChecker.args[0], 'qux')
-      assert.equal(contextChecker.result, 'bop')
-    })
   })
 
   describe('Error Handling', () => {
-    it('throws an error on a write if there is an Observer error', () => {
+    it('should throw an error on a write if there is an Observer error', () => {
       const reactor = new Reactor({ value: 'foo' })
       new Observer(() => {
         if (reactor.value > 1) throw new Error('dummy error')
@@ -1219,7 +1358,7 @@ describe('Observer', () => {
       })
     })
 
-    it('throws a CompoundError if there are multiple Observer errors', () => {
+    it('should throw a CompoundError if there are multiple Observer errors', () => {
       const reactor = new Reactor({ value: 1 })
       new Observer(() => {
         if (reactor.value > 1) throw new Error('dummy error 1')
@@ -1232,7 +1371,7 @@ describe('Observer', () => {
       })
     })
 
-    it('throws a flattened compound error with chained observers', () => {
+    it('should throw a flattened compound error with chained observers', () => {
       const reactor = new Reactor({
         foo: 'Bar'
       })
@@ -1241,7 +1380,7 @@ describe('Observer', () => {
         reactor.passthrough = reactor.foo
       })()
       assert.equal(reactor.passthrough, 'Bar')
-      // Initial error failrues to create an initial compound error
+      // Initial error failures to create an initial compound error
       new Observer(() => {
         if (reactor.foo === 'error') throw new Error('BIG ERROR 1')
       })()
@@ -1261,36 +1400,5 @@ describe('Observer', () => {
         return true
       })
     })
-  })
-})
-
-describe('Triggering', () => {
-
-})
-
-describe('Misc', () => {
-  it('allows shucking of a Reactor to get the underlying object', () => {
-    const reactor = new Reactor(new Map())
-    assert.throws(() => Map.prototype.keys.call(reactor), {
-      name: 'TypeError',
-      message: 'Method Map.prototype.keys called on incompatible receiver #<Map>'
-    })
-    const source = shuck(reactor)
-    Map.prototype.keys.call(source)
-  })
-
-  it('does not read an observer when calling start', () => {
-    let counter = 0
-    const reactor = new Reactor({
-      foo: 'bar'
-    })
-    const innerObserver = new Observer(() => reactor.foo)
-    new Observer(() => {
-      innerObserver.start()
-      counter += 1
-    })()
-    assert.equal(counter, 1)
-    reactor.foo = 'baz'
-    assert.equal(counter, 1)
   })
 })

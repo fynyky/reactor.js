@@ -477,6 +477,10 @@ class Reactor {
 const Observers = new WeakSet()
 class Observer extends Function {
   constructor (execute) {
+    if (arguments.length !== 1) {
+      throw new Error('Observer constructor requires exactly one argument')
+    }
+
     // Parameter validation
     if (typeof execute !== 'function') {
       throw new TypeError('Cannot create observer with a non-function')
