@@ -50,7 +50,6 @@ class Signal extends Function {
   // - The core: The properties & methods which lets signals work
   // - The interface: The function returned to the user to use
   constructor (initialValue) {
-    
     // The "guts" of a Signal containing properties and methods
     // All actual functionality & state should be built into the core
     // Should be completely agnostic to syntactic sugar
@@ -129,7 +128,23 @@ class Signal extends Function {
           const errorMessage = 'Multiple errors from signal write'
           throw new CompoundError(errorMessage, errorList)
         }
-        return output
+
+        // If it's not an object then just return it right away
+        // Cleaner and faster than the alternative approach of constructing a Reactor
+        // and catching an error
+        if (
+          // Need to do this because typeof null is object for some reason
+          output === null || (
+            typeof output !== 'function' &&
+            typeof output !== 'object'
+          )
+        ) return output
+
+        // Wrap the output in a Reactor if it's an object
+        // No need to wrap it if its already a Reactor
+        if (Reactors.has(output)) return output
+        // If not then wrap and store it for future reads
+        return new Reactor(output)
       },
       // Used by observers to remove themselves from this as dependents
       // Also removesSelf from any owners if there are no more dependents
@@ -706,10 +721,13 @@ export {
   Signal,
   Reactor,
   Observer,
-  hide,
-  batch,
-  shuck,
+  Signals,
+  Reactors,
+  Observers,
   signalCoreExtractor,
   reactorCoreExtractor,
-  observerCoreExtractor
+  observerCoreExtractor,
+  hide,
+  batch,
+  shuck
 }
