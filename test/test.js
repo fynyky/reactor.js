@@ -1,12 +1,552 @@
 /* eslint-env mocha */
 import assert from 'assert'
 import {
+  Signal,
   Reactor,
   Observer,
+  // Signals,
+  Reactors,
+  // Observers,
+  // signalCoreExtractor,
+  // reactorCoreExtractor,
+  // observerCoreExtractor,
   hide,
   batch,
   shuck
 } from '../src/reactor.js'
+
+describe('Signal', () => {
+  describe('Initializes with a value', () => {
+    it('should initialize with a string', () => {
+      assert.doesNotThrow(new Signal('foo'))
+    })
+
+    it('should initialize with a number', () => {
+      assert.doesNotThrow(new Signal(123))
+    })
+
+    it('should initialize with a bigint', () => {
+      assert.doesNotThrow(new Signal(123456789123456789n))
+    })
+
+    it('should initialize with a symbol', () => {
+      assert.doesNotThrow(new Signal(Symbol('foo')))
+    })
+
+    it('should initialize with true', () => {
+      assert.doesNotThrow(new Signal(true))
+    })
+
+    it('should initialize with false', () => {
+      assert.doesNotThrow(new Signal(false))
+    })
+
+    it('should initialize with null', () => {
+      assert.doesNotThrow(new Signal(null))
+    })
+
+    it('should initialize with undefined', () => {
+      assert.doesNotThrow(new Signal(undefined))
+    })
+
+    it('should initialize with an Object', () => {
+      assert.doesNotThrow(new Signal({}))
+    })
+
+    it('should initialize with a Function', () => {
+      assert.doesNotThrow(new Signal(() => {}))
+    })
+
+    // TODO: Figure out promises
+    it('should initialize with a Promise')
+
+    describe('Edge cases', () => {
+      it('should initialize empty', () => {
+        assert.doesNotThrow(new Signal())
+      })
+      it.skip('should not initialize with multiple arguments', () => {
+        assert.throws(new Signal('foo', 'bar'))
+      })
+    })
+  })
+
+  describe('Returns the initial value when called with no arguments', () => {
+    it('should return the initial string', () => {
+      const value = 'foo'
+      const signal = new Signal(value)
+      assert.strictEqual(signal(), value)
+    })
+
+    it('should return the initial number', () => {
+      const value = 123
+      const signal = new Signal(value)
+      assert.strictEqual(signal(), value)
+    })
+
+    it('should return the initial bigint', () => {
+      const value = 123456789123456789n
+      const signal = new Signal(value)
+      assert.strictEqual(signal(), value)
+    })
+
+    it('should return the initial symbol', () => {
+      const value = Symbol('foo')
+      const signal = new Signal(value)
+      assert.strictEqual(signal(), value)
+    })
+
+    it('should return the initial true', () => {
+      const value = true
+      const signal = new Signal(value)
+      assert.strictEqual(signal(), value)
+    })
+
+    it('should return the initial false', () => {
+      const value = false
+      const signal = new Signal(value)
+      assert.strictEqual(signal(), value)
+    })
+
+    it('should return the initial null', () => {
+      const value = null
+      const signal = new Signal(value)
+      assert.strictEqual(signal(), value)
+    })
+
+    it('should return the initial undefined', () => {
+      const value = undefined
+      const signal = new Signal(value)
+      assert.strictEqual(signal(), value)
+    })
+
+    describe('Object are returned wrapped in a Reactor', () => {
+      it('should return the initial Object wrapped in a Reactor', () => {
+        const dummyObject = {}
+        const signal = new Signal(dummyObject)
+        const result = signal()
+        assert(Reactors.has(result))
+        assert.strictEqual(shuck(result), dummyObject)
+      })
+
+      it('should return the initial Function wrapped in a Reactor', () => {
+        const dummyFunction = () => {}
+        const signal = new Signal(dummyFunction)
+        const result = signal()
+        assert(Reactors.has(result))
+        assert.strictEqual(shuck(result), dummyFunction)
+      })
+
+      // TODO figure out promises
+      it('should return the initial Promise')
+    })
+  })
+
+  describe('Replaces the stored value when called with an argument while returning the new value', () => {
+    it('should update with a new string', () => {
+      const signal = new Signal()
+      assert.strictEqual(signal(), undefined)
+      const value = 'foo'
+      const writeReturn = signal(value)
+      assert.strictEqual(writeReturn, value)
+      const readReturn = signal()
+      assert.strictEqual(readReturn, value)
+    })
+    it('should update with a new number', () => {
+      const signal = new Signal()
+      assert.strictEqual(signal(), undefined)
+      const value = 123
+      const writeReturn = signal(value)
+      assert.strictEqual(writeReturn, value)
+      const readReturn = signal()
+      assert.strictEqual(readReturn, value)
+    })
+    it('should update with a new bigint', () => {
+      const signal = new Signal()
+      assert.strictEqual(signal(), undefined)
+      const value = 123456789123456789n
+      const writeReturn = signal(value)
+      assert.strictEqual(writeReturn, value)
+      const readReturn = signal()
+      assert.strictEqual(readReturn, value)
+    })
+    it('should update with a new symbol', () => {
+      const signal = new Signal()
+      assert.strictEqual(signal(), undefined)
+      const value = Symbol('foo')
+      const writeReturn = signal(value)
+      assert.strictEqual(writeReturn, value)
+      const readReturn = signal()
+      assert.strictEqual(readReturn, value)
+    })
+    it('should update with true', () => {
+      const signal = new Signal()
+      assert.strictEqual(signal(), undefined)
+      const value = true
+      const writeReturn = signal(value)
+      assert.strictEqual(writeReturn, value)
+      const readReturn = signal()
+      assert.strictEqual(readReturn, value)
+    })
+    it('should update with false', () => {
+      const signal = new Signal()
+      assert.strictEqual(signal(), undefined)
+      const value = false
+      const writeReturn = signal(value)
+      assert.strictEqual(writeReturn, value)
+      const readReturn = signal()
+      assert.strictEqual(readReturn, value)
+    })
+    it('should update with null', () => {
+      const signal = new Signal()
+      assert.strictEqual(signal(), undefined)
+      const value = null
+      const writeReturn = signal(value)
+      assert.strictEqual(writeReturn, value)
+      const readReturn = signal()
+      assert.strictEqual(readReturn, value)
+    })
+    it('should update with undefined', () => {
+      const signal = new Signal('foo')
+      assert.strictEqual(signal(), 'foo')
+      const value = undefined
+      const writeReturn = signal(value)
+      assert.strictEqual(writeReturn, value)
+      const readReturn = signal()
+      assert.strictEqual(readReturn, value)
+    })
+    it('should update with an Object', () => {
+      const signal = new Signal()
+      assert.strictEqual(signal(), undefined)
+      const value = {}
+      const writeReturn = signal(value)
+      assert(Reactors.has(writeReturn))
+      assert.strictEqual(shuck(writeReturn), value)
+      const readReturn = signal()
+      assert(Reactors.has(readReturn))
+      assert.strictEqual(shuck(readReturn), value)
+      assert.strictEqual(writeReturn, readReturn)
+    })
+    it('should update with a Function', () => {
+      const signal = new Signal()
+      assert.strictEqual(signal(), undefined)
+      const value = () => {}
+      const writeReturn = signal(value)
+      assert(Reactors.has(writeReturn))
+      assert.strictEqual(shuck(writeReturn), value)
+      const readReturn = signal()
+      assert(Reactors.has(readReturn))
+      assert.strictEqual(shuck(readReturn), value)
+      assert.strictEqual(writeReturn, readReturn)
+    })
+    it('should update with a Promise')
+  })
+
+  it('can be updated with undefined', () => {
+    const signal = new Signal('foo')
+    signal(undefined)
+    assert.equal(signal(), undefined)
+  })
+
+  it('can be updated with null', () => {
+    const signal = new Signal('foo')
+    signal(null)
+    assert.equal(signal(), null)
+  })
+
+  it('can be updated with false', () => {
+    const signal = new Signal('foo')
+    signal(false)
+    assert.equal(signal(), false)
+  })
+
+  it('can be updated with zero', () => {
+    const signal = new Signal('foo')
+    signal(0)
+    assert.equal(signal(), 0)
+  })
+
+  it('can be updated with empty string', () => {
+    const signal = new Signal('foo')
+    signal('')
+    assert.equal(signal(), '')
+  })
+
+  it.skip('can be updated with function definition', () => {
+    const signal = new Signal(5)
+    const dummyFunction = () => {}
+    signal(dummyFunction)
+    console.log('dummyFunction', dummyFunction)
+    console.log('signal', signal())
+    assert.equal(signal(), signal())
+  })
+
+  it('can be updated with function that returns undefined', () => {
+    const signal = new Signal(5)
+    signal(() => undefined)
+    // Function definitions are not supported in current implementation
+    // The signal should store the function itself
+    assert.equal(typeof signal(), 'function')
+  })
+
+  it('tracks dependencies when read by an observer', () => {
+    const signal = new Signal(100)
+    let readValue = null
+
+    const observer = new Observer(() => {
+      readValue = signal()
+    })
+
+    // Trigger the observer to read the signal
+    observer()
+    assert.equal(readValue, 100)
+
+    // Update the signal and trigger again
+    signal(200)
+    observer()
+    assert.equal(readValue, 200)
+  })
+
+  it('wraps object values in Reactors', () => {
+    const obj = { foo: 'bar' }
+    const signal = new Signal(obj)
+    const result = signal()
+
+    // The result should be a Reactor, not the original object
+    assert.notEqual(result, obj)
+    assert.equal(result.foo, 'bar')
+  })
+
+  it('does not wrap primitive values in Reactors', () => {
+    const signal = new Signal('hello')
+    const result = signal()
+
+    // String should be returned as-is
+    assert.equal(result, 'hello')
+    assert.equal(typeof result, 'string')
+  })
+
+  it('does not wrap null in Reactors', () => {
+    const signal = new Signal(null)
+    const result = signal()
+
+    // null should be returned as-is
+    assert.equal(result, null)
+  })
+
+  it('does not wrap functions in Reactors', () => {
+    const func = () => 'test'
+    const signal = new Signal(func)
+    const result = signal()
+
+    // Function should be returned as-is (not wrapped in a Reactor)
+    assert.equal(typeof result, 'function')
+    assert.equal(result(), 'test')
+  })
+
+  it('does not wrap existing Reactors in new Reactors', () => {
+    const reactor = new Reactor({ foo: 'bar' })
+    const signal = new Signal(reactor)
+    const result = signal()
+
+    // Should return the same Reactor instance
+    assert.equal(result, reactor)
+  })
+
+  it('triggers observers when value changes', () => {
+    const signal = new Signal(1)
+    let triggerCount = 0
+
+    const observer = new Observer(() => {
+      signal() // Read the signal
+      triggerCount++
+    })
+
+    observer() // Initial trigger
+    assert.equal(triggerCount, 1)
+
+    signal(2) // Update signal
+    assert.equal(triggerCount, 2)
+
+    signal(3) // Update signal again
+    assert.equal(triggerCount, 3)
+  })
+
+  it('does not trigger observers when same value is written', () => {
+    const signal = new Signal(1)
+    let triggerCount = 0
+
+    const observer = new Observer(() => {
+      signal() // Read the signal
+      triggerCount++
+    })
+
+    observer() // Initial trigger
+    assert.equal(triggerCount, 1)
+
+    signal(1) // Write same value
+    assert.equal(triggerCount, 1) // Should not trigger
+
+    signal(2) // Write different value
+    assert.equal(triggerCount, 2) // Should trigger
+  })
+
+  it('handles multiple observers correctly', () => {
+    const signal = new Signal(1)
+    let observer1Count = 0
+    let observer2Count = 0
+
+    const observer1 = new Observer(() => {
+      signal() // Read the signal
+      observer1Count++
+    })
+
+    const observer2 = new Observer(() => {
+      signal() // Read the signal
+      observer2Count++
+    })
+
+    observer1() // Initial trigger
+    observer2() // Initial trigger
+    assert.equal(observer1Count, 1)
+    assert.equal(observer2Count, 1)
+
+    signal(2) // Update signal
+    assert.equal(observer1Count, 2)
+    assert.equal(observer2Count, 2)
+  })
+
+  it('removes observers when they are stopped', () => {
+    const signal = new Signal(1)
+    let triggerCount = 0
+
+    const observer = new Observer(() => {
+      signal() // Read the signal
+      triggerCount++
+    })
+
+    observer() // Initial trigger
+    assert.equal(triggerCount, 1)
+
+    observer.stop() // Stop the observer
+    signal(2) // Update signal
+    assert.equal(triggerCount, 1) // Should not trigger
+
+    observer.start() // Start the observer again
+    signal(3) // Update signal
+    assert.equal(triggerCount, 3) // Should trigger again (total count)
+  })
+
+  it('works with batching', () => {
+    const signal = new Signal(1)
+    let triggerCount = 0
+
+    const observer = new Observer(() => {
+      signal() // Read the signal
+      triggerCount++
+    })
+
+    observer() // Initial trigger
+    assert.equal(triggerCount, 1)
+
+    // Use batching to update multiple times
+    batch(() => {
+      signal(2)
+      signal(3)
+      signal(4)
+    })
+
+    // Should only trigger once due to batching
+    assert.equal(triggerCount, 2)
+    assert.equal(signal(), 4)
+  })
+
+  it('handles nested signals correctly', () => {
+    const outerSignal = new Signal(1)
+    const innerSignal = new Signal(10)
+
+    let outerCount = 0
+    let innerCount = 0
+
+    const outerObserver = new Observer(() => {
+      outerSignal() // Read outer signal
+      innerSignal() // Read inner signal
+      outerCount++
+    })
+
+    const innerObserver = new Observer(() => {
+      innerSignal() // Read only inner signal
+      innerCount++
+    })
+
+    outerObserver() // Initial trigger
+    innerObserver() // Initial trigger
+    assert.equal(outerCount, 1)
+    assert.equal(innerCount, 1)
+
+    innerSignal(20) // Update inner signal
+    assert.equal(outerCount, 2) // Outer observer should trigger
+    assert.equal(innerCount, 2) // Inner observer should trigger
+
+    outerSignal(2) // Update outer signal
+    assert.equal(outerCount, 3) // Outer observer should trigger
+    assert.equal(innerCount, 2) // Inner observer should not trigger
+  })
+
+  it('can be used as a function with no arguments to read', () => {
+    const signal = new Signal(42)
+    assert.equal(signal(), 42)
+  })
+
+  it('can be used as a function with one argument to write', () => {
+    const signal = new Signal(42)
+    signal(100)
+    assert.equal(signal(), 100)
+  })
+
+  it('can be used as a function with multiple arguments (ignores extras)', () => {
+    const signal = new Signal(42)
+    signal(100, 'extra', 'args')
+    assert.equal(signal(), 100)
+  })
+
+  it('works with hide function to prevent dependency tracking', () => {
+    const signal = new Signal(1)
+    let triggerCount = 0
+
+    // eslint-disable-next-line no-new
+    new Observer(() => {
+      triggerCount++
+    })
+
+    // Use hide to read signal without creating dependency
+    const result = hide(() => signal())
+    assert.equal(result, 1)
+
+    // Observer should not be triggered when signal changes
+    signal(2)
+    assert.equal(triggerCount, 0)
+  })
+
+  it('handles Symbol values correctly', () => {
+    const symbol = Symbol('test')
+    const signal = new Signal(symbol)
+    const result = signal()
+
+    // Symbol should be returned as-is (not wrapped)
+    assert.equal(result, symbol)
+    assert.equal(typeof result, 'symbol')
+  })
+
+  it('handles BigInt values correctly', () => {
+    const bigint = BigInt(123)
+    const signal = new Signal(bigint)
+    const result = signal()
+
+    // BigInt should be returned as-is (not wrapped)
+    assert.equal(result, bigint)
+    assert.equal(typeof result, 'bigint')
+  })
+})
 
 describe('Reactor', () => {
   it('initializes without error', () => new Reactor())
