@@ -17,61 +17,21 @@ import {
 
 describe.only('Signal', () => {
   describe('Initializes with a value', () => {
-    it('should initialize with a string', () => {
-      assert.doesNotThrow(new Signal('foo'))
-    })
-
-    it('should initialize with a number', () => {
-      assert.doesNotThrow(new Signal(123))
-    })
-
-    it('should initialize with a bigint', () => {
-      assert.doesNotThrow(new Signal(123456789123456789n))
-    })
-
-    it('should initialize with a symbol', () => {
-      assert.doesNotThrow(new Signal(Symbol('foo')))
-    })
-
-    it('should initialize with true', () => {
-      assert.doesNotThrow(new Signal(true))
-    })
-
-    it('should initialize with false', () => {
-      assert.doesNotThrow(new Signal(false))
-    })
-
-    it('should initialize with zero', () => {
-      assert.doesNotThrow(new Signal(0))
-    })
-
-    it('should initialize with an empty string', () => {
-      assert.doesNotThrow(new Signal(''))
-    })
-
-    it('should initialize with null', () => {
-      assert.doesNotThrow(new Signal(null))
-    })
-
-    it('should initialize with undefined', () => {
-      assert.doesNotThrow(new Signal(undefined))
-    })
-
-    it('should initialize with an Object', () => {
-      assert.doesNotThrow(new Signal({}))
-    })
-
-    it('should initialize with a Function', () => {
-      assert.doesNotThrow(new Signal(() => {}))
-    })
-
-    // TODO: Figure out promises
-    it('should initialize with a Promise')
-
+    it('should initialize with a string', () => new Signal('foo'))
+    it('should initialize with a number', () => new Signal(123))
+    it('should initialize with a bigint', () => new Signal(123456789123456789n))
+    it('should initialize with a symbol', () => new Signal(Symbol('foo')))
+    it('should initialize with true', () => new Signal(true))
+    it('should initialize with false', () => new Signal(false))
+    it('should initialize with zero', () => new Signal(0))
+    it('should initialize with an empty string', () => new Signal(''))
+    it('should initialize with null', () => new Signal(null))
+    it('should initialize with undefined', () => new Signal(undefined))
+    it('should initialize with an Object', () => new Signal({}))
+    it('should initialize with a Function', () => new Signal(() => {}))
+    it('should initialize with a Promise') // TODO: Figure out promises
     describe('Edge cases', () => {
-      it('should initialize with no arguments', () => {
-        assert.doesNotThrow(new Signal())
-      })
+      it('should initialize with no arguments', () => new Signal())
       it('should not initialize with multiple arguments', () => {
         assert.throws(() => new Signal('foo', 'bar'), {
           name: 'Error',
@@ -164,7 +124,7 @@ describe.only('Signal', () => {
     })
   })
 
-  describe('Replaces the stored value when called with an argument while returning the new value', () => {
+  describe('Replaces the stored value when called with an argument and returns the new value', () => {
     it('should update with a new string', () => {
       const signal = new Signal()
       assert.strictEqual(signal(), undefined)
@@ -307,49 +267,118 @@ describe.only('Signal', () => {
   })
 })
 
-describe('Reactor', () => {
-  it('initializes without error', () => new Reactor())
-
-  it('initializes exsting object without error', () => new Reactor({}))
-
-  it('fails to initialize with non-object', () => {
-    assert.throws(() => new Reactor(true), {
-      name: 'TypeError',
-      message: 'Reactor source must be an Object'
-    })
-    assert.throws(() => new Reactor(false), {
-      name: 'TypeError',
-      message: 'Reactor source must be an Object'
-    })
-    assert.throws(() => new Reactor(null), {
-      name: 'TypeError',
-      message: 'Reactor source must be an Object'
-    })
-    assert.throws(() => new Reactor(undefined), {
-      name: 'TypeError',
-      message: 'Reactor source must be an Object'
-    })
-    assert.throws(() => new Reactor(1), {
-      name: 'TypeError',
-      message: 'Reactor source must be an Object'
-    })
-    assert.throws(() => new Reactor(0), {
-      name: 'TypeError',
-      message: 'Reactor source must be an Object'
-    })
-    assert.throws(() => new Reactor('a'), {
-      name: 'TypeError',
-      message: 'Reactor source must be an Object'
-    })
-    assert.throws(() => new Reactor(''), {
-      name: 'TypeError',
-      message: 'Reactor source must be an Object'
-    })
-    assert.throws(() => new Reactor(Symbol('dummyTest')), {
-      name: 'TypeError',
-      message: 'Reactor source must be an Object'
+describe.only('Reactor', () => {
+  describe('Initializes with no argument returning a new Reactor wrapped Object', () => {
+    it('should initialize with no argument', () => new Reactor())
+    it('should return a Reactor Object', () => {
+      const reactor = new Reactor()
+      assert(Reactors.has(reactor))
     })
   })
+
+  describe('Initializes with an existing Object returning it wrapped in a Reactor', () => {
+    it('should initialize with an Object', () => new Reactor({}))
+    it('should initialize with an Function', () => new Reactor(() => {}))
+    it('should initialize with a Promise') // TODO: Figure out promises
+    it('should return a Reactor Object wrapping the original', () => {
+      const object = {}
+      const reactor = new Reactor(object)
+      assert(Reactors.has(reactor))
+      assert.notEqual(reactor, object)
+      assert.strictEqual(shuck(reactor), object)
+    })
+    describe('Edge cases', () => {
+      it('should not wrap a Reactor around an existing Reactor', () => {
+        const object = {}
+        const reactor = new Reactor(object)
+        const reactor2 = new Reactor(reactor)
+        assert(!Reactors.has(object))
+        assert(Reactors.has(reactor))
+        assert(Reactors.has(reactor2))
+        assert.strictEqual(reactor, reactor2)
+        assert.strictEqual(shuck(reactor), shuck(reactor2))
+        assert.strictEqual(shuck(reactor), object)
+        assert.strictEqual(shuck(reactor2), object)
+      })
+
+      it('should return the same Reactor when wrapping the same object', () => {
+        const object = {}
+        const reactor = new Reactor(object)
+        const reactor2 = new Reactor(object)
+        assert(!Reactors.has(object))
+        assert(Reactors.has(reactor))
+        assert(Reactors.has(reactor2))
+        assert.strictEqual(reactor, reactor2)
+        assert.strictEqual(shuck(reactor), shuck(reactor2))
+        assert.strictEqual(shuck(reactor), object)
+        assert.strictEqual(shuck(reactor2), object)
+      })
+    })
+  })
+
+  describe('Fails to initialize with values which are not Objects', () => {
+    it('should fail to initialize with a string', () => {
+      assert.throws(() => new Reactor('foo'), {
+        name: 'TypeError',
+        message: 'Reactor source must be an Object'
+      })
+    })
+    it('should fail to initialize with a number', () => {
+      assert.throws(() => new Reactor(123), {
+        name: 'TypeError',
+        message: 'Reactor source must be an Object'
+      })
+    })
+    it('should fail to initialize with a bigint', () => {
+      assert.throws(() => new Reactor(123456789123456789n), {
+        name: 'TypeError',
+        message: 'Reactor source must be an Object'
+      })
+    })
+    it('should fail to initialize with a symbol', () => {
+      assert.throws(() => new Reactor(Symbol('foo')), {
+        name: 'TypeError',
+        message: 'Reactor source must be an Object'
+      })
+    })
+    it('should fail to initialize with true', () => {
+      assert.throws(() => new Reactor(true), {
+        name: 'TypeError',
+        message: 'Reactor source must be an Object'
+      })
+    })
+    it('should fail to initialize with false', () => {
+      assert.throws(() => new Reactor(false), {
+        name: 'TypeError',
+        message: 'Reactor source must be an Object'
+      })
+    })
+    it('should fail to initialize with zero', () => {
+      assert.throws(() => new Reactor(0), {
+        name: 'TypeError',
+        message: 'Reactor source must be an Object'
+      })
+    })
+    it('should fail to initialize with an empty string', () => {
+      assert.throws(() => new Reactor(''), {
+        name: 'TypeError',
+        message: 'Reactor source must be an Object'
+      })
+    })
+    it('should fail to initialize with null', () => {
+      assert.throws(() => new Reactor(null), {
+        name: 'TypeError',
+        message: 'Reactor source must be an Object'
+      })
+    })
+    it('should fail to initialize with undefined', () => {
+      assert.throws(() => new Reactor(undefined), {
+        name: 'TypeError',
+        message: 'Reactor source must be an Object'
+      })
+    })
+  })
+
 
   it('writes without error', () => {
     const reactor = new Reactor()
