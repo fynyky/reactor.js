@@ -690,17 +690,13 @@ describe('Observer', () => {
       assert.strictEqual(result, 'barbazqux')
     })
 
-    it.skip('should be usable as a constructor', () => {
+    it('should be usable as a constructor', () => {
       const DummyClass = new Observer(function (arg) {
         this.foo = 'bar' + arg
         return this
       })
       const instance = new DummyClass('baz')
-      // TODO this is failing
-      // The constructor is the execute function rather than the wrapped observer
-      // Need to figure out how to interject
-      assert(instance instanceof DummyClass.execute) // This works but shouldn't
-      assert(instance instanceof DummyClass) // This doesn't work but should
+      assert(instance instanceof DummyClass)
       assert.strictEqual(instance.foo, 'barbaz')
     })
 
@@ -762,39 +758,39 @@ describe('Observer', () => {
       assert.strictEqual(result, observer.value)
     })
   })
+})
 
-  describe('Observer chaining and dependencies', () => {
-    it('should observe an observer', () => {
-      let outcome
-      const rx = new Reactor({
-        foo: 'foo'
-      })
-      const a = new Observer(() => rx.foo + 'bar')
-      a()
-      const b = new Observer(() => (outcome = a.value + 'baz'))
-      b()
-      assert.equal(outcome, 'foobarbaz')
-      rx.foo = 'qux'
-      assert.equal(outcome, 'quxbarbaz')
+describe('Observer chaining and dependencies', () => {
+  it('should observe an observer', () => {
+    let outcome
+    const rx = new Reactor({
+      foo: 'foo'
     })
+    const a = new Observer(() => rx.foo + 'bar')
+    a()
+    const b = new Observer(() => (outcome = a.value + 'baz'))
+    b()
+    assert.equal(outcome, 'foobarbaz')
+    rx.foo = 'qux'
+    assert.equal(outcome, 'quxbarbaz')
+  })
 
-    it('should trigger chained observers', () => {
-      let tracker
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      new Observer(() => {
-        reactor.bigFoo = reactor.foo.toUpperCase()
-      })()
-      assert.equal(reactor.bigFoo, 'BAR')
-      new Observer(() => {
-        tracker = reactor.bigFoo
-      })()
-      assert.equal(tracker, 'BAR')
-      reactor.foo = 'qux'
-      assert.equal(reactor.bigFoo, 'QUX')
-      assert.equal(tracker, 'QUX')
+  it('should trigger chained observers', () => {
+    let tracker
+    const reactor = new Reactor({
+      foo: 'bar'
     })
+    new Observer(() => {
+      reactor.bigFoo = reactor.foo.toUpperCase()
+    })()
+    assert.equal(reactor.bigFoo, 'BAR')
+    new Observer(() => {
+      tracker = reactor.bigFoo
+    })()
+    assert.equal(tracker, 'BAR')
+    reactor.foo = 'qux'
+    assert.equal(reactor.bigFoo, 'QUX')
+    assert.equal(tracker, 'QUX')
   })
 })
 

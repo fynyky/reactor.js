@@ -599,7 +599,7 @@ class Observer extends Function {
         return observerCore.value()
       },
       construct (target, args, receiver) {
-        return Reflect.construct(observerCore.execute, args)
+        return Reflect.construct(observerCore.execute, args, observerInterface)
       }
     })
     observerInterface.start = () => observerCore.start()
