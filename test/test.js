@@ -2043,7 +2043,7 @@ describe('Complex Setups', () => {
     assert.strictEqual(secondObserver.value, 'bazBAZ')
   })
 
-  it('should not trivially infinite loop when using other observers like functions', () => {
+  it('should not trivially infinite loop when an observer calls another', () => {
     // Trivial case
     // observer2 = observer1() + 1
     // observer2 both calls observer1 and reads its value so is dependent on it
@@ -2080,6 +2080,48 @@ describe('Complex Setups', () => {
     assert.strictEqual(secondRunCount, 2)
     assert.deepEqual(firstObserver.value, ['baz'])
     assert.strictEqual(secondObserver.value, 'baz1')
+  })
+
+  it.skip('should not infinite loop with three observers calling each other like functions', () => {
+    // This is a more complex case
+    // observer2 = observer1() + 1
+    // observer3 = observer1() + observer2()
+    // So observer1 triggers observer2 which triggers observer3
+    // Then observer3 triggers observer2 which does not loop because it is rebuilding dependencies when it sets its value
+    // But observer3 triggers observer1 which still triggers observer2 which still triggers observer3
+    let firstRunCount = 0
+    let secondRunCount = 0
+    let thirdRunCount = 0
+    const reactor = new Reactor({
+      foo: 'bar'
+    })
+    const firstObserver = new Observer(() => {
+      firstRunCount += 1
+      if (firstRunCount > 100) throw new Error('infinite loop detected')
+      return [reactor.foo]
+    })
+    firstObserver()
+    const secondObserver = new Observer(() => {
+      secondRunCount += 1
+      if (secondRunCount > 100) throw new Error('infinite loop detected')
+      return [firstObserver() + 'baz']
+    })
+    secondObserver()
+    const thirdObserver = new Observer(() => {
+      thirdRunCount += 1
+      if (thirdRunCount > 100) throw new Error('infinite loop detected')
+      return [firstObserver() + secondObserver()]
+    })
+    thirdObserver()
+    // assert.strictEqual(firstRunCount, 2)
+    // assert.strictEqual(secondRunCount, 1)
+    // assert.deepEqual(firstObserver.value, ['bar'])
+    // assert.strictEqual(secondObserver.value, 'bar1')
+    // reactor.foo = 'baz'
+    // assert.strictEqual(firstRunCount, 4)
+    // assert.strictEqual(secondRunCount, 2)
+    // assert.deepEqual(firstObserver.value, ['baz'])
+    // assert.strictEqual(secondObserver.value, 'baz1')
   })
 
   it('should be able to create observers inside other observers', () => {
