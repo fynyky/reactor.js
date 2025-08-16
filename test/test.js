@@ -767,8 +767,6 @@ describe('Observer', () => {
   })
 })
 
-// TODO test for observer starting and stopping
-
 describe('Reactivity', () => {
   describe('Observers do not trigger before being run', () => {
     it('should not trigger if reading a Signal', () => {
@@ -1565,6 +1563,149 @@ describe('Reactivity', () => {
   it('should remember the last called values when triggered')
 })
 
+describe('Batching', () => {
+  // TODO add test and functionality for batch parameter validation
+  it('should delay and combine observer triggers within a batch block', () => {
+    const reactor = new Reactor()
+    let runCount = 0
+    let runValue
+    new Observer(() => {
+      runCount += 1
+      runValue = reactor.foo
+    })()
+    assert.strictEqual(runCount, 1)
+    assert.strictEqual(runValue, undefined)
+    batch(() => {
+      reactor.foo = 'bleep'
+      assert.strictEqual(runCount, 1)
+      reactor.foo = 'bloop'
+      assert.strictEqual(runCount, 1)
+      reactor.foo = 'blarp'
+      assert.strictEqual(runCount, 1)
+    })
+    assert.strictEqual(runCount, 2)
+    assert.strictEqual(runValue, 'blarp')
+  })
+
+  it('should nest batch blocks with no consequence', () => {
+    const reactor = new Reactor()
+    let runCount = 0
+    let runValue
+    new Observer(() => {
+      runCount += 1
+      runValue = reactor.foo
+    })()
+    assert.strictEqual(runCount, 1)
+    assert.strictEqual(runValue, undefined)
+    batch(() => {
+      reactor.foo = 'bleep'
+      assert.strictEqual(runCount, 1)
+      reactor.foo = 'bloop'
+      assert.strictEqual(runCount, 1)
+      reactor.foo = 'blarp'
+      assert.strictEqual(runCount, 1)
+      batch(() => {
+        reactor.foo = 'bink'
+        assert.strictEqual(runCount, 1)
+        reactor.foo = 'bonk'
+        assert.strictEqual(runCount, 1)
+        reactor.foo = 'bup'
+        assert.strictEqual(runCount, 1)
+      })
+    })
+    assert.strictEqual(runCount, 2)
+    assert.strictEqual(runValue, 'bup')
+  })
+  // TODO should batch block return the result of the block?
+})
+
+describe('Hiding', () => {
+  // TODO add test and functionality for hide parameter validation
+
+  it('should not create dependencies inside hide block', () => {
+    const reactor = new Reactor({
+      outer: 'foo',
+      inner: 'bar'
+    })
+    let outerRunCount = 0
+    let innerRunCount = 0
+    let outerRunValue
+    let innerRunValue
+    new Observer(() => {
+      outerRunCount += 1
+      outerRunValue = reactor.outer
+      hide(() => {
+        innerRunCount += 1
+        innerRunValue = reactor.inner
+      })
+    })()
+    assert.strictEqual(outerRunCount, 1)
+    assert.strictEqual(innerRunCount, 1)
+    assert.strictEqual(outerRunValue, 'foo')
+    assert.strictEqual(innerRunValue, 'bar')
+    reactor.inner = 'baz'
+    assert.strictEqual(outerRunCount, 1)
+    assert.strictEqual(innerRunCount, 1)
+    assert.strictEqual(outerRunValue, 'foo')
+    assert.strictEqual(innerRunValue, 'bar')
+    reactor.outer = 'moo'
+    assert.strictEqual(outerRunCount, 2)
+    assert.strictEqual(innerRunCount, 2)
+    assert.strictEqual(outerRunValue, 'moo')
+    assert.strictEqual(innerRunValue, 'baz')
+  })
+
+  // TODO should hide blocks be nestable?
+
+  it('should return the result of the hide block', () => {
+    const reactor = new Reactor({
+      outer: 'foo',
+      inner: 'bar'
+    })
+    let outerRunCount = 0
+    let innerRunCount = 0
+    let outerRunValue
+    let innerRunValue
+    new Observer(() => {
+      outerRunCount += 1
+      outerRunValue = reactor.outer
+      innerRunValue = hide(() => {
+        innerRunCount += 1
+        return reactor.inner
+      })
+    })()
+    assert.strictEqual(outerRunCount, 1)
+    assert.strictEqual(innerRunCount, 1)
+    assert.strictEqual(outerRunValue, 'foo')
+    assert.strictEqual(innerRunValue, 'bar')
+    reactor.inner = 'baz'
+    assert.strictEqual(outerRunCount, 1)
+    assert.strictEqual(innerRunCount, 1)
+    assert.strictEqual(outerRunValue, 'foo')
+    assert.strictEqual(innerRunValue, 'bar')
+    reactor.outer = 'moo'
+    assert.strictEqual(outerRunCount, 2)
+    assert.strictEqual(innerRunCount, 2)
+    assert.strictEqual(outerRunValue, 'moo')
+    assert.strictEqual(innerRunValue, 'baz')
+  })
+
+  it('should not self trigger in a hide block', () => {
+    const reactor = new Reactor(['a', 'b', 'c'])
+    let runCount = 0
+    let runValue
+    new Observer(() => {
+      runCount += 1
+      // pop reads the length of the object as well as changes it
+      // So calling pop normally in an observer will cause a loop
+      // hide allows us to call pop without creating a dependency
+      runValue = hide(() => reactor.pop())
+    })()
+    assert.strictEqual(runCount, 1)
+    assert.strictEqual(runValue, 'c')
+  })
+})
+
 describe.skip('Misc', () => {
   it('should get triggered by multiple array operations in sequence', () => {
     let runCount = 0
@@ -1628,163 +1769,6 @@ describe.skip('Misc', () => {
       assert.equal(outerTracker, 'moo')
       assert.equal(innerCounter, 3)
       assert.equal(innerTracker, 'baz')
-    })
-
-    it('should not subscribe in hide block', () => {
-      const reactor = new Reactor({
-        outer: 'foo',
-        inner: 'bar'
-      })
-      let outerCounter = 0
-      let innerCounter = 0
-      let outerTracker
-      let innerTracker
-      new Observer(() => {
-        outerCounter += 1
-        outerTracker = reactor.outer
-        hide(() => {
-          innerCounter += 1
-          innerTracker = reactor.inner
-        })
-      })()
-      assert.equal(outerCounter, 1)
-      assert.equal(innerCounter, 1)
-      assert.equal(outerTracker, 'foo')
-      assert.equal(innerTracker, 'bar')
-      reactor.inner = 'baz'
-      assert.equal(outerCounter, 1)
-      assert.equal(innerCounter, 1)
-      assert.equal(outerTracker, 'foo')
-      assert.equal(innerTracker, 'bar')
-      reactor.outer = 'moo'
-      assert.equal(outerCounter, 2)
-      assert.equal(innerCounter, 2)
-      assert.equal(outerTracker, 'moo')
-      assert.equal(innerTracker, 'baz')
-    })
-
-    it('should return output of hide block', () => {
-      const reactor = new Reactor({
-        outer: 'foo',
-        inner: 'bar'
-      })
-      let outerCounter = 0
-      let innerCounter = 0
-      let outerTracker
-      let innerTracker
-      new Observer(() => {
-        outerCounter += 1
-        outerTracker = reactor.outer
-        innerTracker = hide(() => {
-          innerCounter += 1
-          return reactor.inner
-        })
-      })()
-      assert.equal(outerCounter, 1)
-      assert.equal(innerCounter, 1)
-      assert.equal(outerTracker, 'foo')
-      assert.equal(innerTracker, 'bar')
-      reactor.inner = 'baz'
-      assert.equal(outerCounter, 1)
-      assert.equal(innerCounter, 1)
-      assert.equal(outerTracker, 'foo')
-      assert.equal(innerTracker, 'bar')
-      reactor.outer = 'moo'
-      assert.equal(outerCounter, 2)
-      assert.equal(innerCounter, 2)
-      assert.equal(outerTracker, 'moo')
-      assert.equal(innerTracker, 'baz')
-    })
-
-    it('should not self trigger in an hide block', () => {
-      const reactor = new Reactor(['a', 'b', 'c'])
-      new Observer(() => {
-        hide(() => reactor.pop())
-      })()
-    })
-
-    it('should not redundantly trigger if has check remains the same', () => {
-      let counter = 0
-      let tracker
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      new Observer(() => {
-        counter += 1
-        tracker = 'foo' in reactor
-      })()
-      assert.equal(counter, 1)
-      assert.equal(tracker, true)
-      reactor.foo = 'baz'
-      assert.equal(counter, 1)
-      assert.equal(tracker, true)
-    })
-
-    it('should not redundantly trigger if ownKeys check is the same', () => {
-      let counter = 0
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      new Observer(() => {
-        counter += 1
-        Object.keys(reactor)
-      })()
-      reactor.foo = 'baz'
-      assert.equal(counter, 1)
-      delete reactor.boo
-      assert.equal(counter, 1)
-      delete reactor.foo
-      assert.equal(counter, 2)
-      reactor.foo = 'bar'
-      assert.equal(counter, 3)
-    })
-  })
-
-  describe('Batching', () => {
-    it('should delay and combine observer triggers when using batch', () => {
-      const reactor = new Reactor({ value: 'foo' })
-      let counter = 0
-      new Observer(() => {
-        counter += 1
-        return reactor.value
-      })()
-      assert.equal(counter, 1)
-      batch(() => {
-        reactor.value = 'bleep'
-        assert.equal(counter, 1)
-        reactor.value = 'bloop'
-        assert.equal(counter, 1)
-        reactor.value = 'blarp'
-        assert.equal(counter, 1)
-      })
-      assert.equal(counter, 2)
-    })
-
-    it('should nest batchers with no consequence', () => {
-      const reactor = new Reactor({ value: 'foo' })
-      let counter = 0
-      new Observer(() => {
-        counter += 1
-        return reactor.value
-      })()
-      assert.equal(counter, 1)
-      batch(() => {
-        reactor.value = 'bleep'
-        assert.equal(counter, 1)
-        reactor.value = 'bloop'
-        assert.equal(counter, 1)
-        reactor.value = 'blarp'
-        assert.equal(counter, 1)
-        batch(() => {
-          reactor.value = 'bink'
-          assert.equal(counter, 1)
-          reactor.value = 'bonk'
-          assert.equal(counter, 1)
-          reactor.value = 'bup'
-          assert.equal(counter, 1)
-        })
-      })
-      assert.equal(counter, 2)
     })
   })
 
