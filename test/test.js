@@ -2043,14 +2043,15 @@ describe('Complex Setups', () => {
     assert.strictEqual(secondObserver.value, 'bazBAZ')
   })
 
-  it.skip('should not trivially infinite loop when using other observers like functions', () => {
+  it('should not trivially infinite loop when using other observers like functions', () => {
     // Trivial case
     // observer2 = observer1() + 1
     // observer2 both calls observer1 and reads its value so is dependent on it
     // So if observer1 is updated, it triggers observer2 which runs observer1 again which triggers observer 2 again
-    // Thus trivially causing an infinite loop
-    // Ideally what should happen is that observer2 should call observer1 but since it just retrieved its return value directly
-    // should not be subject to being triggered again
+    // This is guarded against because an observer breaks all dependencies when it runs
+    // And a called observer sets its value before doing a read to return it
+    // This means that when observer2 calls observer1, it is temporarily not a dependency while it triggers its others
+    // Then immediately after restablishes its dependence on observer1
     let firstRunCount = 0
     let secondRunCount = 0
     const reactor = new Reactor({
@@ -2070,7 +2071,15 @@ describe('Complex Setups', () => {
       return firstObserver() + 1
     })
     secondObserver()
-    // This should infinite loop but it does not right now. TBD
+    assert.strictEqual(firstRunCount, 2)
+    assert.strictEqual(secondRunCount, 1)
+    assert.deepEqual(firstObserver.value, ['bar'])
+    assert.strictEqual(secondObserver.value, 'bar1')
+    reactor.foo = 'baz'
+    assert.strictEqual(firstRunCount, 4)
+    assert.strictEqual(secondRunCount, 2)
+    assert.deepEqual(firstObserver.value, ['baz'])
+    assert.strictEqual(secondObserver.value, 'baz1')
   })
 
   it('should be able to create observers inside other observers', () => {
