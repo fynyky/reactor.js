@@ -668,11 +668,12 @@ const batch = (execute) => {
     // Execute the given block and collect the triggerd observers
     let result
     try { result = execute() } catch (error) {
-      // If I want to fail forward and try to trigger the relevant observers so far
-      // errorList.push(error)
+      // If I want to fail forward store the error
+      // and try to trigger the relevant observers so far
+      errorList.push(error)
       // If I want to fail fast instead
-      batcher = null
-      throw error
+      // batcher = null
+      // throw error
     }
 
     // Trigger the collected observers

@@ -1675,7 +1675,7 @@ describe('Batching', () => {
   // The later might seem like a fail forward action, but it's actually more consistent
   // since the semantic we have is that writing to a signal triggers all observers synchronously
   // It is more consistent with what happens outside of the batch block
-  it.skip('should trigger observers from the batch block even if there is an error', () => {
+  it('should trigger dependent observers from the batch block even if there is an error', () => {
     let runCount = 0
     let runValue
     const reactor = new Reactor({ foo: 'bar' })
@@ -1695,7 +1695,6 @@ describe('Batching', () => {
     assert.strictEqual(runCount, 2)
     assert.strictEqual(runValue, 'baz')
   })
-  // TODO should batch block return the result of the block?
 
   // -> a -> c
   // -> b -> c
