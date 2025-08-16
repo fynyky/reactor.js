@@ -538,6 +538,13 @@ describe('Observer', () => {
       })
     })
 
+    it('should not run upon initialization', () => {
+      let triggerCount = 0
+      // eslint-disable-next-line no-new
+      new Observer(() => { triggerCount += 1 })
+      assert.strictEqual(triggerCount, 0)
+    })
+
     it('should be an Observer object', () => {
       const observer = new Observer(() => {})
       assert(observer instanceof Observer)
@@ -760,84 +767,218 @@ describe('Observer', () => {
   })
 })
 
-describe('Observer chaining and dependencies', () => {
-  it('should observe an observer', () => {
-    let outcome
-    const rx = new Reactor({
-      foo: 'foo'
-    })
-    const a = new Observer(() => rx.foo + 'bar')
-    a()
-    const b = new Observer(() => (outcome = a.value + 'baz'))
-    b()
-    assert.equal(outcome, 'foobarbaz')
-    rx.foo = 'qux'
-    assert.equal(outcome, 'quxbarbaz')
-  })
+// TODO test for observer starting and stopping
 
-  it('should trigger chained observers', () => {
-    let tracker
-    const reactor = new Reactor({
-      foo: 'bar'
-    })
-    new Observer(() => {
-      reactor.bigFoo = reactor.foo.toUpperCase()
-    })()
-    assert.equal(reactor.bigFoo, 'BAR')
-    new Observer(() => {
-      tracker = reactor.bigFoo
-    })()
-    assert.equal(tracker, 'BAR')
-    reactor.foo = 'qux'
-    assert.equal(reactor.bigFoo, 'QUX')
-    assert.equal(tracker, 'QUX')
-  })
-})
-
-describe('Reactivity', () => {
-  describe('Triggering', () => {
-    it('should trigger once on initialization', () => {
-      let counter = 0
-      new Observer(() => { counter += 1 })()
-      assert.equal(counter, 1)
-    })
-
-    it('should trigger once on Reactor dependency write', () => {
-      let counter = 0
-      let tracker
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
+describe.only('Reactivity', () => {
+  describe('Observers do not trigger before being run', () => {
+    it('should not trigger if reading a Signal', () => {
+      let runCount = 0
+      let runValue
+      const signal = new Signal('foo')
+      // eslint-disable-next-line no-new
       new Observer(() => {
-        counter += 1
-        tracker = reactor.foo
+        runCount += 1
+        runValue = signal()
+      })
+      assert.strictEqual(runCount, 0)
+      assert.strictEqual(runValue, undefined)
+      assert.strictEqual(signal(), 'foo')
+      signal('bar')
+      assert.strictEqual(signal(), 'bar')
+      assert.strictEqual(runCount, 0)
+      assert.strictEqual(runValue, undefined)
+    })
+    it('should not trigger if reading a Reactor', () => {
+      let runCount = 0
+      let runValue
+      const reactor = new Reactor({ foo: 'bar' })
+      // eslint-disable-next-line no-new
+      new Observer(() => {
+        runCount += 1
+        runValue = reactor.foo
+      })
+      assert.strictEqual(runCount, 0)
+      assert.strictEqual(runValue, undefined)
+      assert.strictEqual(reactor.foo, 'bar')
+      reactor.foo = 'baz'
+      assert.strictEqual(reactor.foo, 'baz')
+      assert.strictEqual(runCount, 0)
+      assert.strictEqual(runValue, undefined)
+    })
+  })
+
+  describe('Observers trigger on dependency updates after being run', () => {
+    it('should trigger if reading a Signal', () => {
+      let runCount = 0
+      let runValue
+      const signal = new Signal('foo')
+      new Observer(() => {
+        runCount += 1
+        runValue = signal()
       })()
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'bar')
-      reactor.foo = 'mux'
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'mux')
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, 'foo')
+      assert.strictEqual(signal(), 'foo')
+      signal('bar')
+      assert.strictEqual(signal(), 'bar')
+      assert.strictEqual(runCount, 2)
+      assert.strictEqual(runValue, 'bar')
+    })
+    it('should trigger if reading a Reactor', () => {
+      let runCount = 0
+      let runValue
+      const reactor = new Reactor({ foo: 'bar' })
+      new Observer(() => {
+        runCount += 1
+        runValue = reactor.foo
+      })()
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, 'bar')
+      assert.strictEqual(reactor.foo, 'bar')
+      reactor.foo = 'baz'
+      assert.strictEqual(reactor.foo, 'baz')
+      assert.strictEqual(runCount, 2)
+      assert.strictEqual(runValue, 'baz')
+    })
+    it('should trigger if reading another Observer', () => {
+      let runCount = 0
+      let runValue
+      const headObserver = new Observer((x) => x)
+      const tailObserver = new Observer(() => {
+        runCount += 1
+        runValue = headObserver.value
+      })
+      tailObserver()
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, undefined)
+      headObserver('foo')
+      assert.strictEqual(runCount, 2)
+      assert.strictEqual(runValue, 'foo')
+    })
+    // TODO trigger if reading another Observer via observer() instead of observer.value
+  })
+
+  describe('Observers trigger on subproperty updates', () => {
+    it('should trigger even if a relevant subproperty of its dependency is updated', () => {
+      let runCount = 0
+      let runValue
+      const reactor = new Reactor({
+        foo: {}
+      })
+      const observer = new Observer(() => {
+        runCount += 1
+        // Dependency is only explicitly on reactor.foo
+        runValue = JSON.stringify(reactor.foo)
+      })
+      assert.strictEqual(runCount, 0)
+      assert.strictEqual(runValue, undefined)
+      observer()
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, '{}')
+      // This new property is relevant to the observer so should trigger
+      reactor.foo.bar = 'baz'
+      assert.strictEqual(runCount, 2)
+      assert.strictEqual(runValue, '{"bar":"baz"}')
     })
 
-    it('should trigger once on nested Reactor dependency write', () => {
-      let counter = 0
-      let tracker
+    it('should not trigger if an irrelevant subproperty of its dependency is updated', () => {
+      let runCount = 0
+      let runValue
+      const reactor = new Reactor({
+        foo: {}
+      })
+      const observer = new Observer(() => {
+        runCount += 1
+        // Dependency is only explicitly on reactor.foo
+        runValue = Array.isArray(reactor.foo)
+      })
+      assert.strictEqual(runCount, 0)
+      assert.strictEqual(runValue, undefined)
+      observer()
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, false)
+      // The new property is irrelevant to the observer checking isArray so should not trigger
+      reactor.foo.bar = 'baz'
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, false)
+    })
+
+    it('should trigger if a subproperty is updated when depending on it directly', () => {
+      let runCount = 0
+      let runValue
       const reactor = new Reactor({
         foo: {
           bar: 'baz'
         }
       })
-      new Observer(() => {
-        counter += 1
-        tracker = reactor.foo.bar
-      })()
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'baz')
-      reactor.foo.bar = 'moo'
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'moo')
+      const observer = new Observer(() => {
+        runCount += 1
+        runValue = reactor.foo.bar
+      })
+      assert.strictEqual(runCount, 0)
+      assert.strictEqual(runValue, undefined)
+      observer()
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, 'baz')
+      reactor.foo.bar = 'qux'
+      assert.strictEqual(runCount, 2)
+      assert.strictEqual(runValue, 'qux')
     })
 
+    it('should trigger if a parent property is updated when depending on its subproperty', () => {
+      let runCount = 0
+      let runValue
+      const reactor = new Reactor({
+        foo: {
+          bar: 'baz'
+        }
+      })
+      const observer = new Observer(() => {
+        runCount += 1
+        runValue = reactor.foo.bar
+      })
+      assert.strictEqual(runCount, 0)
+      assert.strictEqual(runValue, undefined)
+      observer()
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, 'baz')
+      // Instead of just updating bar we replace the whole object
+      reactor.foo = { bar: 'qux' }
+      assert.strictEqual(runCount, 2)
+      assert.strictEqual(runValue, 'qux')
+    })
+
+    it('should not trigger if a sibling property of its dependency is updated', () => {
+      let runCount = 0
+      let runValue
+      const reactor = new Reactor({
+        foo: {
+          bar: 'baz'
+        }
+      })
+      const observer = new Observer(() => {
+        runCount += 1
+        runValue = reactor.foo.bar
+      })
+      assert.strictEqual(runCount, 0)
+      assert.strictEqual(runValue, undefined)
+      observer()
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, 'baz')
+      // The new sibling property is irrelevant to the observer so should not trigger
+      reactor.foo.qux = 'moo'
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, 'baz')
+    })
+  })
+
+  it('should be dependent on other Observers')
+  it('should remember the last called values when triggered')
+  it('should break old dependencies')
+})
+
+describe.skip('Misc', () => {
+  describe('Triggering', () => {
     it('should trigger on defineProperty', () => {
       let tracker
       const reactor = new Reactor({
@@ -1395,6 +1536,40 @@ describe('Reactivity', () => {
         assert.equal(error.cause.length, 4)
         return true
       })
+    })
+  })
+
+  describe('Observer chaining and dependencies', () => {
+    it('should observe an observer', () => {
+      let outcome
+      const rx = new Reactor({
+        foo: 'foo'
+      })
+      const a = new Observer(() => rx.foo + 'bar')
+      a()
+      const b = new Observer(() => (outcome = a.value + 'baz'))
+      b()
+      assert.equal(outcome, 'foobarbaz')
+      rx.foo = 'qux'
+      assert.equal(outcome, 'quxbarbaz')
+    })
+
+    it('should trigger chained observers', () => {
+      let tracker
+      const reactor = new Reactor({
+        foo: 'bar'
+      })
+      new Observer(() => {
+        reactor.bigFoo = reactor.foo.toUpperCase()
+      })()
+      assert.equal(reactor.bigFoo, 'BAR')
+      new Observer(() => {
+        tracker = reactor.bigFoo
+      })()
+      assert.equal(tracker, 'BAR')
+      reactor.foo = 'qux'
+      assert.equal(reactor.bigFoo, 'QUX')
+      assert.equal(tracker, 'QUX')
     })
   })
 })
