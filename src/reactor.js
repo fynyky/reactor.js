@@ -119,8 +119,13 @@ class Signal extends Function {
         // A conslidated error will be thrown at the end of propagation
         Array.from(this.dependents).forEach(dependent => {
           try {
-            if (batcher) batcher.add(dependent)
-            else dependent.trigger()
+            if (batcher) {
+              // Do this so that the dependent is added to the end of the batcher queue
+              // Needed to ensure downstream observers are triggered again when necessary
+              // as we iterate through the batched dependents
+              batcher.delete(dependent)
+              batcher.add(dependent)
+            } else dependent.trigger()
           } catch (error) { errorList.push(error) }
         })
         // If any errors occured during propagation
@@ -653,50 +658,45 @@ const hide = (execute) => {
 
 // Method for allowing users to batch multiple observer updates together
 const batch = (execute) => {
-  let result
   if (batcher === null) {
-    // Set a global batcher so signals know not to trigger observers immediately
-    // Using a set allows the removal of redundant triggering in observers
+    // If a batcher is set then signals will not trigger observers immediately
+    // Instead they will be saved into the batcher to trigger after
+    // Using a Set allows the removal of redundant triggering in observers
     batcher = new Set()
-    let batchedObservers = []
+    const errorList = []
+
     // Execute the given block and collect the triggerd observers
-    try {
-      result = execute()
-      // TODO Catch the error and throw it after the batching is done
-    } finally {
-      // Clear the batching mode
-      // This needs to be done before observer triggering in case any observers
-      // subsequently themselves trigger batches
-      // This also needs to be done first before throwing errors
-      // Otherwise the thrown errors will mean we never unset the batcher
-      // This will cause subsequent triggers to get stuck in this dead batcher
-      // Never to be executed
-      batchedObservers = Array.from(batcher) // Make a copy to freeze it
+    let result
+    try { result = execute() } catch (error) {
+      // If I want to fail forward and try to trigger the relevant observers so far
+      // errorList.push(error)
+      // If I want to fail fast instead
       batcher = null
+      throw error
     }
 
     // Trigger the collected observers
     // If an error occurs, collect it and keep going
     // A conslidated error will be thrown at the end of propagation
-    // TODO consider: batch wrap the subsequent triggers as well?
-    const errorList = []
-    batchedObservers.forEach(observer => {
+    for (const observer of batcher) {
       try { observer.trigger() } catch (error) { errorList.push(error) }
-    })
+    }
 
     // If any errors occured during propagation
     // consolidate and throw them
+    batcher = null
     if (errorList.length === 1) {
       throw errorList[0]
     } else if (errorList.length > 1) {
       const errorMessage = 'Multiple errors from batched reactor observers'
       throw new CompoundError(errorMessage, errorList)
     }
+
+    return result
   // No need to do anything if batching is already taking place }
   } else {
-    result = execute()
+    return execute()
   }
-  return result
 }
 
 // Method for extracting a the internal object from the Reactor
