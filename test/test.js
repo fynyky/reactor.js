@@ -807,7 +807,7 @@ describe.only('Reactivity', () => {
     })
   })
 
-  describe('Observers trigger on dependency updates after being run', () => {
+  describe('Observers after being run should form dependencies and trigger on their updates', () => {
     it('should trigger if reading a Signal', () => {
       let runCount = 0
       let runValue
@@ -824,6 +824,7 @@ describe.only('Reactivity', () => {
       assert.strictEqual(runCount, 2)
       assert.strictEqual(runValue, 'bar')
     })
+
     it('should trigger if reading a Reactor', () => {
       let runCount = 0
       let runValue
@@ -840,6 +841,7 @@ describe.only('Reactivity', () => {
       assert.strictEqual(runCount, 2)
       assert.strictEqual(runValue, 'baz')
     })
+
     it('should trigger if reading another Observer', () => {
       let runCount = 0
       let runValue
@@ -856,6 +858,48 @@ describe.only('Reactivity', () => {
       assert.strictEqual(runValue, 'foo')
     })
     // TODO trigger if reading another Observer via observer() instead of observer.value
+
+    it('should get triggered by defineProperty', () => {
+      let runCount = 0
+      let runValue
+      const reactor = new Reactor({
+        foo: 'bar'
+      })
+      const observer = new Observer(() => {
+        runCount += 1
+        runValue = reactor.foo
+      })
+      assert.strictEqual(runCount, 0)
+      assert.strictEqual(runValue, undefined)
+      observer()
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, 'bar')
+      Object.defineProperty(reactor, 'foo', {
+        get () { return 'baz' }
+      })
+      assert.strictEqual(runCount, 2)
+      assert.strictEqual(runValue, 'baz')
+    })
+
+    it('should get triggered by deleteProperty', () => {
+      let runCount = 0
+      let runValue
+      const reactor = new Reactor({
+        foo: 'bar'
+      })
+      const observer = new Observer(() => {
+        runCount += 1
+        runValue = reactor.foo
+      })
+      assert.strictEqual(runCount, 0)
+      assert.strictEqual(runValue, undefined)
+      observer()
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, 'bar')
+      delete reactor.foo
+      assert.strictEqual(runCount, 2)
+      assert.strictEqual(runValue, undefined)
+    })
   })
 
   describe('Observers trigger on subproperty updates', () => {
@@ -868,6 +912,7 @@ describe.only('Reactivity', () => {
       const observer = new Observer(() => {
         runCount += 1
         // Dependency is only explicitly on reactor.foo
+        // But depends implicitly on all its subproperties
         runValue = JSON.stringify(reactor.foo)
       })
       assert.strictEqual(runCount, 0)
@@ -970,57 +1015,328 @@ describe.only('Reactivity', () => {
       assert.strictEqual(runCount, 1)
       assert.strictEqual(runValue, 'baz')
     })
+
+    describe('Gets triggered by array update methods', () => {
+      it('should get triggered by array index assignment', () => {
+        let runCount = 0
+        let runValue
+        const reactor = new Reactor(['foo', 'bar'])
+        const observer = new Observer(() => {
+          runCount += 1
+          runValue = reactor[1]
+        })
+        assert.strictEqual(runCount, 0)
+        assert.strictEqual(runValue, undefined)
+        observer()
+        assert.strictEqual(runCount, 1)
+        assert.strictEqual(runValue, 'bar')
+        reactor[1] = 'baz'
+        assert.strictEqual(runCount, 2)
+        assert.strictEqual(runValue, 'baz')
+        assert.deepEqual(reactor, ['foo', 'baz'])
+      })
+
+      it('should get triggered by array push', () => {
+        let runCount = 0
+        let runValue
+        const reactor = new Reactor([])
+        const observer = new Observer(() => {
+          runCount += 1
+          runValue = reactor[0]
+        })
+        assert.strictEqual(runCount, 0)
+        assert.strictEqual(runValue, undefined)
+        observer()
+        assert.strictEqual(runCount, 1)
+        assert.strictEqual(runValue, undefined)
+        reactor.push('foo')
+        assert.strictEqual(runCount, 2)
+        assert.strictEqual(runValue, 'foo')
+      })
+
+      it('should get triggered by array pop', () => {
+        let runCount = 0
+        let runValue
+        const reactor = new Reactor(['foo', 'bar'])
+        const observer = new Observer(() => {
+          runCount += 1
+          runValue = reactor[reactor.length - 1]
+        })
+        assert.strictEqual(runCount, 0)
+        assert.strictEqual(runValue, undefined)
+        observer()
+        assert.strictEqual(runCount, 1)
+        assert.strictEqual(runValue, 'bar')
+        reactor.pop()
+        assert.strictEqual(runCount, 2)
+        assert.strictEqual(runValue, 'foo')
+        assert.strictEqual(reactor.length, 1)
+      })
+
+      it('should get triggered by array shift', () => {
+        let runCount = 0
+        let runValue
+        const reactor = new Reactor(['foo', 'bar'])
+        const observer = new Observer(() => {
+          runCount += 1
+          runValue = reactor[0]
+        })
+        assert.strictEqual(runCount, 0)
+        assert.strictEqual(runValue, undefined)
+        observer()
+        assert.strictEqual(runCount, 1)
+        assert.strictEqual(runValue, 'foo')
+        reactor.shift()
+        assert.strictEqual(runCount, 2)
+        assert.strictEqual(runValue, 'bar')
+        assert.strictEqual(reactor.length, 1)
+      })
+
+      it('should get triggered by array unshift', () => {
+        let runCount = 0
+        let runValue
+        const reactor = new Reactor(['foo'])
+        const observer = new Observer(() => {
+          runCount += 1
+          runValue = reactor[0]
+        })
+        assert.strictEqual(runCount, 0)
+        assert.strictEqual(runValue, undefined)
+        observer()
+        assert.strictEqual(runCount, 1)
+        assert.strictEqual(runValue, 'foo')
+        reactor.unshift('bar')
+        assert.strictEqual(runCount, 2)
+        assert.strictEqual(runValue, 'bar')
+        assert.strictEqual(reactor.length, 2)
+      })
+
+      it('should get triggered by array splice', () => {
+        let runCount = 0
+        let runValue
+        const reactor = new Reactor(['foo', 'bar', 'baz'])
+        const observer = new Observer(() => {
+          runCount += 1
+          runValue = reactor[1]
+        })
+        assert.strictEqual(runCount, 0)
+        assert.strictEqual(runValue, undefined)
+        observer()
+        assert.strictEqual(runCount, 1)
+        assert.strictEqual(runValue, 'bar')
+        reactor.splice(1, 1, 'qux')
+        assert.strictEqual(runCount, 2)
+        assert.strictEqual(runValue, 'qux')
+        assert.strictEqual(reactor.length, 3)
+      })
+
+      it('should get triggered by array sort', () => {
+        let runCount = 0
+        let runValue
+        const reactor = new Reactor(['c', 'a', 'b'])
+        const observer = new Observer(() => {
+          runCount += 1
+          runValue = reactor[0]
+        })
+        assert.strictEqual(runCount, 0)
+        assert.strictEqual(runValue, undefined)
+        observer()
+        assert.strictEqual(runCount, 1)
+        assert.strictEqual(runValue, 'c')
+        reactor.sort()
+        assert.strictEqual(runCount, 2)
+        assert.strictEqual(runValue, 'a')
+        assert.deepEqual(reactor, ['a', 'b', 'c'])
+      })
+
+      it('should get triggered by array reverse', () => {
+        let runCount = 0
+        let runValue
+        const reactor = new Reactor(['a', 'b', 'c'])
+        const observer = new Observer(() => {
+          runCount += 1
+          runValue = reactor[0]
+        })
+        assert.strictEqual(runCount, 0)
+        assert.strictEqual(runValue, undefined)
+        observer()
+        assert.strictEqual(runCount, 1)
+        assert.strictEqual(runValue, 'a')
+        reactor.reverse()
+        assert.strictEqual(runCount, 2)
+        assert.strictEqual(runValue, 'c')
+        assert.deepEqual(reactor, ['c', 'b', 'a'])
+      })
+
+      it('should get triggered by array fill', () => {
+        let runCount = 0
+        let runValue
+        const reactor = new Reactor(['foo', 'bar', 'baz'])
+        const observer = new Observer(() => {
+          runCount += 1
+          runValue = reactor[1]
+        })
+        assert.strictEqual(runCount, 0)
+        assert.strictEqual(runValue, undefined)
+        observer()
+        assert.strictEqual(runCount, 1)
+        assert.strictEqual(runValue, 'bar')
+        reactor.fill('qux', 1, 2)
+        assert.strictEqual(runCount, 2)
+        assert.strictEqual(runValue, 'qux')
+        assert.deepEqual(reactor, ['foo', 'qux', 'baz'])
+      })
+
+      it('should get triggered by array copyWithin', () => {
+        let runCount = 0
+        let runValue
+        const reactor = new Reactor(['a', 'b', 'c', 'd', 'e'])
+        const observer = new Observer(() => {
+          runCount += 1
+          runValue = reactor[2]
+        })
+        assert.strictEqual(runCount, 0)
+        assert.strictEqual(runValue, undefined)
+        observer()
+        assert.strictEqual(runCount, 1)
+        assert.strictEqual(runValue, 'c')
+        reactor.copyWithin(2, 0, 2)
+        assert.strictEqual(runCount, 2)
+        assert.strictEqual(runValue, 'a')
+        assert.deepEqual(reactor, ['a', 'b', 'a', 'b', 'e'])
+      })
+
+      it('should get triggered by changing the array length property', () => {
+        let runCount = 0
+        let runValue
+        const reactor = new Reactor(['foo', 'bar'])
+        const observer = new Observer(() => {
+          runCount += 1
+          runValue = reactor.length
+        })
+        assert.strictEqual(runCount, 0)
+        assert.strictEqual(runValue, undefined)
+        observer()
+        assert.strictEqual(runCount, 1)
+        assert.strictEqual(runValue, 2)
+        reactor.length = 1
+        assert.strictEqual(runCount, 2)
+        assert.strictEqual(runValue, 1)
+        assert.deepEqual(reactor, ['foo'])
+      })
+
+      it('should not get triggered by setting the array length property to its current value', () => {
+        let runCount = 0
+        let runValue
+        const reactor = new Reactor(['foo', 'bar'])
+        const observer = new Observer(() => {
+          runCount += 1
+          runValue = reactor.length
+        })
+        assert.strictEqual(runCount, 0)
+        assert.strictEqual(runValue, undefined)
+        observer()
+        assert.strictEqual(runCount, 1)
+        assert.strictEqual(runValue, 2)
+        reactor.length = 2
+        assert.strictEqual(runCount, 1)
+        assert.strictEqual(runValue, 2)
+        assert.deepEqual(reactor, ['foo', 'bar'])
+      })
+
+      it('should get triggered by array operations that change length', () => {
+        let runCount = 0
+        let runValue
+        const reactor = new Reactor(['a', 'b', 'c'])
+        const observer = new Observer(() => {
+          runCount += 1
+          runValue = reactor.length
+        })
+        assert.strictEqual(runCount, 0)
+        assert.strictEqual(runValue, undefined)
+        observer()
+        assert.strictEqual(runCount, 1)
+        assert.strictEqual(runValue, 3)
+
+        reactor.push('d')
+        assert.strictEqual(runCount, 2)
+        assert.strictEqual(runValue, 4)
+
+        reactor.pop()
+        assert.strictEqual(runCount, 3)
+        assert.strictEqual(runValue, 3)
+
+        reactor.splice(0, 2)
+        assert.strictEqual(runCount, 4)
+        assert.strictEqual(runValue, 1)
+      })
+
+      it('should get triggered by array operations that modify existing elements', () => {
+        let runCount = 0
+        let runValue
+        const reactor = new Reactor(['a', 'b', 'c'])
+        const observer = new Observer(() => {
+          runCount += 1
+          runValue = reactor[1]
+        })
+        assert.strictEqual(runCount, 0)
+        assert.strictEqual(runValue, undefined)
+        observer()
+        assert.strictEqual(runCount, 1)
+        assert.strictEqual(runValue, 'b')
+
+        // Modify existing element
+        reactor[1] = 'x'
+        assert.strictEqual(runCount, 2)
+        assert.strictEqual(runValue, 'x')
+
+        // Use splice to modify
+        reactor.splice(1, 1, 'y')
+        assert.strictEqual(runCount, 3)
+        assert.strictEqual(runValue, 'y')
+
+        // Use fill to modify
+        reactor.fill('z', 1, 2)
+        assert.strictEqual(runCount, 4)
+        assert.strictEqual(runValue, 'z')
+      })
+    })
   })
 
-  it('should be dependent on other Observers')
   it('should remember the last called values when triggered')
   it('should break old dependencies')
 })
 
 describe.skip('Misc', () => {
+  it('should get triggered by multiple array operations in sequence', () => {
+    let runCount = 0
+    let runValue
+    const reactor = new Reactor(['a', 'b', 'c'])
+    const observer = new Observer(() => {
+      runCount += 1
+      runValue = reactor.join(',')
+    })
+    assert.strictEqual(runCount, 0)
+    assert.strictEqual(runValue, undefined)
+    observer()
+    assert.strictEqual(runCount, 1)
+    assert.strictEqual(runValue, 'a,b,c')
+
+    // Multiple operations should trigger observer multiple times
+    reactor.push('d')
+    assert.strictEqual(runCount, 2)
+    assert.strictEqual(runValue, 'a,b,c,d')
+
+    reactor.splice(1, 1)
+    assert.strictEqual(runCount, 3)
+    assert.strictEqual(runValue, 'a,c,d')
+
+    reactor.reverse()
+    assert.strictEqual(runCount, 4)
+    assert.strictEqual(runValue, 'd,c,a')
+  })
+
   describe('Triggering', () => {
-    it('should trigger on defineProperty', () => {
-      let tracker
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      new Observer(() => (tracker = reactor.foo))()
-      assert.equal(tracker, 'bar')
-      Object.defineProperty(reactor, 'foo', {
-        get () { return 'baz' }
-      })
-      assert.equal(tracker, 'baz')
-    })
-
-    it('should trigger on deleteProperty', () => {
-      let tracker
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      new Observer(() => (tracker = reactor.foo))()
-      assert.equal(tracker, 'bar')
-      delete reactor.foo
-      assert.equal(tracker, undefined)
-    })
-
-    it('should trigger on array update methods', () => {
-      let counter = 0
-      let tracker
-      const reactor = new Reactor([])
-      new Observer(() => {
-        counter += 1
-        tracker = reactor[0]
-      })()
-      assert.equal(counter, 1)
-      assert.equal(tracker, undefined)
-      reactor.push('foo')
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'foo')
-      reactor.unshift('bar')
-      assert.equal(counter, 3)
-      assert.equal(tracker, 'bar')
-    })
-
     it('should trigger only once despite multiple dependencies', () => {
       let counter = 0
       let hasTracker
