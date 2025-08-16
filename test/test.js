@@ -900,6 +900,36 @@ describe('Reactivity', () => {
       assert.strictEqual(runCount, 2)
       assert.strictEqual(runValue, undefined)
     })
+
+    it('should form a dependency when using Object.keys', () => {
+      let runCount = 0
+      let runValue
+      const reactor = new Reactor({ foo: 'bar' })
+      new Observer(() => {
+        runCount += 1
+        runValue = Object.keys(reactor)
+      })()
+      assert.strictEqual(runCount, 1)
+      assert.deepEqual(runValue, ['foo'])
+      reactor.baz = 'qux'
+      assert.strictEqual(runCount, 2)
+      assert.deepEqual(runValue, ['foo', 'baz'])
+    })
+
+    it('should form a dependency when using the in operator', () => {
+      let runCount = 0
+      let runValue
+      const reactor = new Reactor()
+      new Observer(() => {
+        runCount += 1
+        runValue = ('foo' in reactor)
+      })()
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, false)
+      reactor.foo = 'bar'
+      assert.strictEqual(runCount, 2)
+      assert.strictEqual(runValue, true)
+    })
   })
 
   describe('Observers rebuild dependencies each time they trigger', () => {
@@ -1449,6 +1479,89 @@ describe('Reactivity', () => {
     })
   })
 
+  describe('Observers are not triggered when setting an identical value', () => {
+    it('should not redundantly trigger on setting an identical primitive value on a Signal', () => {
+      let runCount = 0
+      let runValue
+      const signal = new Signal('foo')
+      new Observer(() => {
+        runCount += 1
+        runValue = signal()
+      })()
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, 'foo')
+      signal('foo')
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, 'foo')
+    })
+    it('should not redundantly trigger on setting an identical primitive value on a Reactor', () => {
+      let runCount = 0
+      let runValue
+      const reactor = new Reactor({
+        foo: 'bar'
+      })
+      new Observer(() => {
+        runCount += 1
+        runValue = reactor.foo
+      })()
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, 'bar')
+      reactor.foo = 'bar'
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, 'bar')
+    })
+    it('should not redundantly trigger on setting an identical primitive value on an Observer', () => {
+      let runCount = 0
+      let runValue
+      const headObserver = new Observer((x) => x)
+      const tailObserver = new Observer(() => {
+        runCount += 1
+        runValue = headObserver.value
+      })
+      headObserver('foo')
+      tailObserver()
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, 'foo')
+      headObserver('foo')
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, 'foo')
+    })
+    it('should not redundantly trigger on setting an identical object value', () => {
+      let runCount = 0
+      let runValue
+      const dummyObject = {}
+      const reactor = new Reactor({
+        foo: dummyObject
+      })
+      new Observer(() => {
+        runCount += 1
+        runValue = reactor.foo
+      })()
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(shuck(runValue), dummyObject)
+      reactor.foo = dummyObject
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(shuck(runValue), dummyObject)
+    })
+    it('should trigger on setting a similar but different object', () => {
+      let runCount = 0
+      let runValue
+      const dummyObject = {}
+      const reactor = new Reactor({
+        foo: dummyObject
+      })
+      new Observer(() => {
+        runCount += 1
+        runValue = reactor.foo
+      })()
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(shuck(runValue), dummyObject)
+      reactor.foo = {}
+      assert.strictEqual(runCount, 2)
+      assert.notStrictEqual(shuck(runValue), dummyObject)
+    })
+  })
+
   it('should remember the last called values when triggered')
 })
 
@@ -1515,51 +1628,6 @@ describe.skip('Misc', () => {
       assert.equal(outerTracker, 'moo')
       assert.equal(innerCounter, 3)
       assert.equal(innerTracker, 'baz')
-    })
-
-    it('should subscribe on Object.keys', () => {
-      let counter = 0
-      let tracker
-      const reactor = new Reactor({ foo: 'bar' })
-      new Observer(() => {
-        counter += 1
-        tracker = Object.keys(reactor)
-      })()
-      assert.equal(counter, 1)
-      assert.equal(JSON.stringify(tracker), '["foo"]')
-      reactor.moo = 'mux'
-      assert.equal(counter, 2)
-      assert.equal(JSON.stringify(tracker), '["foo","moo"]')
-    })
-
-    it('should subscribe on in operator', () => {
-      let counter = 0
-      let tracker
-      const reactor = new Reactor()
-      new Observer(() => {
-        counter += 1
-        tracker = ('foo' in reactor)
-      })()
-      assert.equal(counter, 1)
-      assert.equal(tracker, false)
-      reactor.foo = 'bar'
-      assert.equal(counter, 2)
-      assert.equal(tracker, true)
-    })
-
-    it('should subscribe using observe keyword', () => {
-      let counter = 0
-      let tracker
-      const reactor = new Reactor({ value: 'foo' })
-      new Observer(() => {
-        counter += 1
-        tracker = reactor.value
-      })()
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-      reactor.value = 'bar'
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'bar')
     })
 
     it('should not subscribe in hide block', () => {
@@ -1633,23 +1701,6 @@ describe.skip('Misc', () => {
       new Observer(() => {
         hide(() => reactor.pop())
       })()
-    })
-
-    it('should not redundantly trigger on setting identical values', () => {
-      let counter = 0
-      let tracker
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      new Observer(() => {
-        counter += 1
-        tracker = reactor.foo
-      })()
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'bar')
-      reactor.foo = 'bar'
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'bar')
     })
 
     it('should not redundantly trigger if has check remains the same', () => {
