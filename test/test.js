@@ -806,7 +806,7 @@ describe('Reactivity', () => {
   })
 
   describe('Observers after being run should form dependencies and trigger on their updates', () => {
-    it('should trigger if reading a Signal', () => {
+    it('should be setup to trigger if reading a Signal', () => {
       let runCount = 0
       let runValue
       const signal = new Signal('foo')
@@ -823,7 +823,7 @@ describe('Reactivity', () => {
       assert.strictEqual(runValue, 'bar')
     })
 
-    it('should trigger if reading a Reactor', () => {
+    it('should be setup to trigger if reading a Reactor', () => {
       let runCount = 0
       let runValue
       const reactor = new Reactor({ foo: 'bar' })
@@ -840,7 +840,7 @@ describe('Reactivity', () => {
       assert.strictEqual(runValue, 'baz')
     })
 
-    it('should trigger if reading another Observer', () => {
+    it('should be setup to trigger if reading another Observer', () => {
       let runCount = 0
       let runValue
       const headObserver = new Observer((x) => x)
@@ -856,6 +856,36 @@ describe('Reactivity', () => {
       assert.strictEqual(runValue, 'foo')
     })
     // TODO trigger if reading another Observer via observer() instead of observer.value
+
+    it('should be setup to trigger when using Object.keys', () => {
+      let runCount = 0
+      let runValue
+      const reactor = new Reactor({ foo: 'bar' })
+      new Observer(() => {
+        runCount += 1
+        runValue = Object.keys(reactor)
+      })()
+      assert.strictEqual(runCount, 1)
+      assert.deepEqual(runValue, ['foo'])
+      reactor.baz = 'qux'
+      assert.strictEqual(runCount, 2)
+      assert.deepEqual(runValue, ['foo', 'baz'])
+    })
+
+    it('should be setup to trigger when using the in operator', () => {
+      let runCount = 0
+      let runValue
+      const reactor = new Reactor()
+      new Observer(() => {
+        runCount += 1
+        runValue = ('foo' in reactor)
+      })()
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, false)
+      reactor.foo = 'bar'
+      assert.strictEqual(runCount, 2)
+      assert.strictEqual(runValue, true)
+    })
 
     it('should get triggered by defineProperty', () => {
       let runCount = 0
@@ -899,34 +929,30 @@ describe('Reactivity', () => {
       assert.strictEqual(runValue, undefined)
     })
 
-    it('should form a dependency when using Object.keys', () => {
+    it('should be able to be triggered repeatedly', () => {
       let runCount = 0
       let runValue
-      const reactor = new Reactor({ foo: 'bar' })
+      const reactor = new Reactor({
+        foo: 'bar'
+      })
       new Observer(() => {
         runCount += 1
-        runValue = Object.keys(reactor)
+        runValue = reactor.foo
       })()
       assert.strictEqual(runCount, 1)
-      assert.deepEqual(runValue, ['foo'])
-      reactor.baz = 'qux'
+      assert.strictEqual(runValue, 'bar')
+      reactor.foo = 'baz'
       assert.strictEqual(runCount, 2)
-      assert.deepEqual(runValue, ['foo', 'baz'])
-    })
-
-    it('should form a dependency when using the in operator', () => {
-      let runCount = 0
-      let runValue
-      const reactor = new Reactor()
-      new Observer(() => {
-        runCount += 1
-        runValue = ('foo' in reactor)
-      })()
-      assert.strictEqual(runCount, 1)
-      assert.strictEqual(runValue, false)
-      reactor.foo = 'bar'
-      assert.strictEqual(runCount, 2)
-      assert.strictEqual(runValue, true)
+      assert.strictEqual(runValue, 'baz')
+      reactor.foo = 'qux'
+      assert.strictEqual(runCount, 3)
+      assert.strictEqual(runValue, 'qux')
+      reactor.foo = 'moo'
+      assert.strictEqual(runCount, 4)
+      assert.strictEqual(runValue, 'moo')
+      reactor.foo = 'mip'
+      assert.strictEqual(runCount, 5)
+      assert.strictEqual(runValue, 'mip')
     })
   })
 
@@ -1388,6 +1414,34 @@ describe('Reactivity', () => {
         assert.strictEqual(runCount, 4)
         assert.strictEqual(runValue, 'z')
       })
+
+      it('should be able to be triggered repeatedly by multiple array operations', () => {
+        let runCount = 0
+        let runValue
+        const reactor = new Reactor(['a', 'b', 'c'])
+        const observer = new Observer(() => {
+          runCount += 1
+          runValue = reactor.join(',')
+        })
+        assert.strictEqual(runCount, 0)
+        assert.strictEqual(runValue, undefined)
+        observer()
+        assert.strictEqual(runCount, 1)
+        assert.strictEqual(runValue, 'a,b,c')
+
+        // Multiple operations should trigger observer multiple times
+        reactor.push('d')
+        assert.strictEqual(runCount, 2)
+        assert.strictEqual(runValue, 'a,b,c,d')
+
+        reactor.splice(1, 1)
+        assert.strictEqual(runCount, 3)
+        assert.strictEqual(runValue, 'a,c,d')
+
+        reactor.reverse()
+        assert.strictEqual(runCount, 4)
+        assert.strictEqual(runValue, 'd,c,a')
+      })
     })
   })
 
@@ -1559,8 +1613,6 @@ describe('Reactivity', () => {
       assert.notStrictEqual(shuck(runValue), dummyObject)
     })
   })
-
-  it('should remember the last called values when triggered')
 })
 
 describe('Batching', () => {
@@ -1765,72 +1817,7 @@ describe('Error Handling', () => {
   })
 })
 
-describe.skip('Misc', () => {
-  it('should get triggered by multiple array operations in sequence', () => {
-    let runCount = 0
-    let runValue
-    const reactor = new Reactor(['a', 'b', 'c'])
-    const observer = new Observer(() => {
-      runCount += 1
-      runValue = reactor.join(',')
-    })
-    assert.strictEqual(runCount, 0)
-    assert.strictEqual(runValue, undefined)
-    observer()
-    assert.strictEqual(runCount, 1)
-    assert.strictEqual(runValue, 'a,b,c')
-
-    // Multiple operations should trigger observer multiple times
-    reactor.push('d')
-    assert.strictEqual(runCount, 2)
-    assert.strictEqual(runValue, 'a,b,c,d')
-
-    reactor.splice(1, 1)
-    assert.strictEqual(runCount, 3)
-    assert.strictEqual(runValue, 'a,c,d')
-
-    reactor.reverse()
-    assert.strictEqual(runCount, 4)
-    assert.strictEqual(runValue, 'd,c,a')
-  })
-
-  describe('Triggering', () => {
-    it('should trigger correctly on nested observer definitions', () => {
-      const reactor = new Reactor({
-        outer: 'foo',
-        inner: 'bar'
-      })
-      let outerCounter = 0
-      let innerCounter = 0
-      let outerTracker
-      let innerTracker
-      let innerObserver
-      new Observer(() => {
-        outerCounter += 1
-        outerTracker = reactor.outer
-        if (innerObserver) innerObserver.stop()
-        innerObserver = new Observer(() => {
-          innerCounter += 1
-          innerTracker = reactor.inner
-        })()
-      })()
-      assert.equal(outerCounter, 1)
-      assert.equal(outerTracker, 'foo')
-      assert.equal(innerCounter, 1)
-      assert.equal(innerTracker, 'bar')
-      reactor.inner = 'baz'
-      assert.equal(outerCounter, 1)
-      assert.equal(outerTracker, 'foo')
-      assert.equal(innerCounter, 2)
-      assert.equal(innerTracker, 'baz')
-      reactor.outer = 'moo'
-      assert.equal(outerCounter, 2)
-      assert.equal(outerTracker, 'moo')
-      assert.equal(innerCounter, 3)
-      assert.equal(innerTracker, 'baz')
-    })
-  })
-
+describe('Minor Features', () => {
   describe('Start and Stop', () => {
     it('should stop observing', () => {
       let counter = 0
@@ -1993,38 +1980,142 @@ describe.skip('Misc', () => {
       assert.equal(secondTracker, 'baz')
     })
   })
+})
 
-  describe('Observer chaining and dependencies', () => {
-    it('should observe an observer', () => {
-      let outcome
-      const rx = new Reactor({
-        foo: 'foo'
-      })
-      const a = new Observer(() => rx.foo + 'bar')
-      a()
-      const b = new Observer(() => (outcome = a.value + 'baz'))
-      b()
-      assert.equal(outcome, 'foobarbaz')
-      rx.foo = 'qux'
-      assert.equal(outcome, 'quxbarbaz')
+describe('Complex Setups', () => {
+  it('should be able to chain observers off each other', () => {
+    const reactor = new Reactor({
+      foo: 'bar'
     })
+    const firstObserver = new Observer(() => {
+      return reactor.foo.toUpperCase()
+    })
+    firstObserver()
+    assert.strictEqual(firstObserver.value, 'BAR')
+    const secondObserver = new Observer(() => {
+      return '!!!' + firstObserver.value + '!!!'
+    })
+    secondObserver()
+    assert.strictEqual(secondObserver.value, '!!!BAR!!!')
+    const thirdObserver = new Observer(() => {
+      return secondObserver.value.toLowerCase()
+    })
+    thirdObserver()
+    assert.strictEqual(thirdObserver.value, '!!!bar!!!')
+    reactor.foo = 'baz'
+    assert.strictEqual(firstObserver.value, 'BAZ')
+    assert.strictEqual(secondObserver.value, '!!!BAZ!!!')
+    assert.strictEqual(thirdObserver.value, '!!!baz!!!')
+  })
 
-    it('should trigger chained observers', () => {
-      let tracker
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      new Observer(() => {
-        reactor.bigFoo = reactor.foo.toUpperCase()
-      })()
-      assert.equal(reactor.bigFoo, 'BAR')
-      new Observer(() => {
-        tracker = reactor.bigFoo
-      })()
-      assert.equal(tracker, 'BAR')
-      reactor.foo = 'qux'
-      assert.equal(reactor.bigFoo, 'QUX')
-      assert.equal(tracker, 'QUX')
+  it.skip('should trigger observers once per write for triangle dependencies', () => {
+    // We have the following triangle dependency
+    // reactor -> first -> second
+    // reactor -> second
+    // Ideally we have reactor trigger first then second
+    // However, a naive depth first implementation would trigger first when in turn trigger second
+    // then go back to trigger second again because it's a dependency of reactor as well
+    // So we have an observer unnecessarily triggering twice off a single write
+    // Right now this is the naive implementation
+    let firstRunCount = 0
+    let secondRunCount = 0
+    const reactor = new Reactor({
+      foo: 'bar'
     })
+    const firstObserver = new Observer(() => {
+      firstRunCount += 1
+      return reactor.foo.toUpperCase()
+    })
+    firstObserver()
+    assert.strictEqual(firstRunCount, 1)
+    assert.strictEqual(firstObserver.value, 'BAR')
+    const secondObserver = new Observer(() => {
+      secondRunCount += 1
+      return reactor.foo + firstObserver.value
+    })
+    secondObserver()
+    assert.strictEqual(secondRunCount, 1)
+    assert.strictEqual(secondObserver.value, 'barBAR')
+    reactor.foo = 'baz'
+    assert.strictEqual(firstRunCount, 2)
+    assert.strictEqual(firstObserver.value, 'BAZ')
+    assert.strictEqual(secondRunCount, 2)
+    assert.strictEqual(secondObserver.value, 'bazBAZ')
+  })
+
+  it.skip('should not trivially infinite loop when using other observers like functions', () => {
+    // Trivial case
+    // observer2 = observer1() + 1
+    // observer2 both calls observer1 and reads its value so is dependent on it
+    // So if observer1 is updated, it triggers observer2 which runs observer1 again which triggers observer 2 again
+    // Thus trivially causing an infinite loop
+    // Ideally what should happen is that observer2 should call observer1 but since it just retrieved its return value directly
+    // should not be subject to being triggered again
+    let firstRunCount = 0
+    let secondRunCount = 0
+    const reactor = new Reactor({
+      foo: 'bar'
+    })
+    // By wrapping reactor.foo in an object, everytime it triggers it generates a new value
+    // This bypasses our "same value" trigger guard
+    const firstObserver = new Observer(() => {
+      firstRunCount += 1
+      if (firstRunCount > 100) throw new Error('infinite loop')
+      return [reactor.foo]
+    })
+    firstObserver()
+    const secondObserver = new Observer(() => {
+      secondRunCount += 1
+      if (secondRunCount > 100) throw new Error('infinite loop')
+      return firstObserver() + 1
+    })
+    secondObserver()
+    // This should infinite loop but it does not right now. TBD
+  })
+
+  it('should be able to create observers inside other observers', () => {
+    const reactor = new Reactor({
+      outer: 'foo',
+      inner: 'bar'
+    })
+    let outerCounter = 0
+    let innerCounter = 0
+    let outerTracker
+    let innerTracker
+    let innerObserver
+    // We have an outer observer that creates an inner observer
+    // The outer observer depends on reactor.outer and the inner observer
+    // The inner observer depends on reactor.inner
+    new Observer(() => {
+      outerCounter += 1
+      outerTracker = reactor.outer
+      if (innerObserver) innerObserver.stop()
+      innerObserver = new Observer(() => {
+        innerCounter += 1
+        innerTracker = reactor.inner
+      })
+      innerObserver()
+    })()
+    // The outer observer runs which creates and runs the inner observer
+    // So both run once
+    assert.equal(outerCounter, 1)
+    assert.equal(outerTracker, 'foo')
+    assert.equal(innerCounter, 1)
+    assert.equal(innerTracker, 'bar')
+    // This triggers the inner observer to run again
+    // The outer observer is dependent on the inner observer
+    // but because the inner observer doesn't have a return value
+    // it stays as undefined and so does not trigger the outer observer
+    reactor.inner = 'baz'
+    assert.equal(outerCounter, 1)
+    assert.equal(outerTracker, 'foo')
+    assert.equal(innerCounter, 2)
+    assert.equal(innerTracker, 'baz')
+    // This triggers the outer observer which creates and runs a new inner observer
+    reactor.outer = 'moo'
+    assert.equal(outerCounter, 2)
+    assert.equal(outerTracker, 'moo')
+    assert.equal(innerCounter, 3)
+    assert.equal(innerTracker, 'baz')
   })
 })
