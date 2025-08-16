@@ -769,7 +769,7 @@ describe('Observer', () => {
 
 // TODO test for observer starting and stopping
 
-describe.only('Reactivity', () => {
+describe('Reactivity', () => {
   describe('Observers do not trigger before being run', () => {
     it('should not trigger if reading a Signal', () => {
       let runCount = 0
@@ -899,6 +899,66 @@ describe.only('Reactivity', () => {
       delete reactor.foo
       assert.strictEqual(runCount, 2)
       assert.strictEqual(runValue, undefined)
+    })
+  })
+
+  describe('Observers rebuild dependencies each time they trigger', () => {
+    it('should build new dependencies on retriggers', () => {
+      let runCount = 0
+      let runValue
+      const reactor = new Reactor({
+        switch: 'foo',
+        foo: 'bar',
+        baz: 'qux'
+      })
+      const observer = new Observer(() => {
+        runCount += 1
+        runValue = reactor[reactor.switch]
+      })
+      // On initial run it should be depndent on foo and not baz
+      observer()
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, 'bar')
+      // Verify there is no dependency on baz
+      reactor.baz = 'moo'
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, 'bar')
+      // Switch sets new dependency on baz
+      reactor.switch = 'baz'
+      assert.strictEqual(runCount, 2)
+      assert.strictEqual(runValue, 'moo')
+      // Verify dependency on baz is working
+      reactor.baz = 'mip'
+      assert.strictEqual(runCount, 3)
+      assert.strictEqual(runValue, 'mip')
+    })
+    it('should break old dependencies when no longer needed', () => {
+      let runCount = 0
+      let runValue
+      const reactor = new Reactor({
+        switch: 'foo',
+        foo: 'bar',
+        baz: 'qux'
+      })
+      const observer = new Observer(() => {
+        runCount += 1
+        runValue = reactor[reactor.switch]
+      })
+      observer()
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, 'bar')
+      // Verify dependency on foo is working
+      reactor.foo = 'moo'
+      assert.strictEqual(runCount, 2)
+      assert.strictEqual(runValue, 'moo')
+      // Switch builds new dependencies
+      reactor.switch = 'baz'
+      assert.strictEqual(runCount, 3)
+      assert.strictEqual(runValue, 'qux')
+      // Verify dependency on foo is broken
+      reactor.foo = 'mip'
+      assert.strictEqual(runCount, 3)
+      assert.strictEqual(runValue, 'qux')
     })
   })
 
@@ -1303,8 +1363,93 @@ describe.only('Reactivity', () => {
     })
   })
 
+  describe('Observers are triggered only once per update ', () => {
+    it('should trigger only once despite multiple identical dependencies', () => {
+      let runCount = 0
+      let runValue
+      const reactor = new Reactor({
+        foo: 'bar'
+      })
+      new Observer(() => {
+        runCount += 1
+        runValue = reactor.foo + reactor.foo + reactor.foo
+      })()
+      assert.strictEqual(runCount, 1)
+      assert.strictEqual(runValue, 'barbarbar')
+      reactor.foo = 'baz'
+      assert.strictEqual(runCount, 2)
+      assert.strictEqual(runValue, 'bazbazbaz')
+    })
+    it('should trigger only once despite multiple different dependencies', () => {
+      let counter = 0
+      let getTracker
+      let stringifyTracker
+      let valuesTracker
+      const reactor = new Reactor({
+        foo: 'bar'
+      })
+      new Observer(() => {
+        counter += 1
+        getTracker = reactor.foo
+        stringifyTracker = JSON.stringify(reactor)
+        valuesTracker = Object.values(reactor)
+      })()
+      assert.equal(counter, 1)
+      assert.strictEqual(getTracker, 'bar')
+      assert.strictEqual(stringifyTracker, '{"foo":"bar"}')
+      assert.deepEqual(valuesTracker, ['bar'])
+      reactor.foo = 'baz'
+      assert.equal(counter, 2)
+      assert.strictEqual(getTracker, 'baz')
+      assert.strictEqual(stringifyTracker, '{"foo":"baz"}')
+      assert.deepEqual(valuesTracker, ['baz'])
+    })
+    it('should trigger only once for native methods attached to the Reactor with multiple changes on itself', () => {
+      let runCount = 0
+      let firstTracker
+      let lengthTracker
+      const reactor = new Reactor([])
+      new Observer(() => {
+        runCount += 1
+        firstTracker = reactor[0]
+        lengthTracker = reactor.length
+      })()
+      assert.equal(runCount, 1)
+      assert.equal(lengthTracker, 0)
+      assert.equal(firstTracker, undefined)
+      reactor.push('bar')
+      assert.equal(runCount, 2)
+      assert.equal(lengthTracker, 1)
+      assert.equal(firstTracker, 'bar')
+    })
+    it('should trigger only once for custom methods attached to the Reactor with multiple changes on itself', () => {
+      let runCount = 0
+      let fooTracker
+      let bazTracker
+      const reactor = new Reactor({
+        foo: 'bar',
+        baz: 'qux'
+      })
+      new Observer(() => {
+        runCount += 1
+        fooTracker = reactor.foo
+        bazTracker = reactor.baz
+      })()
+      assert.equal(runCount, 1)
+      assert.equal(fooTracker, 'bar')
+      assert.equal(bazTracker, 'qux')
+      reactor.change = function () {
+        this.foo = this.foo + 'bar'
+        this.baz = this.baz + 'qux'
+      }
+      reactor.change()
+      assert.equal(runCount, 2)
+      assert.equal(fooTracker, 'barbar')
+      assert.equal(bazTracker, 'quxqux')
+    })
+  })
+
   it('should remember the last called values when triggered')
-  it('should break old dependencies')
 })
 
 describe.skip('Misc', () => {
@@ -1337,50 +1482,6 @@ describe.skip('Misc', () => {
   })
 
   describe('Triggering', () => {
-    it('should trigger only once despite multiple dependencies', () => {
-      let counter = 0
-      let hasTracker
-      let getTracker
-      let ownKeysTracker
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      new Observer(() => {
-        counter += 1
-        hasTracker = ('foo' in reactor)
-        getTracker = reactor.foo
-        ownKeysTracker = Object.getOwnPropertyNames(reactor)
-      })()
-      assert.equal(counter, 1)
-      assert.equal(hasTracker, true)
-      assert.equal(getTracker, 'bar')
-      assert.equal(JSON.stringify(ownKeysTracker), '["foo"]')
-      reactor.foo = 'baz'
-      assert.equal(counter, 2)
-      assert.equal(hasTracker, true)
-      assert.equal(getTracker, 'baz')
-      assert.equal(JSON.stringify(ownKeysTracker), '["foo"]')
-    })
-
-    it('should trigger only once even for functions with multiple changes', () => {
-      let counter = 0
-      let lengthTracker
-      let firstTracker
-      const reactor = new Reactor([])
-      new Observer(() => {
-        counter += 1
-        lengthTracker = reactor.length
-        firstTracker = reactor[0]
-      })()
-      assert.equal(counter, 1)
-      assert.equal(lengthTracker, 0)
-      assert.equal(firstTracker, undefined)
-      reactor.push('bar')
-      assert.equal(counter, 2)
-      assert.equal(lengthTracker, 1)
-      assert.equal(firstTracker, 'bar')
-    })
-
     it('should trigger correctly on nested observer definitions', () => {
       const reactor = new Reactor({
         outer: 'foo',
