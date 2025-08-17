@@ -105,43 +105,51 @@ class Signal extends Function {
       // - Trigger any dependent Observers while collecting errors thrown
       // - Throw a CompoundError if necessary
       write (newValue) {
-        // Avoid triggering observers if same value is written
-        if (this.value === newValue) return (this.value = newValue)
-        // Save the new value/definition
-        const output = (this.value = newValue)
-        // Trigger dependents
-        // Need to do an array copy to avoid an infinite loop
-        // Triggering a dependent will remove it from the dependent set
-        // Then re-add it when it is execute
-        // This will cause the iterator to trigger again
-        const errorList = []
-        // If an error occurs, collect it and keep going
-        // A conslidated error will be thrown at the end of propagation
-        Array.from(this.dependents).forEach(dependent => {
-          try {
-            if (batcher) {
-              // Do this so that the dependent is added to the end of the batcher queue
-              // Needed to ensure downstream observers are triggered again when necessary
-              // as we iterate through the batched dependents
-              batcher.delete(dependent)
-              batcher.add(dependent)
-            } else dependent.trigger()
-          } catch (error) { errorList.push(error) }
-        })
-        // If any errors occured during propagation
-        // consolidate and throw them
-        if (errorList.length === 1) {
-          throw errorList[0]
-        } else if (errorList.length > 1) {
-          const errorMessage = 'Multiple errors from signal write'
-          throw new CompoundError(errorMessage, errorList)
-        }
+        // Design decision to wrap even individual signal writes in a batch
+        // This allows for consistency with all dependent triggering
+        // since Reactor writes are also batched
+        return batch(() => {
+          // Avoid triggering observers if same value is written
+          if (this.value === newValue) return (this.value = newValue)
+          // Save the new value/definition
+          const output = (this.value = newValue)
+          // Trigger dependents
+          // Need to do an array copy to avoid an infinite loop
+          // Triggering a dependent will remove it from the dependent set
+          // Then re-add it when it is execute
+          // This will cause the iterator to trigger again
+          const errorList = []
+          // If an error occurs, collect it and keep going
+          // A conslidated error will be thrown at the end of propagation
+          Array.from(this.dependents).forEach(dependent => {
+            try {
+              if (batcher) {
+                // Do this so that the dependent is added to the end of the batcher queue
+                // Needed to ensure downstream observers are triggered again when necessary
+                // as we iterate through the batched dependents
+                batcher.delete(dependent)
+                batcher.add(dependent)
+                // Technically this is dead code now that we're batching
+                // But leaving it in for now for semantic clarity
+                // Could consider throwing an error here instead since the batcher should always be set
+              } else dependent.trigger()
+            } catch (error) { errorList.push(error) }
+          })
+          // If any errors occured during propagation
+          // consolidate and throw them
+          if (errorList.length === 1) {
+            throw errorList[0]
+          } else if (errorList.length > 1) {
+            const errorMessage = 'Multiple errors from signal write'
+            throw new CompoundError(errorMessage, errorList)
+          }
 
-        // If it's not an object then just return it right away
-        // Cleaner and faster than the alternative approach of constructing a Reactor
-        // and catching an error
-        if (isObject(output)) return new Reactor(output)
-        else return output
+          // If it's not an object then just return it right away
+          // Cleaner and faster than the alternative approach of constructing a Reactor
+          // and catching an error
+          if (isObject(output)) return new Reactor(output)
+          else return output
+        })
       },
       // Used by observers to remove themselves from this as dependents
       // Also removesSelf from any owners if there are no more dependents

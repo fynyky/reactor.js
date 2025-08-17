@@ -1775,6 +1775,128 @@ describe('Batching', () => {
     })
     assert.strictEqual(observerD.value, 'bazqux')
   })
+
+  // foo -> a -> c
+  // foo -> b -> c
+  // Auto batching for signals should trigger c once
+  it('should automatically batch Signal writes', () => {
+    const signal = new Signal('foo')
+    let runCountA = 0
+    let runCountB = 0
+    let runCountC = 0
+    const observerA = new Observer(() => {
+      runCountA += 1
+      return signal() + 'A'
+    })
+    observerA()
+    const observerB = new Observer(() => {
+      runCountB += 1
+      return signal() + 'B'
+    })
+    observerB()
+    const observerC = new Observer(() => {
+      runCountC += 1
+      return observerA.value + observerB.value
+    })
+    observerC()
+    assert.strictEqual(runCountA, 1)
+    assert.strictEqual(runCountB, 1)
+    assert.strictEqual(runCountC, 1)
+    assert.strictEqual(observerA.value, 'fooA')
+    assert.strictEqual(observerB.value, 'fooB')
+    assert.strictEqual(observerC.value, 'fooAfooB')
+    signal('bar')
+    assert.strictEqual(runCountA, 2)
+    assert.strictEqual(runCountB, 2)
+    // If not auto batched this would be 3
+    // As observerC would be trigger from both A and B
+    assert.strictEqual(runCountC, 2)
+    assert.strictEqual(observerA.value, 'barA')
+    assert.strictEqual(observerB.value, 'barB')
+    assert.strictEqual(observerC.value, 'barAbarB')
+  })
+  // This should be the same as Signal since Observer values are a Signal
+  // But testing it anyway for completeness
+  it('should automatically batch Observer writes', () => {
+    const rootObserver = new Observer((x) => x)
+    rootObserver('foo')
+    let runCountA = 0
+    let runCountB = 0
+    let runCountC = 0
+    const observerA = new Observer(() => {
+      runCountA += 1
+      return rootObserver.value + 'A'
+    })
+    observerA()
+    const observerB = new Observer(() => {
+      runCountB += 1
+      return rootObserver.value + 'B'
+    })
+    observerB()
+    const observerC = new Observer(() => {
+      runCountC += 1
+      return observerA.value + observerB.value
+    })
+    observerC()
+    assert.strictEqual(runCountA, 1)
+    assert.strictEqual(runCountB, 1)
+    assert.strictEqual(runCountC, 1)
+    assert.strictEqual(observerA.value, 'fooA')
+    assert.strictEqual(observerB.value, 'fooB')
+    assert.strictEqual(observerC.value, 'fooAfooB')
+    rootObserver('bar')
+    assert.strictEqual(runCountA, 2)
+    assert.strictEqual(runCountB, 2)
+    // If not auto batched this would be 3
+    // As observerC would be trigger from both A and B
+    assert.strictEqual(runCountC, 2)
+    assert.strictEqual(observerA.value, 'barA')
+    assert.strictEqual(observerB.value, 'barB')
+    assert.strictEqual(observerC.value, 'barAbarB')
+  })
+
+    // foo -> a -> c
+  // foo -> b -> c
+  // Auto batching for signals should trigger c once
+  // Even if signals are batched, some reactor writes are compound operations
+  // So need to batch at this level as well
+  it.skip('should automatically batch Reactor writes', () => {
+    const signal = new Signal('foo')
+    let runCountA = 0
+    let runCountB = 0
+    let runCountC = 0
+    const observerA = new Observer(() => {
+      runCountA += 1
+      return signal() + 'A'
+    })
+    observerA()
+    const observerB = new Observer(() => {
+      runCountB += 1
+      return signal() + 'B'
+    })
+    observerB()
+    const observerC = new Observer(() => {
+      runCountC += 1
+      return observerA.value + observerB.value
+    })
+    observerC()
+    assert.strictEqual(runCountA, 1)
+    assert.strictEqual(runCountB, 1)
+    assert.strictEqual(runCountC, 1)
+    assert.strictEqual(observerA.value, 'fooA')
+    assert.strictEqual(observerB.value, 'fooB')
+    assert.strictEqual(observerC.value, 'fooAfooB')
+    signal('bar')
+    assert.strictEqual(runCountA, 2)
+    assert.strictEqual(runCountB, 2)
+    // If not auto batched this would be 3
+    // As observerC would be trigger from both A and B
+    assert.strictEqual(runCountC, 2)
+    assert.strictEqual(observerA.value, 'barA')
+    assert.strictEqual(observerB.value, 'barB')
+    assert.strictEqual(observerC.value, 'barAbarB')
+  })
+
 })
 
 describe('Hiding', () => {
