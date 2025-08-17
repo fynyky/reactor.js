@@ -108,42 +108,25 @@ class Signal extends Function {
         // Design decision to wrap even individual signal writes in a batch
         // This allows for consistency with all dependent triggering
         // since Reactor writes are also batched
+        // Wrap the whole function so we catch potential triggers
+        // from defining internal object values and wrapping output as a Reactor
         return batch(() => {
           // Avoid triggering observers if same value is written
           if (this.value === newValue) return (this.value = newValue)
           // Save the new value/definition
           const output = (this.value = newValue)
-          // Trigger dependents
-          // Need to do an array copy to avoid an infinite loop
-          // Triggering a dependent will remove it from the dependent set
-          // Then re-add it when it is execute
-          // This will cause the iterator to trigger again
-          const errorList = []
-          // If an error occurs, collect it and keep going
-          // A conslidated error will be thrown at the end of propagation
-          Array.from(this.dependents).forEach(dependent => {
-            try {
-              if (batcher) {
-                // Do this so that the dependent is added to the end of the batcher queue
-                // Needed to ensure downstream observers are triggered again when necessary
-                // as we iterate through the batched dependents
-                batcher.delete(dependent)
-                batcher.add(dependent)
-                // Technically this is dead code now that we're batching
-                // But leaving it in for now for semantic clarity
-                // Could consider throwing an error here instead since the batcher should always be set
-              } else dependent.trigger()
-            } catch (error) { errorList.push(error) }
-          })
-          // If any errors occured during propagation
-          // consolidate and throw them
-          if (errorList.length === 1) {
-            throw errorList[0]
-          } else if (errorList.length > 1) {
-            const errorMessage = 'Multiple errors from signal write'
-            throw new CompoundError(errorMessage, errorList)
-          }
 
+          // Build dependency queue
+          // Do not trigger dependents directly and leave it to be handled by the batcher
+          Array.from(this.dependents).forEach(dependent => {
+          // Do this so that the dependent is added to the end of the batcher queue
+          // Needed to ensure downstream observers are triggered again when necessary
+          // as we iterate through the batched dependents
+          // Generally modifying an iterable while iterating through it is a bad idea
+          // But in this case it's necessary as we can't know all the downstream dependents ahead of time
+            batcher.delete(dependent)
+            batcher.add(dependent)
+          })
           // If it's not an object then just return it right away
           // Cleaner and faster than the alternative approach of constructing a Reactor
           // and catching an error
@@ -245,10 +228,10 @@ class Reactor {
       // but for the reactor overall
       selfSignal: new Signal(null),
 
-      // Function calls on reactor properties are automatically batched
-      // This allows compound function calls like "Array.push"
-      // to only trigger one round of observer updates
       apply (thisArg, argumentsList) {
+        // Function calls on reactor properties are automatically batched
+        // This allows compound function calls like "Array.push"
+        // to only trigger one round of observer updates
         return batch(() => {
           // For native object methods which cant use a Proxy as `this`
           // try again with the underlying object
@@ -384,8 +367,6 @@ class Reactor {
 
       // Force dependencies to trigger
       // Hack to do this by trivially "redefining" the signal
-      // The proper accessor will be materialized "just in time" on the getter
-      // so it doesn't matter that we're swapping it with a filler Symbol
       trigger (property) {
         // Calculate the actual new values observers will receive
         // This avoids redundant triggering if they were the same
@@ -404,6 +385,8 @@ class Reactor {
           return false
         })()
         // Batch together to avoid redundant triggering for shared observers
+        // This might be redundant because the only way this happens is by calling native methods
+        // which are already batched anyway. But keeping for safety
         batch(() => {
           if (this.getSignals[property]) this.getSignals[property](getValue)
           if (this.hasSignals[property]) this.hasSignals[property](hasValue)
