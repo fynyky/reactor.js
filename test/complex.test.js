@@ -16,7 +16,7 @@ import {
 } from '../src/reactor.js'
 
 describe('Complex Setups', () => {
-  it('should be able to chain observers off each other', () => {
+  it('can chain observers off each other', () => {
     const reactor = new Reactor({
       foo: 'bar'
     })
@@ -41,7 +41,7 @@ describe('Complex Setups', () => {
     assert.strictEqual(thirdObserver.value, '!!!baz!!!')
   })
 
-  it.skip('should trigger observers once per write for triangle dependencies', () => {
+  it.skip('triggers observers once per write for triangle dependencies', () => {
     // We have the following triangle dependency
     // reactor -> first -> second
     // reactor -> second
@@ -76,7 +76,7 @@ describe('Complex Setups', () => {
     assert.strictEqual(secondObserver.value, 'bazBAZ')
   })
 
-  it('should not trivially infinite loop when an observer calls another', () => {
+  it('does not trivially infinite loop when an observer calls another', () => {
     // Trivial case
     // observer2 = observer1() + 1
     // observer2 both calls observer1 and reads its value so is dependent on it
@@ -115,7 +115,7 @@ describe('Complex Setups', () => {
     assert.strictEqual(secondObserver.value, 'baz1')
   })
 
-  it.skip('should not infinite loop with three observers calling each other like functions', () => {
+  it.skip('does not infinite loop with three observers calling each other like functions', () => {
     // This is a more complex case
     // observer2 = observer1() + 1
     // observer3 = observer1() + observer2()
@@ -157,7 +157,7 @@ describe('Complex Setups', () => {
     // assert.strictEqual(secondObserver.value, 'baz1')
   })
 
-  it('should be able to create observers inside other observers', () => {
+  it('can create observers inside other observers', () => {
     const reactor = new Reactor({
       outer: 'foo',
       inner: 'bar'
