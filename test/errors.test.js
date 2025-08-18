@@ -16,7 +16,7 @@ import {
 } from '../src/reactor.js'
 
 describe('Error Handling', () => {
-  it('should throw an error on a write if there is an Observer throws an error', () => {
+  it('throws an error on an update if there is an observer throws an error', () => {
     const reactor = new Reactor({ value: 'foo' })
     new Observer(() => {
       if (reactor.value > 1) throw new Error('dummy error')
@@ -27,7 +27,7 @@ describe('Error Handling', () => {
     })
   })
 
-  it('should throw a CompoundError if there are multiple Observer errors', () => {
+  it('throws a CompoundError if there are multiple errors from direct observers', () => {
     const reactor = new Reactor({ value: 1 })
     new Observer(() => {
       if (reactor.value > 1) throw new Error('dummy error 1')
@@ -40,7 +40,7 @@ describe('Error Handling', () => {
     })
   })
 
-  it('should throw a flattened CompoundError with chained observers', () => {
+  it('throws a flattened CompoundError if there are multiple errors from chained observers', () => {
     const reactor = new Reactor({
       foo: 1
     })
