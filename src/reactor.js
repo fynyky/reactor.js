@@ -648,7 +648,11 @@ const hide = (execute) => {
 }
 
 // Method for allowing users to batch multiple observer updates together
-const batch = (execute) => {
+const batch = function (execute) {
+  if (arguments.length !== 1 || typeof execute !== 'function') {
+    throw new Error('batch requires exactly one function argument')
+  }
+
   if (batcher === null) {
     // If a batcher is set then signals will not trigger observers immediately
     // Instead they will be saved into the batcher to trigger after

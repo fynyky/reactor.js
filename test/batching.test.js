@@ -16,8 +16,7 @@ import {
 } from '../src/reactor.js'
 
 describe('Batching', () => {
-  // TODO add test and functionality for batch parameter validation
-  it('should delay and combine observer triggers within a batch block', () => {
+  it('consolidates duplicate observer triggers within a batch', () => {
     const reactor = new Reactor()
     let runCount = 0
     let runValue
@@ -39,43 +38,52 @@ describe('Batching', () => {
     assert.strictEqual(runValue, 'blarp')
   })
 
-  it('should nest batch blocks with no consequence', () => {
-    const reactor = new Reactor()
-    let runCount = 0
-    let runValue
+  it('postpones observer triggers within a batch till after the block is complete', () => {
+    const reactor = new Reactor({ foo: 'bar' })
+    const triggerOrder = []
     new Observer(() => {
-      runCount += 1
-      runValue = reactor.foo
+      triggerOrder.push(reactor.foo)
     })()
-    assert.strictEqual(runCount, 1)
-    assert.strictEqual(runValue, undefined)
+    assert.deepStrictEqual(triggerOrder, ['bar'])
     batch(() => {
-      reactor.foo = 'bleep'
-      assert.strictEqual(runCount, 1)
-      reactor.foo = 'bloop'
-      assert.strictEqual(runCount, 1)
-      reactor.foo = 'blarp'
-      assert.strictEqual(runCount, 1)
-      batch(() => {
-        reactor.foo = 'bink'
-        assert.strictEqual(runCount, 1)
-        reactor.foo = 'bonk'
-        assert.strictEqual(runCount, 1)
-        reactor.foo = 'bup'
-        assert.strictEqual(runCount, 1)
-      })
+      reactor.foo = 'baz'
+      triggerOrder.push('qux')
     })
-    assert.strictEqual(runCount, 2)
-    assert.strictEqual(runValue, 'bup')
+    assert.deepStrictEqual(triggerOrder, ['bar', 'qux', 'baz'])
   })
 
-  // What should happen when a batch hits an error?
+  it('flattens nested batches to the outermost batch', () => {
+    const reactor = new Reactor({ foo: 'bar' })
+    let runCount = 0
+    const triggerOrder = []
+    new Observer(() => {
+      runCount += 1
+      triggerOrder.push(reactor.foo)
+    })()
+    assert.strictEqual(runCount, 1)
+    assert.deepStrictEqual(triggerOrder, ['bar'])
+    batch(() => {
+      batch(() => {
+        reactor.foo = 'baz'
+        triggerOrder.push('qux')
+      })
+      reactor.foo = 'moo'
+      triggerOrder.push('mip')
+    })
+    assert.strictEqual(runCount, 2)
+    // The 'baz' update never gets seen by the observer
+    // Because the 'moo' update overrides it later
+    // The inner batch gets flattened to the outer batch
+    // so the observer triggers after 'mip'
+    assert.deepStrictEqual(triggerOrder, ['bar', 'qux', 'mip', 'moo'])
+  })
+
   // Fail out straight away? (unsetting batcher of course)
   // Or should it collect the error and try to trigger the observers it got to so far?
   // The later might seem like a fail forward action, but it's actually more consistent
   // since the semantic we have is that writing to a signal triggers all observers synchronously
   // It is more consistent with what happens outside of the batch block
-  it('should trigger dependent observers from the batch block even if there is an error', () => {
+  it('triggers the dependent observers found before the error even if there is an error in a batch', () => {
     let runCount = 0
     let runValue
     const reactor = new Reactor({ foo: 'bar' })
@@ -101,7 +109,7 @@ describe('Batching', () => {
   // Used to be batch would trigger a and b together
   // which would then double trigger c
   // Ideally a batch would only trigger c once
-  it('should consolidate redundant downstream triggers', () => {
+  it('consolidates redundant downstream triggers from chain dependencies', () => {
     const reactor = new Reactor({
       a: 'foo',
       b: 'bar'
@@ -147,7 +155,7 @@ describe('Batching', () => {
   // after triggering d it discovers that it needs to update c again [abdcd]
   // If we don't queue d to be be triggered again, it will have an outdated value for c
   // Anyway around it?
-  it('should not skip essential downstream triggers', () => {
+  it('does not skip essential downstream triggers from chain dependencies', () => {
     const reactor = new Reactor({
       a: 'foo',
       b: 'bar'
@@ -179,7 +187,7 @@ describe('Batching', () => {
   // foo -> a -> c
   // foo -> b -> c
   // Auto batching for signals should trigger c once
-  it('should automatically batch Signal writes', () => {
+  it('automatically batches signal writes', () => {
     const signal = new Signal('foo')
     let runCountA = 0
     let runCountB = 0
@@ -217,7 +225,7 @@ describe('Batching', () => {
   })
   // This should be the same as Signal since Observer values are a Signal
   // But testing it anyway for completeness
-  it('should automatically batch Observer writes', () => {
+  it('automatically batches observer writes', () => {
     const rootObserver = new Observer((x) => x)
     rootObserver('foo')
     let runCountA = 0
@@ -255,7 +263,7 @@ describe('Batching', () => {
     assert.strictEqual(observerC.value, 'barAbarB')
   })
 
-  it('should automatically batch Reactor writes', () => {
+  it('automatically batches reactor writes', () => {
     let runCount = 0
     const reactor = new Reactor(['foo', 'bar'])
     new Observer(() => {
@@ -266,5 +274,26 @@ describe('Batching', () => {
     // Call pop because it's a compound operation
     reactor.pop()
     assert.strictEqual(runCount, 2)
+  })
+
+  it('throws an error if the batch function it is called with no arguments', () => {
+    assert.throws(() => batch(), {
+      name: 'Error',
+      message: 'batch requires exactly one function argument'
+    })
+  })
+
+  it('throws an error if the batch function it is called a non-function argument', () => {
+    assert.throws(() => batch(1), {
+      name: 'Error',
+      message: 'batch requires exactly one function argument'
+    })
+  })
+
+  it('throws an error if the batch function it is called with multiple arguments', () => {
+    assert.throws(() => batch(() => {}, () => {}), {
+      name: 'Error',
+      message: 'batch requires exactly one function argument'
+    })
   })
 })
