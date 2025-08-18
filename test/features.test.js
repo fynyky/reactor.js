@@ -17,7 +17,7 @@ import {
 
 describe('Minor Features', () => {
   describe('Start and Stop', () => {
-    it('should stop observing', () => {
+    it('deactivates observers with stop', () => {
       let counter = 0
       let tracker
       const reactor = new Reactor({ value: 'foo' })
@@ -37,7 +37,7 @@ describe('Minor Features', () => {
       assert.equal(tracker, 'bar')
     })
 
-    it('should start after stopping', () => {
+    it('reactivates observers with start after stopping', () => {
       let counter = 0
       let tracker = null
       const reactor = new Reactor({ value: 'foo' })
@@ -57,7 +57,7 @@ describe('Minor Features', () => {
       assert.equal(tracker, 'moo')
     })
 
-    it('should have no effect with repeated starts', () => {
+    it('has no effect with repeated start calls', () => {
       let counter = 0
       let tracker = null
       const reactor = new Reactor({ value: 'foo' })
@@ -82,7 +82,7 @@ describe('Minor Features', () => {
   })
 
   describe('Context and Subscriptions', () => {
-    it('should default context to undefined', () => {
+    it('defaults context to undefined', () => {
       let contextChecker = 'foo'
       new Observer((context) => {
         contextChecker = context
@@ -90,7 +90,7 @@ describe('Minor Features', () => {
       assert(typeof contextChecker === 'undefined')
     })
 
-    it('should set context', () => {
+    it('sets context by calling the observer with an argument', () => {
       let contextChecker
       const observer = new Observer((context) => {
         contextChecker = context
@@ -102,7 +102,7 @@ describe('Minor Features', () => {
       assert.equal(contextChecker, dummyObject)
     })
 
-    it('should set context with multiple params', () => {
+    it('sets context by calling the observer with multiple params', () => {
       let contextChecker
       const observer = new Observer((a, b, c) => {
         contextChecker = '' + a + b + c
@@ -114,7 +114,7 @@ describe('Minor Features', () => {
       assert.equal(contextChecker, 'undefinedundefinedundefined')
     })
 
-    it('should set context and react to it', () => {
+    it('retains the set context on an observer when getting triggered later', () => {
       const reactor = new Reactor()
       const contextChecker = {}
       const observer = new Observer(function (...args) {
@@ -140,7 +140,7 @@ describe('Minor Features', () => {
   })
 
   describe('Observer redefinition', () => {
-    it('should redefine an observer', () => {
+    it('redefines an observer by setting the execute property', () => {
       const reactor = new Reactor({
         first: 'foo',
         second: 'bar'
