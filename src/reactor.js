@@ -636,7 +636,10 @@ class Observer extends Function {
 
 // Unobserve is syntactic sugar to create a dummy observer to block the triggers
 // While also returning the contents of the block
-const hide = (execute) => {
+const hide = function (execute) {
+  if (arguments.length !== 1 || typeof execute !== 'function') {
+    throw new Error('hide requires exactly one function argument')
+  }
   let result
   dependencyStack.push(null)
   try {

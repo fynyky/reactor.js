@@ -16,9 +16,7 @@ import {
 } from '../src/reactor.js'
 
 describe('Hiding', () => {
-  // TODO add test and functionality for hide parameter validation
-
-  it('should not create dependencies inside hide block', () => {
+  it('does not create dependencies inside hide block', () => {
     const reactor = new Reactor({
       outer: 'foo',
       inner: 'bar'
@@ -51,9 +49,7 @@ describe('Hiding', () => {
     assert.strictEqual(innerRunValue, 'baz')
   })
 
-  // TODO should hide blocks be nestable?
-
-  it('should return the result of the hide block', () => {
+  it('returns the result of the hide block', () => {
     const reactor = new Reactor({
       outer: 'foo',
       inner: 'bar'
@@ -86,7 +82,7 @@ describe('Hiding', () => {
     assert.strictEqual(innerRunValue, 'baz')
   })
 
-  it('should not self trigger in a hide block', () => {
+  it('avoids self triggering an observer by using a hide block', () => {
     const reactor = new Reactor(['a', 'b', 'c'])
     let runCount = 0
     let runValue
@@ -99,5 +95,26 @@ describe('Hiding', () => {
     })()
     assert.strictEqual(runCount, 1)
     assert.strictEqual(runValue, 'c')
+  })
+
+  it('throws an error if the hide function is not called with a function', () => {
+    assert.throws(() => hide(), {
+      name: 'Error',
+      message: 'hide requires exactly one function argument'
+    })
+  })
+
+  it('throws an error if the hide function is not called with a non-function argument', () => {
+    assert.throws(() => hide(1), {
+      name: 'Error',
+      message: 'hide requires exactly one function argument'
+    })
+  })
+
+  it('throws an error if the hide function is called with multiple arguments', () => {
+    assert.throws(() => hide(() => {}, () => {}), {
+      name: 'Error',
+      message: 'hide requires exactly one function argument'
+    })
   })
 })
