@@ -16,103 +16,103 @@ import {
 } from '../src/reactor.js'
 
 describe('Observer', () => {
-  describe('Initializes wrapping a function', () => {
-    it('should initialize with a function argument', () => new Observer(() => {}))
+  describe('initializes with a function and returns it wrapped in an observer', () => {
+    it('initializes with a function argument', () => new Observer(() => {}))
 
-    it('should fail to initialize with no argument', () => {
+    it('throws an error when initialized with no arguments', () => {
       assert.throws(() => new Observer(), {
         name: 'Error',
         message: 'Observer constructor requires exactly one argument'
       })
     })
 
-    it('should fail to initialize with multiple arguments', () => {
+    it('throws an error when initialized with multiple arguments', () => {
       assert.throws(() => new Observer(() => {}, () => {}), {
         name: 'Error',
         message: 'Observer constructor requires exactly one argument'
       })
     })
 
-    it('should not run upon initialization', () => {
+    it('does not run upon initialization', () => {
       let triggerCount = 0
       // eslint-disable-next-line no-new
       new Observer(() => { triggerCount += 1 })
       assert.strictEqual(triggerCount, 0)
     })
 
-    it('should be an Observer object', () => {
+    it('is an Observer object', () => {
       const observer = new Observer(() => {})
       assert(observer instanceof Observer)
     })
 
-    describe('Fails to initialize with an argument that is not a Function', () => {
-      it('should fail to initialize with a string', () => {
+    describe('throws an error when initialized with invalid parameters', () => {
+      it('throws an error when initialized with a string', () => {
         assert.throws(() => new Observer('foo'), {
           name: 'TypeError',
           message: 'Cannot create observer with a non-function'
         })
       })
-      it('should fail to initialize with a number', () => {
+      it('throws an error when initialized with a number', () => {
         assert.throws(() => new Observer(123), {
           name: 'TypeError',
           message: 'Cannot create observer with a non-function'
         })
       })
-      it('should fail to initialize with a bigint', () => {
+      it('throws an error when initialized with a bigint', () => {
         assert.throws(() => new Observer(123456789123456789n), {
           name: 'TypeError',
           message: 'Cannot create observer with a non-function'
         })
       })
-      it('should fail to initialize with a symbol', () => {
+      it('throws an error when initialized with a symbol', () => {
         assert.throws(() => new Observer(Symbol('foo')), {
           name: 'TypeError',
           message: 'Cannot create observer with a non-function'
         })
       })
-      it('should fail to initialize with true', () => {
+      it('throws an error when initialized with true', () => {
         assert.throws(() => new Observer(true), {
           name: 'TypeError',
           message: 'Cannot create observer with a non-function'
         })
       })
-      it('should fail to initialize with false', () => {
+      it('throws an error when initialized with false', () => {
         assert.throws(() => new Observer(false), {
           name: 'TypeError',
           message: 'Cannot create observer with a non-function'
         })
       })
-      it('should fail to initialize with zero', () => {
+      it('throws an error when initialized with zero', () => {
         assert.throws(() => new Observer(0), {
           name: 'TypeError',
           message: 'Cannot create observer with a non-function'
         })
       })
-      it('should fail to initialize with an empty string', () => {
+      it('throws an error when initialized with an empty string', () => {
         assert.throws(() => new Observer(''), {
           name: 'TypeError',
           message: 'Cannot create observer with a non-function'
         })
       })
-      it('should fail to initialize with null', () => {
+      it('throws an error when initialized with null', () => {
         assert.throws(() => new Observer(null), {
           name: 'TypeError',
           message: 'Cannot create observer with a non-function'
         })
       })
-      it('should fail to initialize with undefined', () => {
+      it('throws an error when initialized with undefined', () => {
         assert.throws(() => new Observer(undefined), {
           name: 'TypeError',
           message: 'Cannot create observer with a non-function'
         })
       })
-      it('should fail to initialize with an Object', () => {
+      it('throws an error when initialized with a non-function object', () => {
         assert.throws(() => new Observer({}), {
           name: 'TypeError',
           message: 'Cannot create observer with a non-function'
         })
       })
-      it('should fail to initialize with an Array', () => {
+      it('fails to initialize with an array', () => {
         assert.throws(() => new Observer([]), {
           name: 'TypeError',
           message: 'Cannot create observer with a non-function'
@@ -121,25 +121,32 @@ describe('Observer', () => {
     })
   })
 
-  describe('Can be used like a normal function', () => {
-    it('should be callable', () => {
+  describe('behaves the same as the wrapped function', () => {
+    it('is callable', () => {
       const observer = new Observer(() => {})
       observer()
     })
 
-    it('should return the function return value', () => {
+    it('runs the wrapped function when called', () => {
+      let runCount = 0
+      const observer = new Observer(() => { runCount += 1 })
+      observer()
+      assert.strictEqual(runCount, 1)
+    })
+
+    it('returns the wrapped function return value', () => {
       const observer = new Observer(() => 'foo')
       assert.strictEqual(observer(), 'foo')
     })
 
-    it('should be callable with arguments', () => {
+    it('is callable with arguments', () => {
       const observer = new Observer((a, b, c) => {
         return a + b + c
       })
       assert.strictEqual(observer('foo', 'bar', 'baz'), 'foobarbaz')
     })
 
-    it('should have access to its arguments array', () => {
+    it('has access to its arguments array', () => {
       const observer = new Observer(function () {
         let output = ''
         for (const arg of arguments) {
@@ -150,18 +157,18 @@ describe('Observer', () => {
       assert.strictEqual(observer('foo', 'bar', 'baz'), 'foobarbaz')
     })
 
-    it('should have access to its this context', () => {
+    it('has access to its this context', () => {
       let context
-      const object = {}
-      const observer = new Observer(function () {
-        context = this
-      })
-      object.observer = observer
+      const object = {
+        observer: new Observer(function () {
+          context = this
+        })
+      }
       object.observer()
       assert.strictEqual(context, object)
     })
 
-    it('should be able to use bind to create a new function with this context and arguments', () => {
+    it('can use bind to create a new function with the specified this context and arguments', () => {
       let context
       const object = { foo: 42 }
       const observer = new Observer(function (a) {
@@ -174,7 +181,7 @@ describe('Observer', () => {
       assert.strictEqual(result, 52)
     })
 
-    it('should be able to use call to execute with specified this context and arguments', () => {
+    it('can use call to run with the specified this context and arguments', () => {
       const object = { foo: 'bar' }
       const observer = new Observer(function (a, b) {
         return this.foo + a + b
@@ -183,7 +190,7 @@ describe('Observer', () => {
       assert.strictEqual(result, 'barbazqux')
     })
 
-    it('should be able to use apply to execute with specified this context and arguments', () => {
+    it('can use apply to run with the specified this context and arguments', () => {
       const object = { foo: 'bar' }
       const observer = new Observer(function (a, b) {
         return this.foo + a + b
@@ -192,7 +199,7 @@ describe('Observer', () => {
       assert.strictEqual(result, 'barbazqux')
     })
 
-    it('should be usable as a constructor', () => {
+    it('can be used as a constructor', () => {
       const DummyClass = new Observer(function (arg) {
         this.foo = 'bar' + arg
         return this
@@ -202,14 +209,14 @@ describe('Observer', () => {
       assert.strictEqual(instance.foo, 'barbaz')
     })
 
-    it('should be a type of Function', () => {
+    it('is an instance of Function', () => {
       const observer = new Observer(() => {})
       assert(observer instanceof Function)
       assert(typeof observer === 'function')
     })
   })
 
-  describe('Wraps returned Object values in Reactors', () => {
+  describe('returns object values wrapped in a reactor', () => {
     it('', () => {
       const object = {}
       const observer = new Observer(() => object)
@@ -220,7 +227,7 @@ describe('Observer', () => {
     })
   })
 
-  describe('Exposes the wrapped function through execute', () => {
+  describe('exposes the wrapped function through the execute property', () => {
     it('', () => {
       const dummyFunction = function () {}
       const observer = new Observer(dummyFunction)
@@ -228,8 +235,8 @@ describe('Observer', () => {
     })
   })
 
-  describe('Exposes the last derived value through value', () => {
-    it('should keep the last derived value for primitive values', () => {
+  describe('exposes the last return value throught the value property', () => {
+    it('exposes the last derived value for primitive values', () => {
       let counter = 0
       const dummyFunction = () => (counter += 1)
       const observer = new Observer(dummyFunction)
@@ -243,7 +250,7 @@ describe('Observer', () => {
       assert.strictEqual(result, observer.value)
     })
 
-    it('should keep the last derived value for Object values', () => {
+    it('exposes the last derived value for object values', () => {
       let counter = 0
       const dummyFunction = () => {
         counter += 1
