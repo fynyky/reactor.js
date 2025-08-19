@@ -15,8 +15,26 @@ import {
   // shuck
 } from '../src/reactor.js'
 
-describe('Minor Features', () => {
-  describe('Start and Stop', () => {
+describe.only('Minor Features', () => {
+  describe('Starting and stopping observers', () => {
+    it('activates observers with start', () => {
+      let counter = 0
+      let tracker
+      const reactor = new Reactor({ value: 'foo' })
+      const observer = new Observer(() => {
+        counter += 1
+        tracker = reactor.value
+      })
+      assert.equal(counter, 0)
+      assert.equal(tracker, undefined)
+      observer.start()
+      assert.equal(counter, 1)
+      assert.equal(tracker, 'foo')
+      reactor.value = 'bar'
+      assert.equal(counter, 2)
+      assert.equal(tracker, 'bar')
+    })
+
     it('deactivates observers with stop', () => {
       let counter = 0
       let tracker
@@ -25,7 +43,7 @@ describe('Minor Features', () => {
         counter += 1
         tracker = reactor.value
       })
-      observer()
+      observer.start()
       assert.equal(counter, 1)
       assert.equal(tracker, 'foo')
       reactor.value = 'bar'
@@ -45,7 +63,7 @@ describe('Minor Features', () => {
         counter += 1
         tracker = reactor.value
       })
-      observer()
+      observer.start()
       assert.equal(counter, 1)
       assert.equal(tracker, 'foo')
       observer.stop()
@@ -57,7 +75,7 @@ describe('Minor Features', () => {
       assert.equal(tracker, 'moo')
     })
 
-    it('has no effect with repeated start calls', () => {
+    it('does nothing calling start on an active observer', () => {
       let counter = 0
       let tracker = null
       const reactor = new Reactor({ value: 'foo' })
@@ -65,7 +83,10 @@ describe('Minor Features', () => {
         counter += 1
         tracker = reactor.value
       })
-      observer()
+      observer.start()
+      assert.equal(counter, 1)
+      assert.equal(tracker, 'foo')
+      observer.start()
       assert.equal(counter, 1)
       assert.equal(tracker, 'foo')
       observer.stop()
@@ -81,65 +102,102 @@ describe('Minor Features', () => {
     })
   })
 
-  describe('Context and Subscriptions', () => {
-    it('defaults context to undefined', () => {
+  describe('Observer context setting', () => {
+    it('defaults single argument context to undefined', () => {
       let contextChecker = 'foo'
-      new Observer((context) => {
-        contextChecker = context
+      new Observer((parameter) => {
+        contextChecker = parameter
       })()
       assert(typeof contextChecker === 'undefined')
     })
 
-    it('sets context by calling the observer with an argument', () => {
+    it('defaults arguments context to an empty array', () => {
+      let contextChecker = 'foo'
+      new Observer(function () {
+        contextChecker = Array.from(arguments)
+      })()
+      assert.deepEqual(contextChecker, [])
+    })
+
+    it('defaults this context to undefined', () => {
+      let contextChecker = 'foo'
+      new Observer(() => {
+        contextChecker = this
+      })()
+      assert(typeof contextChecker === 'undefined')
+    })
+
+    it('sets single argument context by calling the observer with an argument', () => {
       let contextChecker
+      const reactor = new Reactor({ foo: 'bar' })
       const observer = new Observer((context) => {
-        contextChecker = context
+        contextChecker = reactor.foo + context
       })
-      observer('foo')
-      assert.equal(contextChecker, 'foo')
-      const dummyObject = {}
-      observer(dummyObject)
-      assert.equal(contextChecker, dummyObject)
-    })
-
-    it('sets context by calling the observer with multiple params', () => {
-      let contextChecker
-      const observer = new Observer((a, b, c) => {
-        contextChecker = '' + a + b + c
-      })
-      observer('foo', 'bar', 'baz')
-      assert.equal(contextChecker, 'foobarbaz')
-      contextChecker = null
+      observer('baz')
+      assert.equal(contextChecker, 'barbaz')
+      reactor.foo = 'qux'
+      assert.equal(contextChecker, 'quxbaz')
       observer()
-      assert.equal(contextChecker, 'undefinedundefinedundefined')
+      assert.equal(contextChecker, 'quxundefined')
     })
 
-    it('retains the set context on an observer when getting triggered later', () => {
-      const reactor = new Reactor()
-      const contextChecker = {}
-      const observer = new Observer(function (...args) {
-        contextChecker.this = this
-        contextChecker.args = args
-        contextChecker.result = reactor.foo
+    it('sets multiple arguments context by calling the observer with multiple arguments', () => {
+      let contextChecker
+      const reactor = new Reactor({ foo: 'bar' })
+      const observer = new Observer((a, b, c) => {
+        contextChecker = reactor.foo + a + b + c
       })
-      const bar = {
-        baz: observer
-      }
-      assert(typeof contextChecker.this === 'undefined')
-      assert(typeof contextChecker.args === 'undefined')
-      assert(typeof contextChecker.result === 'undefined')
-      bar.baz('qux')
-      assert.equal(contextChecker.this, bar)
-      assert.equal(contextChecker.args[0], 'qux')
-      assert(typeof contextChecker.result === 'undefined')
-      reactor.foo = 'bop'
-      assert.equal(contextChecker.this, bar)
-      assert.equal(contextChecker.args[0], 'qux')
-      assert.equal(contextChecker.result, 'bop')
+      observer('apple', 'banana', 'cherry')
+      assert.equal(contextChecker, 'barapplebananacherry')
+      reactor.foo = 'baz'
+      assert.equal(contextChecker, 'bazapplebananacherry')
+      observer()
+      assert.equal(contextChecker, 'bazundefinedundefinedundefined')
+    })
+
+    it('sets arguments context by calling the observer with arguments', () => {
+      let contextChecker
+      const reactor = new Reactor({ foo: 'bar' })
+      const observer = new Observer(function (a, b, c) {
+        contextChecker = Array.from(arguments).join(reactor.foo)
+      })
+      observer('apple', 'banana', 'cherry')
+      assert.equal(contextChecker, 'applebarbananabarcherry')
+      reactor.foo = 'baz'
+      assert.equal(contextChecker, 'applebazbananabazcherry')
+      observer()
+      assert.equal(contextChecker, '')
     })
   })
 
-  describe('Observer redefinition', () => {
+  describe('Observer execute setting', () => {
+    it('exposes the wrapped function through the execute property', () => {
+      const dummyFunction = function () {}
+      const observer = new Observer(dummyFunction)
+      assert.strictEqual(observer.execute, dummyFunction)
+    })
+    it.only('deactivates the observer when setting the execute property', () => {
+      let runCounter = 0
+      let runValue = null
+      const reactor = new Reactor({ foo: 'bar' })
+      const observer = new Observer(() => {
+        runCounter += 1
+        runValue = reactor.foo
+      })
+      observer()
+      assert.equal(runCounter, 1)
+      assert.equal(runValue, 'bar')
+      reactor.foo = 'baz'
+      assert.equal(runCounter, 2)
+      assert.equal(runValue, 'baz')
+      observer.execute = () => {
+        runCounter += 1
+        runValue = 'new' + reactor.foo
+      }
+      assert.equal(runCounter, 3)
+      assert.equal(runValue, 'newbaz')
+    })
+    it('uses the new execute after being restarted')
     it('redefines an observer by setting the execute property', () => {
       const reactor = new Reactor({
         first: 'foo',

@@ -611,9 +611,8 @@ class Observer extends Function {
     observerInterface.setArgsContext = (...args) => {
       observerCore.argsContext = args
     }
-    // Expose the wrapped execute function
+    // Expose the wrapped execute function and restart the observer
     // Setting it keeps the context and dependents
-    // but puts the observer back to sleep
     Object.defineProperty(observerInterface, 'execute', {
       get () { return observerCore.execute },
       set (newValue) { return observerCore.redefine(newValue) }
