@@ -15,7 +15,7 @@ import {
   // shuck
 } from '../src/reactor.js'
 
-describe.only('Minor Features', () => {
+describe('Minor Features', () => {
   describe('Starting and stopping observers', () => {
     it('activates observers with start', () => {
       let counter = 0
@@ -176,7 +176,7 @@ describe.only('Minor Features', () => {
       const observer = new Observer(dummyFunction)
       assert.strictEqual(observer.execute, dummyFunction)
     })
-    it.only('deactivates the observer when setting the execute property', () => {
+    it('deactivates the observer when setting the execute property', () => {
       let runCounter = 0
       let runValue = null
       const reactor = new Reactor({ foo: 'bar' })

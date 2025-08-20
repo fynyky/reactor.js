@@ -6,7 +6,7 @@ import {
   Observer,
   // Signals,
   Reactors,
-  // Observers,
+  Observers,
   // signalCoreExtractor,
   // reactorCoreExtractor,
   // observerCoreExtractor,
@@ -17,7 +17,12 @@ import {
 
 describe('Observer', () => {
   describe('initializes with a function and returns it wrapped in an observer', () => {
-    it('initializes with a function argument', () => new Observer(() => {}))
+    it('initializes with a function returning it wrapped in an observer', () => {
+      const func = () => {}
+      const observer = new Observer(func)
+      assert(Observers.has(observer))
+      assert.strictEqual(shuck(observer), func)
+    })
 
     it('throws an error when initialized with no arguments', () => {
       assert.throws(() => new Observer(), {

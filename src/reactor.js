@@ -605,6 +605,7 @@ class Observer extends Function {
     // Named setContext instead of exposing context property for cleaner syntax
     // `context` property is an array but trivial case of giving a single context argument
     // Should be expected to work but it doesnt
+    // TODO: Consider removing these features to maintain the purity of calling the observer as a function
     observerInterface.setThisContext = (that) => {
       observerCore.thisContext = that
     }
@@ -697,12 +698,13 @@ const batch = function (execute) {
   }
 }
 
-// Method for extracting a the internal object from the Reactor
-const shuck = (reactor) => {
-  const core = reactorCoreExtractor.get(reactor)
-  if (core) return core.source
-  // In this case its a normal object. No need to shuck
-  return reactor
+// Method for extracting the internal object from a Reactor
+// or extracting the internal function from an Observer
+const shuck = (shuckee) => {
+  let output = shuckee
+  if (Reactors.has(output)) output = reactorCoreExtractor.get(output).source
+  if (Observers.has(output)) output = observerCoreExtractor.get(output).execute
+  return output
 }
 
 // Custom Error to consolidate multiple errors together
