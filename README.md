@@ -35,7 +35,7 @@ $ npm install reactorjs
 
 Import it using:
 ```javascript
-import { Reactor, Observer,  hide, batch, shuck }  from 'reactorjs'
+import { Reactor, Observer, hide, batch, shuck }  from 'reactorjs'
 ```
 
 It is also available directly from [unpkg](unpkg.com). You can import it in javascript using
@@ -220,7 +220,7 @@ const capitalizer = new Observer(() => {
   return reactor.foo.toUpperCase()
 }) // Did not start the observer here
 const printer = new Observer(() => {
-  // Manually calls capitalizer like a function which actives it
+  // Manually calls capitalizer like a function which activates it
   // As well as accesses its return value as a dependency
   console.log(capitalizer())
 })() // Starts printer which starts capitalizer
@@ -273,7 +273,7 @@ parameterizedObserver('beep', 'bop') // Prints bazbeepbop
 reactor.foo = 'bla' // Prints blabeepbop
 ```
 
-Observers can also use and remember the last `this` context. Note that just like normal functions, for the `this` context to be bound to the holding object, it needs to be defined with the traditional `function` keyboard instead of es6 arrow functions.
+Observers can also use and remember the last `this` context. Note that just like normal functions, for the `this` context to be bound to the holding object, it needs to be defined with the traditional `function` keyword instead of es6 arrow functions.
 ```javascript
 const holdingObject = {
   name: 'Mario',
@@ -293,7 +293,7 @@ Sometimes you might want to read from a reactor without becoming dependent on it
 ```javascript
 const taskList = new Reactor(["a", "b", "c", "d"])
 
-// Creating the following observer will throw a LoopError
+// Creating the following observer will cause an infinite loop
 // Because it both reads from and modifies the length property of taskList
 // As a result it triggers itself in the middle of execution
 // This loop is detected and creates an exception
@@ -312,7 +312,7 @@ new Observer(() => {
 
   console.log(
     // Because we wrap pop() call in an hide block
-    // It is not create a depndency on the length property
+    // It should not create a depndency on the length property
     // Unlike our previous example
     hide(() => taskList.pop())
   )
@@ -337,14 +337,14 @@ By setting this property you can change an observers internal logic. Doing so cl
 
 ```javascript
 const reactor = new Reactor({ foo: "bar" })
-let observerToBeOverriden = new Observer((arg) => {
+let observerToBeOverridden = new Observer((arg) => {
   console.log(reactor.foo, 'and', arg)
 })
-observerToBeOverriden('blap') // prints "bar and blap"
+observerToBeOverridden('blap') // prints "bar and blap"
 reactor.foo = "moo" // prints "moo and blap"
 
 // Setting the execute property replaces the old function
-observerToBeOverriden.execute = (arg) => {
+observerToBeOverridden.execute = (arg) => {
   console.log("I am saying", arg, reactor.foo)
 } // prints "I am saying blap moo"
 reactor.foo = "blep" // prints "I am saying blap blep"
@@ -399,7 +399,7 @@ batch(() => {
 
 This is useful when you are making multiple data updates and want to avoid showing an "incomplete" view of the data to observers.
 
-Note that only the observer triggering is postponed till the end. The actual reactor propertes are updated in place as expected. This means that you can have other logic with read-what-you-write semantics within the observer block working just fine.
+Note that only the observer triggering is postponed till the end. The actual reactor properties are updated in place as expected. This means that you can have other logic with read-what-you-write semantics within the observer block working just fine.
 
 Summary
 -------
@@ -480,7 +480,7 @@ batch(() => {
 }) // prints 'Look its Bruce Wayne'
 
 // shuck removes the Reactor layer and returns the base object
-// This is necessary for some native objects which dont work with proxies
+// This is necessary for some native objects which don't work with proxies
 const mapReactor = new Reactor(new Map())
 Map.prototype.keys.call(mapReactor) // throws an Error
 Map.prototype.keys.call(shuck(mapReactor)) // works fine
