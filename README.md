@@ -1,7 +1,7 @@
 Reactor.js
 ==========
 
-Reactor.js is a simple library for [reactive programming](http://en.wikipedia.org/wiki/Reactive_programming). It provides 
+Reactor.js is a simple library for [reactive programming](http://en.wikipedia.org/wiki/Reactive_programming). It provides
 - `Reactor` objects that store reactive variables
 - `Observer` functions that automatically track the reactive variables that they use and retrigger if any of these variables are updated
 
@@ -20,14 +20,10 @@ reactor.foo = 'moo' // prints "foo is moo"
 - When an `Observer` reads a `Reactor` it registers itself as a dependent
 - When a `Reactor` is updated it automatically retriggers the dependent `Observer` functions
 
-Reactor.js is meant to be unobtrusive and unopinionated. 
+Reactor.js is meant to be unobtrusive and unopinionated.
 - No special syntax to learn. Everything is just plain javascript
-- There is no need to manually declare listeners or bindings. Reactor.js automatically keeps track of all that for you. 
+- There is no need to manually declare listeners or bindings. Reactor.js automatically keeps track of all that for you.
 - It imposes no particular structure on your code. Any variable can be easily replaced with a reactive one without changing the rest of your codebase.
-
-If you want to see Reactor.js in action, take a look at this [example todo list](https://jsfiddle.net/jgt46s0a/39/)
-
-Note: v2 of Reactor.js previously had some UI elements. This has been split out into a separate project [Elementary](https://github.com/fynyky/elementary) that is built ontop of Reactor.js. For v3 Reactor is focusing on just the core reactive components.
 
 Installation
 ------------
@@ -39,13 +35,7 @@ $ npm install reactorjs
 
 Import it using:
 ```javascript
-import {
-  Reactor,
-  Observer,
-  hide,
-  batch,
-  shuck
-}  from 'reactorjs'
+import { Reactor, Observer,  hide, batch, shuck }  from 'reactorjs'
 ```
 
 It is also available directly from [unpkg](unpkg.com). You can import it in javascript using
@@ -239,7 +229,7 @@ const capitalizer = new Observer(() => {
 const printer = new Observer(() => {
   // Manually calls capitalizer like a function which actives it
   // As well as accesses its return value as a dependency
-  console.log(capitalizer()) 
+  console.log(capitalizer())
 })() // Starts printer which starts capitalizer
 reactor.foo = 'baz' // Prints 'BAZ'
 ```
@@ -290,7 +280,7 @@ parameterizedObserver('beep', 'bop') // Prints bazbeepbop
 reactor.foo = 'bla' // Prints blabeepbop
 ```
 
-Observers can also use and remember the last `this` context. Note that just like normal functions, for the `this` context to be bound to the holding object, it needs to be defined with the traditional `function` keyboard instead of es6 arrow functions. 
+Observers can also use and remember the last `this` context. Note that just like normal functions, for the `this` context to be bound to the holding object, it needs to be defined with the traditional `function` keyboard instead of es6 arrow functions.
 ```javascript
 const holdingObject = {
   name: 'Mario',
@@ -317,7 +307,7 @@ const taskList = new Reactor(["a", "b", "c", "d"])
 new Observer(() => {
   // Even though we only want to modify the array
   // pop() also reads the length property of the array
-  console.log(taskList.pop()) 
+  console.log(taskList.pop())
 })()
 ```
 
@@ -332,7 +322,7 @@ new Observer(() => {
     // It is not create a depndency on the length property
     // Unlike our previous example
     hide(() => taskList.pop())
-  ) 
+  )
 
 })() // prints "d"
 
@@ -350,7 +340,7 @@ const observer = new Observer(myFunction)
 myFunction === observer.execute // true
 ```
 
-By setting this property you can change an observers internal logic. Doing so clears dependencies and retriggers the observer. Note that the previous `this` and arguments contexts will stay. 
+By setting this property you can change an observers internal logic. Doing so clears dependencies and retriggers the observer. Note that the previous `this` and arguments contexts will stay.
 
 ```javascript
 const reactor = new Reactor({ foo: "bar" })
@@ -371,29 +361,29 @@ reactor.foo = "blep" // prints "I am saying blap blep"
 One problem with automatic watchers is that you might end up with multiple repeated triggering when you're updating a whole lot of information all at once. The following code shows an example where you want to update multiple properties, but each property update prematurely triggers the observer since you are not done updating yet.
 
 ```javascript
-const person = new Reactor({ 
+const person = new Reactor({
   firstName: "Anakin",
   lastName: "Skywalker",
   faction: "Jedi",
   rank: "Knight"
 })
 
-// This observer tracks multiple properties 
+// This observer tracks multiple properties
 // and so will be triggered when any of the properties get updated
 const observer = new Observer(() => {
   console.log(
     "I am " +
-    person.firstName + 
-    " " + 
-    person.lastName + 
-    ", " + 
-    person.faction + 
-    " " + 
+    person.firstName +
+    " " +
+    person.lastName +
+    ", " +
+    person.faction +
+    " " +
     person.rank
   )
 })() // prints "I am Anakin Skywalker, Jedi Knight"
 
-// The following updates will each trigger the observer even though we only 
+// The following updates will each trigger the observer even though we only
 // want to trigger the observer once all the updates are complete
 person.firstName = "Darth" // prints "I am Darth Skywalker, Jedi Knight"
 person.lastName = "Vader" // prints "I am Darth Vader, Jedi Knight"
@@ -407,7 +397,7 @@ The `batch` function is provided to allow you to batch multiple updates together
 // Triggers are deduplicated so any observer is triggered at most once
 batch(() => {
   // None of the following updates will trigger the observer yet
-  person.firstName = "Darth" 
+  person.firstName = "Darth"
   person.lastName = "Vader"
   person.faction = "Sith"
   person.rank = "Lord"
@@ -418,7 +408,7 @@ This is useful when you are making multiple data updates and want to avoid showi
 
 Note that only the observer triggering is postponed till the end. The actual reactor propertes are updated in place as expected. This means that you can have other logic with read-what-you-write semantics within the observer block working just fine.
 
-Summary 
+Summary
 -------
 ```javascript
 import { Reactor, Observer, hide, batch, shuck } from 'reactorjs'
@@ -426,7 +416,7 @@ import { Reactor, Observer, hide, batch, shuck } from 'reactorjs'
 const reactor = new Reactor({ foo: 'bar' })
 const observer = new Observer(() => {
   const result = 'reactor.foo is ' + reactor.foo // Sets a dependency on foo
-  console.log(result) 
+  console.log(result)
   return result
 })
 observer() // Prints 'reactor.foo is bar' and starts the observer
@@ -492,7 +482,7 @@ new Observer(() => {
 })() // Prints 'Look its Clark Kent'
 batch(() => {
   // None of the following updates will trigger the observer yet
-  person.firstName = "Bruce" 
+  person.firstName = "Bruce"
   person.lastName = "Wayne"
 }) // prints 'Look its Bruce Wayne'
 
