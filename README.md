@@ -168,13 +168,6 @@ new Observer(() => {
 })() // prints "hello world" and starts the observer
 ```
 
-For further simplicity the shorthand `ob` is also provided that is equivalent to `new Observer`
-```javascript
-ob(() => {
-  console.log("hello world")
-})() // prints "hello world" and starts the observer
-```
-
 When an `Observer` reads a `Reactor` property it gets saved as a dependent. When that property is updated it notifies the observer which reruns its function. This happens automatically without any need to manually declare dependencies.
 ```javascript
 const reactor = new Reactor()
