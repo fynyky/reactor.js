@@ -1,5 +1,2 @@
 .DS_Store
-.parcel-cache
-dist
 node_modules
-notes.js

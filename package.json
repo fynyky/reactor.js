@@ -16,16 +16,12 @@
   ],
   "devDependencies": {
     "mocha": "^10.1.0",
-    "parcel": "^2.8.1",
     "standard": "^17.0.0"
   },
   "scripts": {
     "lint": "standard --fix",
-    "build": "rm -rf dist/ && parcel build",
-    "prepare": "npm run build",
-    "pretest": "npm run build",
     "test": "standard && mocha test/test.js",
-    "prepublishOnly": "npm test"
+    "prepare": "npm test"
   },
   "repository": {
     "type": "git",
