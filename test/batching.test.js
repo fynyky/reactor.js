@@ -13,7 +13,7 @@ import {
   // hide,
   batch
   // shuck
-} from '../src/reactor.js'
+} from '../src/index.js'
 
 describe('Batching', () => {
   it('consolidates duplicate observer triggers within a batch', () => {

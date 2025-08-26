@@ -13,7 +13,7 @@ import {
   // hide,
   // batch,
   shuck
-} from '../src/reactor.js'
+} from '../src/index.js'
 
 describe('Observer', () => {
   describe('initializes with a function and returns it wrapped in an observer', () => {

@@ -13,7 +13,7 @@ import {
   // hide,
   // batch,
   shuck
-} from '../src/reactor.js'
+} from '../src/index.js'
 
 describe('Reactor', () => {
   describe('initializes with an object and returns it wrapped in a reactor', () => {

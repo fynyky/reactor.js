@@ -13,7 +13,7 @@ import {
   hide
   // batch,
   // shuck
-} from '../src/reactor.js'
+} from '../src/index.js'
 
 describe('Hiding', () => {
   it('does not create dependencies inside hide block', () => {

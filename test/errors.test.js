@@ -13,7 +13,7 @@ import {
   // hide,
   // batch,
   // shuck
-} from '../src/reactor.js'
+} from '../src/index.js'
 
 describe('Error Handling', () => {
   it('throws an error on an update if there is an observer throws an error', () => {
