@@ -35,7 +35,7 @@ $ npm install reactorjs
 
 Import it using:
 ```javascript
-import { Reactor, Observer, hide, batch, shuck }  from 'reactorjs'
+import { Reactor, Observer, hide, batch, shuck } from 'reactorjs'
 ```
 
 It is also available directly from [unpkg](unpkg.com). You can import it in javascript using
@@ -312,7 +312,7 @@ new Observer(() => {
 
   console.log(
     // Because we wrap pop() call in an hide block
-    // It should not create a depndency on the length property
+    // It does not create a dependency on the length property
     // Unlike our previous example
     hide(() => taskList.pop())
   )
@@ -490,6 +490,6 @@ Development & Testing
 ---------------------
 Tests are stored in `test.js` to be run using Mocha.
 
-Run `npm install` to install the the dev dependencies.
+Run `npm install` to install the dev dependencies.
 
 To run the tests run `npm test`.
