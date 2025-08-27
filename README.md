@@ -274,6 +274,7 @@ reactor.foo = 'bla' // prints blabeepbop
 ```
 
 Observers can also use and remember the last `this` context. Note that just like normal functions, for the `this` context to be bound to the holding object, it needs to be defined with the traditional `function` keyword instead of ES6 arrow functions:
+
 ```javascript
 const holdingObject = {
   name: 'Mario',
@@ -284,6 +285,14 @@ const holdingObject = {
 holdingObject.greet() // prints "Hello bla itsa me Mario"
 reactor.foo = 'bonk' // prints "Hello bonk itsa me Mario"
 holdingObject.name = 'Luigi' // prints nothing since holdingObject is not a Reactor
+```
+
+If you ever need to access the raw function the observer is wrapping, you do so by using `shuck`:
+
+```javascript
+const myFunction = () => {}
+const observer = new Observer(myFunction)
+myFunction === shuck(observer) // true
 ```
 
 ### Hide
@@ -320,32 +329,6 @@ taskList.push("e") // does not trigger the observer
 ```
 
 Note that only the reads inside the hide block are shielded from creating dependencies. The rest of the observe block still creates dependencies as normal.
-
-### Overrides
-If you need to access the raw function the observer is wrapping, you do so with the `execute` property:
-
-```javascript
-const myFunction = () => {}
-const observer = new Observer(myFunction)
-myFunction === observer.execute // true
-```
-
-By setting this property, you can change an observer's internal logic. Doing so clears dependencies and retriggers the observer. Note that the previous `this` and arguments contexts will stay:
-
-```javascript
-const reactor = new Reactor({ foo: "bar" })
-let observerToBeOverridden = new Observer((arg) => {
-  console.log(reactor.foo, 'and', arg)
-})
-observerToBeOverridden('blap') // prints "bar and blap"
-reactor.foo = "moo" // prints "moo and blap"
-
-// Setting the execute property replaces the old function
-observerToBeOverridden.execute = (arg) => {
-  console.log("I am saying", arg, reactor.foo)
-} // prints "I am saying blap moo"
-reactor.foo = "blep" // prints "I am saying blap blep"
-```
 
 ### Batching
 One problem with automatic watchers is that you might end up with multiple repeated triggering when you're updating a lot of information all at once. The following code shows an example where you want to update multiple properties, but each property update prematurely triggers the observer since you are not done updating yet:
