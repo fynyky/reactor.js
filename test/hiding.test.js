@@ -13,7 +13,7 @@ import {
   hide
   // batch,
   // shuck
-} from '../src/index.js'
+} from '../index.js'
 
 describe('Hiding', () => {
   it('does not create dependencies inside hide block', () => {

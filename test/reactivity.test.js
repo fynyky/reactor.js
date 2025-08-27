@@ -13,7 +13,7 @@ import {
   // hide,
   // batch,
   shuck
-} from '../src/index.js'
+} from '../index.js'
 
 describe('Reactivity', () => {
   describe('Observers are inactive until they are run', () => {

@@ -2,10 +2,14 @@
   "name": "reactorjs",
   "version": "3.1.0",
   "description": "Simple reactive programming without frameworks",
-  "main": "src/index.js",
+  "type": "module",
+  "main": "index.js",
   "files": [
-    "src/index.js"
+    "index.js"
   ],
+  "dependencies": {
+    "weak-ref-collections": "^1.2.3"
+  },
   "devDependencies": {
     "mocha": "^10.1.0",
     "standard": "^17.0.0"
@@ -41,9 +45,5 @@
   "bugs": {
     "url": "https://github.com/fynyky/reactor.js/issues"
   },
-  "homepage": "https://github.com/fynyky/reactor.js#readme",
-  "type": "module",
-  "dependencies": {
-    "weak-ref-collections": "^1.2.3"
-  }
+  "homepage": "https://github.com/fynyky/reactor.js#readme"
 }

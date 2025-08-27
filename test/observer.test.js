@@ -13,7 +13,7 @@ import {
   // hide,
   // batch,
   shuck
-} from '../src/index.js'
+} from '../index.js'
 
 describe('Observer', () => {
   describe('initializes with a function and returns it wrapped in an observer', () => {

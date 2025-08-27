@@ -13,7 +13,7 @@ import {
   // hide,
   // batch,
   // shuck
-} from '../src/index.js'
+} from '../index.js'
 
 describe('Complex Setups', () => {
   it('can chain observers off each other', () => {

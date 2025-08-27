@@ -13,7 +13,7 @@ import {
   // hide,
   // batch,
   shuck
-} from '../src/index.js'
+} from '../index.js'
 
 describe('Signal', () => {
   describe('initializes with any single value', () => {
