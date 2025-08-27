@@ -1,6 +1,6 @@
 {
   "name": "reactorjs",
-  "version": "2.1.2",
+  "version": "3.1.0",
   "description": "Simple reactive programming without frameworks",
   "main": "src/index.js",
   "files": [
