@@ -31,8 +31,6 @@ describe('Reactor', () => {
       assert.strictEqual(shuck(reactor), func)
     })
 
-    it('initializes with a promise') // TODO: Figure out promises
-
     it('initializes with no arguments automatically making an object and returning it wrapped in a reactor', () => {
       const reactor = new Reactor()
       assert(Reactors.has(reactor))

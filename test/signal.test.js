@@ -29,7 +29,6 @@ describe('Signal', () => {
     it('initializes with undefined', () => new Signal(undefined))
     it('initializes with an object', () => new Signal({}))
     it('initializes with a function', () => new Signal(() => {}))
-    it('initializes with a promise') // TODO: Figure out promises
     it('initializes with no arguments', () => new Signal())
     it('throws an error when initialized with multiple arguments', () => {
       assert.throws(() => new Signal('foo', 'bar'), {
@@ -116,9 +115,6 @@ describe('Signal', () => {
         assert(Reactors.has(result))
         assert.strictEqual(shuck(result), dummyFunction)
       })
-
-      // TODO figure out promises
-      it('returns a promise')
     })
   })
 
@@ -248,8 +244,6 @@ describe('Signal', () => {
       assert.strictEqual(shuck(readReturn), value)
       assert.strictEqual(writeReturn, readReturn)
     })
-
-    it('updates with a Promise') // TODO: Figure out promises
 
     it('throws an error when called with multiple arguments', () => {
       const signal = new Signal()

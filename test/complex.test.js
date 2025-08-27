@@ -41,41 +41,6 @@ describe('Complex Setups', () => {
     assert.strictEqual(thirdObserver.value, '!!!baz!!!')
   })
 
-  it.skip('triggers observers once per write for triangle dependencies', () => {
-    // We have the following triangle dependency
-    // reactor -> first -> second
-    // reactor -> second
-    // Ideally we have reactor trigger first then second
-    // However, a naive depth first implementation would trigger first when in turn trigger second
-    // then go back to trigger second again because it's a dependency of reactor as well
-    // So we have an observer unnecessarily triggering twice off a single write
-    // Right now this is the naive implementation
-    let firstRunCount = 0
-    let secondRunCount = 0
-    const reactor = new Reactor({
-      foo: 'bar'
-    })
-    const firstObserver = new Observer(() => {
-      firstRunCount += 1
-      return reactor.foo.toUpperCase()
-    })
-    firstObserver()
-    assert.strictEqual(firstRunCount, 1)
-    assert.strictEqual(firstObserver.value, 'BAR')
-    const secondObserver = new Observer(() => {
-      secondRunCount += 1
-      return reactor.foo + firstObserver.value
-    })
-    secondObserver()
-    assert.strictEqual(secondRunCount, 1)
-    assert.strictEqual(secondObserver.value, 'barBAR')
-    reactor.foo = 'baz'
-    assert.strictEqual(firstRunCount, 2)
-    assert.strictEqual(firstObserver.value, 'BAZ')
-    assert.strictEqual(secondRunCount, 2)
-    assert.strictEqual(secondObserver.value, 'bazBAZ')
-  })
-
   it('does not trivially infinite loop when an observer calls another', () => {
     // Trivial case
     // observer2 = observer1() + 1
@@ -113,48 +78,6 @@ describe('Complex Setups', () => {
     assert.strictEqual(secondRunCount, 2)
     assert.deepEqual(firstObserver.value, ['baz'])
     assert.strictEqual(secondObserver.value, 'baz1')
-  })
-
-  it.skip('does not infinite loop with three observers calling each other like functions', () => {
-    // This is a more complex case
-    // observer2 = observer1() + 1
-    // observer3 = observer1() + observer2()
-    // So observer1 triggers observer2 which triggers observer3
-    // Then observer3 triggers observer2 which does not loop because it is rebuilding dependencies when it sets its value
-    // But observer3 triggers observer1 which still triggers observer2 which still triggers observer3
-    let firstRunCount = 0
-    let secondRunCount = 0
-    let thirdRunCount = 0
-    const reactor = new Reactor({
-      foo: 'bar'
-    })
-    const firstObserver = new Observer(() => {
-      firstRunCount += 1
-      if (firstRunCount > 100) throw new Error('infinite loop detected')
-      return [reactor.foo]
-    })
-    firstObserver()
-    const secondObserver = new Observer(() => {
-      secondRunCount += 1
-      if (secondRunCount > 100) throw new Error('infinite loop detected')
-      return [firstObserver() + 'baz']
-    })
-    secondObserver()
-    const thirdObserver = new Observer(() => {
-      thirdRunCount += 1
-      if (thirdRunCount > 100) throw new Error('infinite loop detected')
-      return [firstObserver() + secondObserver()]
-    })
-    thirdObserver()
-    // assert.strictEqual(firstRunCount, 2)
-    // assert.strictEqual(secondRunCount, 1)
-    // assert.deepEqual(firstObserver.value, ['bar'])
-    // assert.strictEqual(secondObserver.value, 'bar1')
-    // reactor.foo = 'baz'
-    // assert.strictEqual(firstRunCount, 4)
-    // assert.strictEqual(secondRunCount, 2)
-    // assert.deepEqual(firstObserver.value, ['baz'])
-    // assert.strictEqual(secondObserver.value, 'baz1')
   })
 
   it('can create observers inside other observers', () => {
