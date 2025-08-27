@@ -546,19 +546,6 @@ class Observer extends Function {
         return false
       },
 
-      // Redefines the observer with a new exec function
-      // Maintains the context, Signal dependents, and awake status
-      redefine (newExecute) {
-        if (typeof newExecute !== 'function') {
-          throw new TypeError('Cannot create observer with a non-function')
-        }
-        this.clearDependencies()
-        this.execute = newExecute
-        // If awake this will update the value Signal and notify observers downstream
-        // If alseep this will correctly do nothing leaving value to the last triggered value
-        return this.trigger()
-      },
-
       // Pause the observer preventing further triggers
       // Returns false if it was already asleep
       // Returns true if it was awake
@@ -612,12 +599,6 @@ class Observer extends Function {
     observerInterface.setArgsContext = (...args) => {
       observerCore.argsContext = args
     }
-    // Expose the wrapped execute function and restart the observer
-    // Setting it keeps the context and dependents
-    Object.defineProperty(observerInterface, 'execute', {
-      get () { return observerCore.execute },
-      set (newValue) { return observerCore.redefine(newValue) }
-    })
     // Allow reads of the last return value of execute
     // As a Signal this itself is observable and
     // builds dependencies if done within another observer

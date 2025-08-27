@@ -232,14 +232,6 @@ describe('Observer', () => {
     })
   })
 
-  describe('exposes the wrapped function through the execute property', () => {
-    it('', () => {
-      const dummyFunction = function () {}
-      const observer = new Observer(dummyFunction)
-      assert.strictEqual(observer.execute, dummyFunction)
-    })
-  })
-
   describe('exposes the last return value throught the value property', () => {
     it('exposes the last derived value for primitive values', () => {
       let counter = 0
