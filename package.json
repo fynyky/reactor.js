@@ -2,17 +2,9 @@
   "name": "reactorjs",
   "version": "2.1.2",
   "description": "Simple reactive programming without frameworks",
-  "source": "src/index.js",
-  "main": "dist/index.js",
-  "targets": {
-    "main": {
-      "context": "browser",
-      "includeNodeModules": true,
-      "optimize": true
-    }
-  },
+  "main": "src/index.js",
   "files": [
-    "dist/index.*"
+    "src/index.js"
   ],
   "devDependencies": {
     "mocha": "^10.1.0",
@@ -21,14 +13,28 @@
   "scripts": {
     "lint": "standard --fix",
     "test": "standard && mocha test/test.js",
-    "prepare": "npm test"
+    "prepublishOnly": "npm test"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/fynyky/reactor.js.git"
   },
   "keywords": [
-    "reactive"
+    "reactive",
+    "reactivity",
+    "signals",
+    "observers",
+    "state-management",
+    "observable",
+    "dependency-tracking",
+    "automatic-updates",
+    "proxy-based",
+    "vanilla-js",
+    "reactive-programming",
+    "data-binding",
+    "change-detection",
+    "computed-values",
+    "derived-state"
   ],
   "author": "Hongyi Li",
   "license": "MIT",
