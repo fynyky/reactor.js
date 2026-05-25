@@ -196,14 +196,14 @@ describe('Reactor', () => {
       const object = { foo: 'bar' }
       const reactor = new Reactor(object)
       delete reactor.foo
-      assert.equal(object.foo, undefined)
+      assert.strictEqual(object.foo, undefined)
     })
 
     it('deletes properties from itself', () => {
       const object = { foo: 'bar' }
       const reactor = new Reactor(object)
       delete reactor.foo
-      assert.equal(reactor.foo, undefined)
+      assert.strictEqual(reactor.foo, undefined)
     })
 
     it('works with Object.defineProperty', () => {
@@ -334,28 +334,10 @@ describe('Reactor', () => {
       assert.deepStrictEqual(shuck(result), [5, 4, 3, 1, 1])
     })
 
-    it.skip('works with Array.prototype.flat()', () => {
+    it('works with Array.prototype.flat()', () => {
       const reactor = new Reactor([1, [2, 3], [4, [5, 6]]])
-      const result = reactor.flat()
-      // Interesting edge case here
-      // Flat returns a new array with the subarrays being reactor wrapped too
-      // But the subarrays are reactor wrapped even in the internal object
-      // This is because flat is constructing them from reactor reads
-      // Making the apply call use the internal object as `this` solves this
-      // but it breaks a bunch of other stuff
-      // TODO find a way to fix this
-      assert.deepStrictEqual(shuck(result), [1, 2, 3, 4, [5, 6]])
+      assert.deepStrictEqual(reactor.flat(), [1, 2, 3, 4, [5, 6]])
     })
-
-    // it('test flat', () => {
-    //   const array = [1, [2, 3], [4, [5, 6]]]
-    //   const result = array.flat()
-    //   const original56 = array[2][1]
-    //   const result56 = result[4]
-    //   console.log(original56, result56)
-    //   assert(original56 === result56)
-    //   assert.strictEqual(array[2][1], result[4])
-    // })
 
     it('works with Array.prototype.flatMap()', () => {
       const reactor = new Reactor([1, 2, 3])
