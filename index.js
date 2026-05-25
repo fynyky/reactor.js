@@ -244,7 +244,24 @@ class Reactor {
           // `proxiedMap.keys()` will work because keys gets wrapped by this handler
           // `Map.prototype.keys.call(proxiedMap)` won't work because it doesnt get wrapped
           try {
-            return Reflect.apply(this.source, thisArg, argumentsList)
+            const result = Reflect.apply(this.source, thisArg, argumentsList)
+            // flat() reads elements through the proxy to build dependencies correctly,
+            // but sub-arrays at the un-flattened cut-off depth end up reactor-wrapped
+            // in the result because they were read from inner reactor proxies.
+            // Calling flat() on the raw source instead would avoid this, but it
+            // bypasses the proxy entirely so no dependencies are built.
+            // Instead we call on the proxy and then unwrap any reactor-wrapped arrays
+            // left in the result.
+            if (this.source === Array.prototype.flat && Array.isArray(result)) {
+              const unwrapReactorArrays = (el) => {
+                if (!Reactors.has(el)) return el
+                const source = reactorCoreExtractor.get(el).source
+                if (!Array.isArray(source)) return el
+                return source.map(unwrapReactorArrays)
+              }
+              return result.map(unwrapReactorArrays)
+            }
+            return result
           } catch (error) {
             if (error.name === 'TypeError' && error.message.includes('called on incompatible receiver #')) {
               const core = reactorCoreExtractor.get(thisArg)
