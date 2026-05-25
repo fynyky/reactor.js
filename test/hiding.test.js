@@ -1,7 +1,7 @@
 /* eslint-env mocha */
 import assert from 'assert'
 import {
-  // Signal,
+  Signal,
   Reactor,
   Observer,
   // Signals,
@@ -95,6 +95,12 @@ describe('Hiding', () => {
     })()
     assert.strictEqual(runCount, 1)
     assert.strictEqual(runValue, 'c')
+  })
+
+  it('can read reactive values outside an observer without error', () => {
+    const signal = new Signal('foo')
+    const result = hide(() => signal())
+    assert.strictEqual(result, 'foo')
   })
 
   it('throws an error if the hide function is not called with a function', () => {

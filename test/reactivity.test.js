@@ -136,6 +136,21 @@ describe('Reactivity', () => {
       assert.deepEqual(runValue, ['foo', 'baz'])
     })
 
+    it('builds a dependency when using Object.keys and triggers on property deletion', () => {
+      let runCount = 0
+      let runValue
+      const reactor = new Reactor({ foo: 'bar', baz: 'qux' })
+      new Observer(() => {
+        runCount += 1
+        runValue = Object.keys(reactor)
+      })()
+      assert.strictEqual(runCount, 1)
+      assert.deepEqual(runValue, ['foo', 'baz'])
+      delete reactor.foo
+      assert.strictEqual(runCount, 2)
+      assert.deepEqual(runValue, ['baz'])
+    })
+
     it('builds a dependency when using the in operator', () => {
       let runCount = 0
       let runValue

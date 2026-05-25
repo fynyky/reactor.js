@@ -276,6 +276,11 @@ describe('Batching', () => {
     assert.strictEqual(runCount, 2)
   })
 
+  it('returns the return value of the batch function', () => {
+    const result = batch(() => 'foo')
+    assert.strictEqual(result, 'foo')
+  })
+
   it('throws an error if the batch function it is called with no arguments', () => {
     assert.throws(() => batch(), {
       name: 'Error',
