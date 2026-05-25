@@ -1,0 +1,19 @@
+{
+  "name": "Dev",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "App",
+      "onAutoForward": "openPreview"
+    }
+  },
+  "postCreateCommand": "npm install && npm install -g @anthropic-ai/claude-code",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code"
+      ]
+    }
+  }
+}
