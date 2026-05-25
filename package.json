@@ -7,12 +7,16 @@
   "files": [
     "index.js"
   ],
+  "overrides": {
+    "serialize-javascript": "7.0.5",
+    "diff": "^9.0.0"
+  },
   "dependencies": {
-    "weak-ref-collections": "^1.2.3"
+    "weak-ref-collections": "^1.2.4"
   },
   "devDependencies": {
-    "mocha": "^10.1.0",
-    "standard": "^17.0.0"
+    "mocha": "^11.7.6",
+    "standard": "^17.1.2"
   },
   "scripts": {
     "lint": "standard --fix",
