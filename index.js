@@ -214,7 +214,7 @@ class Reactor {
 
     // Early rejection for non-objects
     // Could be handled later by proxy creation, but cleaner to have the logic here
-    // Can use the same function as Signal does for it's wrapping
+    // Can use the same function as Signal does for its wrapping
     if (!isObject(initializedSource)) {
       throw new TypeError('Reactor source must be an Object')
     }
@@ -270,7 +270,7 @@ class Reactor {
       get (property, receiver) {
         // Disable unnecessary wrapping for unmodifiable properties
         // Needed because Array prototype checking fails if wrapped
-        // Specificaly [].map()
+        // Specifically [].map()
         const descriptor = Object.getOwnPropertyDescriptor(
           this.source, property
         )
@@ -285,7 +285,7 @@ class Reactor {
           Object.prototype.hasOwnProperty.call(this.getSignals, property)
             ? this.getSignals[property]
             : new Signal()
-        // User accessor signals to give the actual output
+        // Use accessor signals to give the actual output
         // This enables automatic dependency tracking
         const signalCore = signalCoreExtractor.get(this.getSignals[property])
         signalCore.removeSelf = () => delete this.getSignals[property]
@@ -337,7 +337,7 @@ class Reactor {
       },
 
       // Have a map of dummy Signals to keep track of dependents on has
-      // We don't resuse the get Signals to avoid triggering getters
+      // We don't reuse the get Signals to avoid triggering getters
       hasSignals: {},
       has (property) {
         // Lazily instantiate has signals
@@ -348,7 +348,7 @@ class Reactor {
           Object.prototype.hasOwnProperty.call(this.hasSignals, property)
             ? this.hasSignals[property]
             : new Signal(null)
-        // User accessor signals to give the actual output
+        // Use accessor signals to give the actual output
         // This enables automatic dependency tracking
         const signalCore = signalCoreExtractor.get(this.hasSignals[property])
         signalCore.removeSelf = () => delete this.hasSignals[property]
@@ -498,13 +498,10 @@ class Observer extends Function {
       // Stored return value of the last successful execute
       // Stored in a Signal which makes it observable itself
       value: new Signal(),
-      // Flag on whether this is a unobserve block
-      // Avoids creating dependencies in that case
 
       // Symmetrically removes dependencies
       clearDependencies () {
         // Go upstream to break the connection
-        if (this.dependencies === null) return
         this.dependencies.forEach(dependency => {
           dependency.removeDependent(this)
         })
@@ -568,7 +565,7 @@ class Observer extends Function {
 
     }
 
-    // Public interace to hide the ugliness of how observers work
+    // Public interface to hide the ugliness of how observers work
     // An empty call force triggers the block and turns it on
     // A call with arguments gets those arguments passed as a context
     // for that and future retriggers
@@ -673,7 +670,7 @@ const batch = function (execute) {
     }
 
     return result
-  // No need to do anything if batching is already taking place }
+  // No need to do anything if batching is already taking place
   } else {
     return execute()
   }
