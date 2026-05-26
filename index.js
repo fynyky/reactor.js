@@ -280,39 +280,35 @@ class Reactor {
           const savedPendingOwnKeyChecks = pendingOwnKeyChecks
           pendingOwnKeyChecks = new Set()
           try {
-            try {
-              const result = Reflect.apply(this.source, thisArg, argumentsList)
-              // flat() reads elements through the proxy to build dependencies correctly,
-              // but sub-arrays at the un-flattened cut-off depth end up reactor-wrapped
-              // in the result because they were read from inner reactor proxies.
-              // Calling flat() on the raw source instead would avoid this, but it
-              // bypasses the proxy entirely so no dependencies are built.
-              // Instead we call on the proxy and then unwrap any reactor-wrapped arrays
-              // left in the result.
-              if (this.source === Array.prototype.flat && Array.isArray(result)) {
-                const unwrapReactorArrays = (el) => {
-                  if (!Reactors.has(el)) return el
-                  const source = reactorCoreExtractor.get(el).source
-                  if (!Array.isArray(source)) return el
-                  return source.map(unwrapReactorArrays)
-                }
-                return result.map(unwrapReactorArrays)
+            const result = Reflect.apply(this.source, thisArg, argumentsList)
+            // flat() reads elements through the proxy to build dependencies correctly,
+            // but sub-arrays at the un-flattened cut-off depth end up reactor-wrapped
+            // in the result because they were read from inner reactor proxies.
+            // Calling flat() on the raw source instead would avoid this, but it
+            // bypasses the proxy entirely so no dependencies are built.
+            // Instead we call on the proxy and then unwrap any reactor-wrapped arrays
+            // left in the result.
+            if (this.source === Array.prototype.flat && Array.isArray(result)) {
+              const unwrapReactorArrays = (el) => {
+                if (!Reactors.has(el)) return el
+                const source = reactorCoreExtractor.get(el).source
+                if (!Array.isArray(source)) return el
+                return source.map(unwrapReactorArrays)
               }
-              return result
-            } catch (error) {
-              if (error.name === 'TypeError' && error.message.includes('called on incompatible receiver #')) {
-                const core = reactorCoreExtractor.get(thisArg)
-                if (typeof core !== 'undefined') {
-                  // Note that this.source and core.source are different
-                  // core.source is the underlying object
-                  // this.source is the function which is being called with the object as `this`
-                  return Reflect.apply(this.source, core.source, argumentsList)
-                }
-              }
-              // If any other type of error, or if there's nothing to unwrap throw error anyway
-              // because then its not a problem with Reactor wrapping
-              throw error
+              return result.map(unwrapReactorArrays)
             }
+            return result
+          } catch (error) {
+            if (error.name === 'TypeError' && error.message.includes('called on incompatible receiver #')) {
+              const core = reactorCoreExtractor.get(thisArg)
+              if (typeof core !== 'undefined') {
+                // Note that this.source and core.source are different
+                // core.source is the underlying object
+                // this.source is the function which is being called with the object as `this`
+                return Reflect.apply(this.source, core.source, argumentsList)
+              }
+            }
+            throw error
           } finally {
             for (const reactorCore of pendingOwnKeyChecks) checkReactorOwnKeys(reactorCore)
             pendingOwnKeyChecks = savedPendingOwnKeyChecks
