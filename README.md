@@ -38,7 +38,7 @@ Import it using:
 import { Reactor, Observer, hide, batch, shuck } from 'reactorjs'
 ```
 
-It is also available directly from [unpkg](unpkg.com). You can import it in JavaScript using:
+It is also available directly from [unpkg](https://unpkg.com). You can import it in JavaScript using:
 ```javascript
 import { Reactor, Observer, hide, batch, shuck } from 'https://unpkg.com/reactorjs'
 ```
@@ -266,6 +266,7 @@ observer() // prints "hola"
 Like normal functions, observers can expect and be called with arguments. They remember the arguments from the last time they were called and reuse them when automatically triggered:
 
 ```javascript
+const reactor = new Reactor({ foo: 'baz' })
 const parameterizedObserver = new Observer((arg1, arg2) => {
   console.log(reactor.foo + arg1 + arg2)
 })
@@ -276,6 +277,7 @@ reactor.foo = 'bla' // prints blabeepbop
 Observers can also use and remember the last `this` context. Note that just like normal functions, for the `this` context to be bound to the holding object, it needs to be defined with the traditional `function` keyword instead of ES6 arrow functions:
 
 ```javascript
+const reactor = new Reactor({ foo: 'bla' })
 const holdingObject = {
   name: 'Mario',
   greet: new Observer(function () { // Need to use `function`
@@ -379,7 +381,7 @@ batch(() => {
 
 This is useful when you are making multiple data updates and want to avoid showing an "incomplete" view of the data to observers.
 
-Note that only the observer triggering is postponed until the end. The actual reactor properties are updated in place as expected. This means that you can have other logic with read-what-you-write semantics within the observer block working just fine.
+Note that only the observer triggering is postponed until the end. The actual reactor properties are updated in place as expected. This means that you can have other logic with read-what-you-write semantics within the batch block working just fine.
 
 Summary
 -------
@@ -398,16 +400,16 @@ reactor.foo = 'baz' // prints 'reactor.foo is baz'
 observer.stop()
 reactor.foo = 'qux' // prints nothing since observer is stopped
 
-observer.start() // prints 'reactor.foo is baz'
+observer.start() // prints 'reactor.foo is qux'
 observer.start() // prints nothing since observer is already started
-observer() // prints 'reactor.foo is baz' even if it is already running
+observer() // prints 'reactor.foo is qux' even if it is already running
 
 // Observer return values are themselves observable
 const trailingObserver = new Observer(() => {
   const result = 'Did you hear: ' + observer.value
   console.log(result)
 })
-trailingObserver() // prints 'Did you hear: reactor.foo is baz'
+trailingObserver() // prints 'Did you hear: reactor.foo is qux'
 reactor.foo = 'blorp' // prints 'reactor.foo is blorp' from observer
                       // also prints 'Did you hear: reactor.foo is blorp' from trailingObserver
 
@@ -415,7 +417,7 @@ reactor.foo = 'blorp' // prints 'reactor.foo is blorp' from observer
 const parameterizedObserver = new Observer((arg1, arg2) => {
   console.log(reactor.foo + arg1 + arg2)
 })
-parameterizedObserver('beep', 'bop') // prints bazbeepbop
+parameterizedObserver('beep', 'bop') // prints blorpbeepbop
 reactor.foo = 'bla' // prints blabeepbop
 
 // Observers can also access and remember the last `this` context
@@ -468,7 +470,7 @@ Map.prototype.keys.call(shuck(mapReactor)) // works fine
 
 Development & Testing
 ---------------------
-Tests are stored in `test.js` to be run using Mocha.
+Tests are stored in `test/` to be run using the Node.js built-in test runner.
 
 Run `npm install` to install the dev dependencies.
 

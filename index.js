@@ -6,7 +6,7 @@ import { WeakRefSet } from 'weak-ref-collections'
 // - The reader gets added as a dependent of the readee
 // - The readee gets added as a dependency of the reader
 // - When the signal evaluation is done, the observer pops itself off the stack
-// The stack is used to track the latest signal caller automaticaly
+// The stack is used to track the latest active observer automatically
 // Using a stack allows nested signals to function correctly
 const dependencyStack = []
 
@@ -19,7 +19,7 @@ const reactorCoreExtractor = new WeakMap()
 const observerCoreExtractor = new WeakMap()
 
 // A batcher is used to postpone observer triggers and batch them together
-// When "batch" is called it adds sets a batcher to this global variable
+// When "batch" is called it sets a batcher to this global variable
 // When a Signal is updated it checks if a batcher is set
 // If it is, it adds that observer to this set instead of triggering it
 // At the end of the execution, the batch call then calls all the observers
@@ -42,8 +42,8 @@ const reactorCache = new WeakMap()
 
 // Helper function for checking if something is an object
 function isObject (x) {
-  // functions are objects also but typeof to function
-  // nulls are not objects but typeof to objects
+  // functions are objects but typeof returns 'function'
+  // nulls are not objects but typeof returns 'object'
   // the last bit is to check for nulls
   const type = typeof (x)
   return ((type === 'function' || type === 'object') && !!x)
@@ -507,7 +507,7 @@ class Reactor {
 // b.foo = "bar"
 // let observer = new Observer(() => {        This will trigger whenever
 //   console.log("a is now " + a())          a or b.foo are updated
-//   console.log("b.foois now " + b.foo)
+//   console.log("b.foo is now " + b.foo)
 // })
 // observer()
 // a(2)                                      This will trigger an update
