@@ -117,7 +117,7 @@ describe('Observer', () => {
           message: 'Cannot create observer with a non-function'
         })
       })
-      it('fails to initialize with an array', () => {
+      it('throws an error when initialized with an array', () => {
         assert.throws(() => new Observer([]), {
           name: 'TypeError',
           message: 'Cannot create observer with a non-function'
@@ -222,7 +222,7 @@ describe('Observer', () => {
   })
 
   describe('returns object values wrapped in a reactor', () => {
-    it('', () => {
+    it('returns object values wrapped in a reactor', () => {
       const object = {}
       const observer = new Observer(() => object)
       const result = observer()
@@ -232,7 +232,7 @@ describe('Observer', () => {
     })
   })
 
-  describe('exposes the last return value throught the value property', () => {
+  describe('exposes the last return value through the value property', () => {
     it('exposes the last derived value for primitive values', () => {
       let counter = 0
       const dummyFunction = () => (counter += 1)

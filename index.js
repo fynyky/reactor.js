@@ -244,7 +244,7 @@ class Reactor {
 
     // Early rejection for non-objects
     // Could be handled later by proxy creation, but cleaner to have the logic here
-    // Can use the same function as Signal does for it's wrapping
+    // Can use the same function as Signal does for its wrapping
     if (!isObject(initializedSource)) {
       throw new TypeError('Reactor source must be an Object')
     }
@@ -281,7 +281,24 @@ class Reactor {
           pendingOwnKeyChecks = new Set()
           try {
             try {
-              return Reflect.apply(this.source, thisArg, argumentsList)
+              const result = Reflect.apply(this.source, thisArg, argumentsList)
+              // flat() reads elements through the proxy to build dependencies correctly,
+              // but sub-arrays at the un-flattened cut-off depth end up reactor-wrapped
+              // in the result because they were read from inner reactor proxies.
+              // Calling flat() on the raw source instead would avoid this, but it
+              // bypasses the proxy entirely so no dependencies are built.
+              // Instead we call on the proxy and then unwrap any reactor-wrapped arrays
+              // left in the result.
+              if (this.source === Array.prototype.flat && Array.isArray(result)) {
+                const unwrapReactorArrays = (el) => {
+                  if (!Reactors.has(el)) return el
+                  const source = reactorCoreExtractor.get(el).source
+                  if (!Array.isArray(source)) return el
+                  return source.map(unwrapReactorArrays)
+                }
+                return result.map(unwrapReactorArrays)
+              }
+              return result
             } catch (error) {
               if (error.name === 'TypeError' && error.message.includes('called on incompatible receiver #')) {
                 const core = reactorCoreExtractor.get(thisArg)
@@ -313,7 +330,7 @@ class Reactor {
       get (property, receiver) {
         // Disable unnecessary wrapping for unmodifiable properties
         // Needed because Array prototype checking fails if wrapped
-        // Specificaly [].map()
+        // Specifically [].map()
         const descriptor = Object.getOwnPropertyDescriptor(
           this.source, property
         )
@@ -384,7 +401,7 @@ class Reactor {
       },
 
       // Have a map of dummy Signals to keep track of dependents on has
-      // We don't resuse the get Signals to avoid triggering getters
+      // We don't reuse the get Signals to avoid triggering getters
       // Null-prototype avoids prototype collisions (same rationale as getSignals)
       hasSignals: Object.create(null),
       has (property) {
@@ -392,7 +409,7 @@ class Reactor {
         // Lazily instantiate has signals
         // Safe to use plain property access because hasSignals has no prototype
         if (!this.hasSignals[property]) this.hasSignals[property] = new Signal(null)
-        // User accessor signals to give the actual output
+        // Use accessor signals to give the actual output
         // This enables automatic dependency tracking
         const signalCore = signalCoreExtractor.get(this.hasSignals[property])
         signalCore.removeSelf = () => delete this.hasSignals[property]
@@ -534,13 +551,10 @@ class Observer extends Function {
       // Stored return value of the last successful execute
       // Stored in a Signal which makes it observable itself
       value: new Signal(),
-      // Flag on whether this is a unobserve block
-      // Avoids creating dependencies in that case
 
       // Symmetrically removes dependencies
       clearDependencies () {
         // Go upstream to break the connection
-        if (this.dependencies === null) return
         this.dependencies.forEach(dependency => {
           dependency.removeDependent(this)
         })
@@ -604,7 +618,7 @@ class Observer extends Function {
 
     }
 
-    // Public interace to hide the ugliness of how observers work
+    // Public interface to hide the ugliness of how observers work
     // An empty call force triggers the block and turns it on
     // A call with arguments gets those arguments passed as a context
     // for that and future retriggers
@@ -709,7 +723,7 @@ const batch = function (execute) {
     }
 
     return result
-  // No need to do anything if batching is already taking place }
+  // No need to do anything if batching is already taking place
   } else {
     return execute()
   }
