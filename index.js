@@ -40,6 +40,11 @@ let pendingOwnKeyChecks = null
 // across multiple reads of the same object
 const reactorCache = new WeakMap()
 
+// Accessor functions populated by Signal's static block so that Reactor and
+// module-level helpers can read/write Signal's private fields without exposing
+// them on the public proxy interface.
+const signalAccess = {}
+
 // Helper function for checking if something is an object
 function isObject (x) {
   // functions are objects also but typeof to function
@@ -55,9 +60,9 @@ function isObject (x) {
 // and by trigger() when no apply trap is active (direct property writes).
 function checkReactorOwnKeys (reactor) {
   const selfSignal = signalCoreExtractor.get(reactor.selfSignal)
-  if (selfSignal.dependents.size === 0) return
+  if (signalAccess.getDependents(selfSignal).size === 0) return
   const currentOwnKeysValue = Reflect.ownKeys(reactor.source)
-  const oldOwnKeysValue = selfSignal.value
+  const oldOwnKeysValue = signalAccess.getValue(selfSignal)
   const currentSet = new Set(currentOwnKeysValue)
   const oldSet = new Set(oldOwnKeysValue)
   let changed = currentSet.size !== oldSet.size
@@ -82,10 +87,16 @@ function checkReactorOwnKeys (reactor) {
 // a(2)                           Sets the value to 2
 const Signals = new WeakSet()
 class Signal extends Function {
-  // Signal state — accessed directly by Reactor internals via signalCoreExtractor
-  dependents = new Set()
-  removeSelf = () => {}
-  value = undefined
+  #dependents = new Set()
+  #removeSelf = () => {}
+  #value = undefined
+
+  static {
+    signalAccess.getDependents = (s) => s.#dependents
+    signalAccess.getValue = (s) => s.#value
+    signalAccess.setValue = (s, v) => { s.#value = v }
+    signalAccess.setRemoveSelf = (s, fn) => { s.#removeSelf = fn }
+  }
 
   constructor (initialValue) {
     // Early rejection for multiple arguments
@@ -130,10 +141,10 @@ class Signal extends Function {
     // Symmetrically register dependent/dependency relationship
     const dependent = dependencyStack[dependencyStack.length - 1]
     if (dependent) {
-      this.dependents.add(dependent)
+      this.#dependents.add(dependent)
       dependent.addDependency(this)
     }
-    const output = this.value
+    const output = this.#value
 
     // If it's not an object then just return it right away
     if (isObject(output)) return new Reactor(output)
@@ -150,15 +161,15 @@ class Signal extends Function {
     // since Reactor writes are also batched
     return batch(() => {
       // Avoid triggering observers if same value is written
-      if (this.value === newValue) return (this.value = newValue)
+      if (this.#value === newValue) return (this.#value = newValue)
       // Save the new value
-      const output = (this.value = newValue)
+      const output = (this.#value = newValue)
 
       // Build dependency queue
       // Do not trigger dependents directly and leave it to be handled by the batcher
-      // Iterate the Set directly — we only modify batcher (not this.dependents)
+      // Iterate the Set directly — we only modify batcher (not this.#dependents)
       // so for...of is safe without snapshotting into a temporary Array
-      for (const dependent of this.dependents) {
+      for (const dependent of this.#dependents) {
         // Do this so that the dependent is added to the end of the batcher queue
         // Needed to ensure downstream observers are triggered again when necessary
         // as we iterate through the batched dependents
@@ -174,10 +185,10 @@ class Signal extends Function {
   // Used by observers to remove themselves from this as dependents
   // Also removes self from any owners if there are no more dependents
   removeDependent (dependent) {
-    this.dependents.delete(dependent)
+    this.#dependents.delete(dependent)
     // TODO should we be doing this? clean self up if no dependents
     // What if you want it to stick around for future reads
-    if (this.dependents.size === 0) this.removeSelf()
+    if (this.#dependents.size === 0) this.#removeSelf()
   }
 }
 
@@ -340,8 +351,8 @@ class Reactor {
     // Use accessor signals to give the actual output
     // This enables automatic dependency tracking
     const signal = signalCoreExtractor.get(this.getSignals[property])
-    signal.removeSelf = () => delete this.getSignals[property]
-    signal.value = currentValue
+    signalAccess.setRemoveSelf(signal, () => delete this.getSignals[property])
+    signalAccess.setValue(signal, currentValue)
     return signal.read()
   }
 
@@ -369,9 +380,9 @@ class Reactor {
     if (!this.hasSignals[property]) this.hasSignals[property] = new Signal(null)
     // Use accessor signals to give the actual output
     const signal = signalCoreExtractor.get(this.hasSignals[property])
-    signal.removeSelf = () => delete this.hasSignals[property]
+    signalAccess.setRemoveSelf(signal, () => delete this.hasSignals[property])
     const currentValue = Reflect.has(this.source, property)
-    signal.value = currentValue
+    signalAccess.setValue(signal, currentValue)
     return signal.read()
   }
 
@@ -380,7 +391,7 @@ class Reactor {
     if (dependencyStack.length === 0) return Reflect.ownKeys(this.source)
     const currentKeys = Reflect.ownKeys(this.source)
     const signal = signalCoreExtractor.get(this.selfSignal)
-    signal.value = currentKeys
+    signalAccess.setValue(signal, currentKeys)
     return signal.read()
   }
 
