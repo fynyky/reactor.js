@@ -26,6 +26,14 @@ const observerCoreExtractor = new WeakMap()
 // Then clears the batcher again
 let batcher = null
 
+// Set of reactor cores whose ownKeys need checking before observers fire.
+// Owned by the apply trap: each method call (sort, push, …) initialises a
+// fresh Set, trigger() adds to it, and the apply trap flushes it once in a
+// try/finally — all inside batch's execute, before the observer loop runs.
+// null means no apply trap is currently active; trigger() falls back to an
+// immediate synchronous check in that case.
+let pendingOwnKeyChecks = null
+
 // Cache of objects to their reactor proxies
 // The same object should always get turned into the same Reactor
 // This allows for consistent dependency tracking
@@ -118,7 +126,9 @@ class Signal extends Function {
 
           // Build dependency queue
           // Do not trigger dependents directly and leave it to be handled by the batcher
-          Array.from(this.dependents).forEach(dependent => {
+          // Iterate the Set directly — we only modify batcher (not this.dependents)
+          // so for...of is safe without snapshotting into a temporary Array
+          for (const dependent of this.dependents) {
           // Do this so that the dependent is added to the end of the batcher queue
           // Needed to ensure downstream observers are triggered again when necessary
           // as we iterate through the batched dependents
@@ -126,7 +136,7 @@ class Signal extends Function {
           // But in this case it's necessary as we can't know all the downstream dependents ahead of time
             batcher.delete(dependent)
             batcher.add(dependent)
-          })
+          }
           // If it's not an object then just return it right away
           // Cleaner and faster than the alternative approach of constructing a Reactor
           // and catching an error
@@ -170,6 +180,26 @@ class Signal extends Function {
     signalCore.write(initialValue)
     return signalInterface
   }
+}
+
+// Check whether the key set of a reactor has changed and, if so, update its
+// selfSignal so that any ownKeys-watching observers are notified.
+// Shared by the apply trap (called once per method via pendingOwnKeyChecks)
+// and by trigger() when no apply trap is active (direct property writes).
+function checkReactorOwnKeys (reactorCore) {
+  const selfSignalCore = signalCoreExtractor.get(reactorCore.selfSignal)
+  if (selfSignalCore.dependents.size === 0) return
+  const currentOwnKeysValue = Reflect.ownKeys(reactorCore.source)
+  const oldOwnKeysValue = selfSignalCore.value
+  const currentSet = new Set(currentOwnKeysValue)
+  const oldSet = new Set(oldOwnKeysValue)
+  let changed = currentSet.size !== oldSet.size
+  if (!changed) {
+    for (const key of currentSet) {
+      if (!oldSet.has(key)) { changed = true; break }
+    }
+  }
+  if (changed) reactorCore.selfSignal(currentOwnKeysValue)
 }
 
 // WeakSet of all Reactors to check if something is a Reactor
@@ -233,6 +263,10 @@ class Reactor {
         // This allows compound function calls like "Array.push"
         // to only trigger one round of observer updates
         return batch(() => {
+          // Own the pendingOwnKeyChecks lifecycle for this method call.
+          // Save any outer set (handles nested apply traps), install a fresh
+          // one so trigger() defers into it, then flush exactly once in the
+          // finally — still inside batch's execute, so before observers fire.
           // For native object methods which cant use a Proxy as `this`
           // try again with the underlying object
           // Some limitations if the failed attempt has side effects prior to throwing an error
@@ -243,6 +277,8 @@ class Reactor {
           // Also this still wont fix being unable to pass the proxy to static methods
           // `proxiedMap.keys()` will work because keys gets wrapped by this handler
           // `Map.prototype.keys.call(proxiedMap)` won't work because it doesnt get wrapped
+          const savedPendingOwnKeyChecks = pendingOwnKeyChecks
+          pendingOwnKeyChecks = new Set()
           try {
             const result = Reflect.apply(this.source, thisArg, argumentsList)
             // flat() reads elements through the proxy to build dependencies correctly,
@@ -272,9 +308,10 @@ class Reactor {
                 return Reflect.apply(this.source, core.source, argumentsList)
               }
             }
-            // If any other type of error, or if there's nothing to unwrap throw error anyway
-            // because then its not a problem with Reactor wrapping
             throw error
+          } finally {
+            for (const reactorCore of pendingOwnKeyChecks) checkReactorOwnKeys(reactorCore)
+            pendingOwnKeyChecks = savedPendingOwnKeyChecks
           }
         })
       },
@@ -283,7 +320,9 @@ class Reactor {
       // Reactor properties are read through a trivial Signal
       // This handles dependency tracking and sub-object Reactor wrapping
       // Accessor Signals need to be stored to allow persistent dependencies
-      getSignals: {},
+      // Null-prototype objects avoid prototype-chain collisions on keys like
+      // "constructor" and remove the need for hasOwnProperty.call checks
+      getSignals: Object.create(null),
       get (property, receiver) {
         // Disable unnecessary wrapping for unmodifiable properties
         // Needed because Array prototype checking fails if wrapped
@@ -294,18 +333,7 @@ class Reactor {
         if (descriptor && !descriptor.writable && !descriptor.configurable) {
           return Reflect.get(this.source, property, receiver)
         }
-        // Lazily instantiate accessor signals
-        this.getSignals[property] =
-          // Need to use hasOwnProperty instead of a normal get to avoid
-          // the basic Object prototype properties
-          // e.g. constructor
-          Object.prototype.hasOwnProperty.call(this.getSignals, property)
-            ? this.getSignals[property]
-            : new Signal()
-        // Use accessor signals to give the actual output
-        // This enables automatic dependency tracking
-        const signalCore = signalCoreExtractor.get(this.getSignals[property])
-        signalCore.removeSelf = () => delete this.getSignals[property]
+        // Resolve the raw value first — needed for both paths below
         const currentValue = (() => {
           // Handle getters which require hidden/native properties
           // If putting the proxy as `this` fails then reveal the underlying object
@@ -329,6 +357,21 @@ class Reactor {
             throw error
           }
         })()
+        // Fast path: nothing on the dependency stack means no observer is
+        // tracking reads right now, so signal machinery is unnecessary.
+        // This avoids per-element signal creation overhead in forEach/map
+        // called outside an observer context.
+        if (dependencyStack.length === 0) {
+          if (isObject(currentValue)) return new Reactor(currentValue)
+          return currentValue
+        }
+        // Lazily instantiate accessor signals
+        // Safe to use plain property access because getSignals has no prototype
+        if (!this.getSignals[property]) this.getSignals[property] = new Signal()
+        // User accessor signals to give the actual output
+        // This enables automatic dependency tracking
+        const signalCore = signalCoreExtractor.get(this.getSignals[property])
+        signalCore.removeSelf = () => delete this.getSignals[property]
         signalCore.value = currentValue
         return signalCore.read()
       },
@@ -355,16 +398,13 @@ class Reactor {
 
       // Have a map of dummy Signals to keep track of dependents on has
       // We don't reuse the get Signals to avoid triggering getters
-      hasSignals: {},
+      // Null-prototype avoids prototype collisions (same rationale as getSignals)
+      hasSignals: Object.create(null),
       has (property) {
+        if (dependencyStack.length === 0) return Reflect.has(this.source, property)
         // Lazily instantiate has signals
-        this.hasSignals[property] =
-          // Need to use hasOwnProperty instead of a normal get to avoid
-          // the basic Object prototype properties
-          // e.g. constructor
-          Object.prototype.hasOwnProperty.call(this.hasSignals, property)
-            ? this.hasSignals[property]
-            : new Signal(null)
+        // Safe to use plain property access because hasSignals has no prototype
+        if (!this.hasSignals[property]) this.hasSignals[property] = new Signal(null)
         // Use accessor signals to give the actual output
         // This enables automatic dependency tracking
         const signalCore = signalCoreExtractor.get(this.hasSignals[property])
@@ -376,6 +416,7 @@ class Reactor {
 
       // Subscribe to the overall reactor by reading the dummy signal
       ownKeys () {
+        if (dependencyStack.length === 0) return Reflect.ownKeys(this.source)
         const currentKeys = Reflect.ownKeys(this.source)
         const signalCore = signalCoreExtractor.get(this.selfSignal)
         signalCore.value = currentKeys
@@ -385,29 +426,20 @@ class Reactor {
       // Force dependencies to trigger
       // Hack to do this by trivially "redefining" the signal
       trigger (property) {
-        // Calculate the actual new values observers will receive
-        // This avoids redundant triggering if they were the same
-        const getValue = Reflect.get(this.source, property)
-        const hasValue = Reflect.has(this.source, property)
-        // For ownKeys you need to manually calculate the set comparison
-        const currentOwnKeysValue = Reflect.ownKeys(this.source)
-        const oldOwnKeysValue = signalCoreExtractor.get(this.selfSignal).value
-        const ownKeysChanged = (() => {
-          const currentSet = new Set(currentOwnKeysValue)
-          const oldSet = new Set(oldOwnKeysValue)
-          if (currentSet.size !== oldSet.size) return true
-          for (const key of currentSet) {
-            if (!oldSet.has(key)) return true
-          }
-          return false
-        })()
         // Batch together to avoid redundant triggering for shared observers
         // This might be redundant because the only way this happens is by calling native methods
         // which are already batched anyway. But keeping for safety
         batch(() => {
-          if (this.getSignals[property]) this.getSignals[property](getValue)
-          if (this.hasSignals[property]) this.hasSignals[property](hasValue)
-          if (ownKeysChanged) this.selfSignal(currentOwnKeysValue)
+          // Reflect.get/has are computed lazily — only when a signal for that
+          // property actually exists — so trigger() is cheap for unobserved
+          // properties (e.g. every element write during sort when nobody watches)
+          if (this.getSignals[property]) this.getSignals[property](Reflect.get(this.source, property))
+          if (this.hasSignals[property]) this.hasSignals[property](Reflect.has(this.source, property))
+          // If an apply trap is active it owns pendingOwnKeyChecks and will
+          // flush once after the whole method finishes (O(1) per write).
+          // Otherwise (direct property write, user-level batch()) check now.
+          if (pendingOwnKeyChecks !== null) pendingOwnKeyChecks.add(this)
+          else checkReactorOwnKeys(this)
         })
       }
     }
