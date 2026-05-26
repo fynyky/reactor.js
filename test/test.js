@@ -1,0 +1,10 @@
+/* eslint-env mocha */
+import './signal.test.js'
+import './reactor.test.js'
+import './observer.test.js'
+import './reactivity.test.js'
+import './batching.test.js'
+import './hiding.test.js'
+import './errors.test.js'
+import './features.test.js'
+import './complex.test.js'

@@ -1,109 +1,489 @@
-/* eslint-env mocha */
+import { describe, it } from 'node:test'
 import assert from 'assert'
 import {
+  // Signal,
   Reactor,
-  Observer,
-  hide,
-  batch,
+  // Observer,
+  // Signals,
+  Reactors,
+  // Observers,
+  // signalCoreExtractor,
+  // reactorCoreExtractor,
+  // observerCoreExtractor,
+  // hide,
+  // batch,
   shuck
-} from '../src/reactor.js'
+} from '../index.js'
 
 describe('Reactor', () => {
-  it('initializes without error', () => new Reactor())
+  describe('initializes with an object and returns it wrapped in a reactor', () => {
+    it('initializes with an object returning it wrapped in a reactor', () => {
+      const object = {}
+      const reactor = new Reactor(object)
+      assert(Reactors.has(reactor))
+      assert.strictEqual(shuck(reactor), object)
+    })
 
-  it('initializes exsting object without error', () => new Reactor({}))
+    it('initializes with a function returning it wrapped in a reactor', () => {
+      const func = () => {}
+      const reactor = new Reactor(func)
+      assert(Reactors.has(reactor))
+      assert.strictEqual(shuck(reactor), func)
+    })
 
-  it('fails to initialize with non-object', () => {
-    assert.throws(() => new Reactor(true), {
-      name: 'TypeError',
-      message: 'Cannot create proxy with a non-object as target or handler'
+    it('initializes with no arguments automatically making an object and returning it wrapped in a reactor', () => {
+      const reactor = new Reactor()
+      assert(Reactors.has(reactor))
+      assert.deepEqual(shuck(reactor), {})
     })
-    assert.throws(() => new Reactor(false), {
-      name: 'TypeError',
-      message: 'Cannot create proxy with a non-object as target or handler'
+
+    it('returns the same reactor when initialized with an existing reactor', () => {
+      const object = {}
+      const reactor1 = new Reactor(object)
+      const reactor2 = new Reactor(reactor1)
+      assert(Reactors.has(reactor1))
+      assert(Reactors.has(reactor2))
+      assert.strictEqual(reactor1, reactor2)
+      assert.strictEqual(shuck(reactor1), shuck(reactor2))
+      assert.strictEqual(shuck(reactor1), object)
+      assert.strictEqual(shuck(reactor2), object)
     })
-    assert.throws(() => new Reactor(null), {
-      name: 'TypeError',
-      message: 'Cannot create proxy with a non-object as target or handler'
+
+    it('returns the same reactor when initialized with the same object', () => {
+      const object = {}
+      const reactor1 = new Reactor(object)
+      const reactor2 = new Reactor(object)
+      assert(!Reactors.has(object))
+      assert(Reactors.has(reactor1))
+      assert(Reactors.has(reactor2))
+      assert.strictEqual(reactor1, reactor2)
+      assert.strictEqual(shuck(reactor1), shuck(reactor2))
+      assert.strictEqual(shuck(reactor1), object)
+      assert.strictEqual(shuck(reactor2), object)
     })
-    assert.throws(() => new Reactor(undefined), {
-      name: 'TypeError',
-      message: 'Cannot create proxy with a non-object as target or handler'
-    })
-    assert.throws(() => new Reactor(1), {
-      name: 'TypeError',
-      message: 'Cannot create proxy with a non-object as target or handler'
-    })
-    assert.throws(() => new Reactor(0), {
-      name: 'TypeError',
-      message: 'Cannot create proxy with a non-object as target or handler'
-    })
-    assert.throws(() => new Reactor('a'), {
-      name: 'TypeError',
-      message: 'Cannot create proxy with a non-object as target or handler'
-    })
-    assert.throws(() => new Reactor(''), {
-      name: 'TypeError',
-      message: 'Cannot create proxy with a non-object as target or handler'
-    })
-    assert.throws(() => new Reactor(Symbol('dummyTest')), {
-      name: 'TypeError',
-      message: 'Cannot create proxy with a non-object as target or handler'
+
+    describe('throws an error when initialized with invalid parameters', () => {
+      it('throws an error when initialized with a string', () => {
+        assert.throws(() => new Reactor('foo'), {
+          name: 'TypeError',
+          message: 'Reactor source must be an Object'
+        })
+      })
+      it('throws an error when initialized with a number', () => {
+        assert.throws(() => new Reactor(123), {
+          name: 'TypeError',
+          message: 'Reactor source must be an Object'
+        })
+      })
+      it('throws an error when initialized with a bigint', () => {
+        assert.throws(() => new Reactor(123456789123456789n), {
+          name: 'TypeError',
+          message: 'Reactor source must be an Object'
+        })
+      })
+      it('throws an error when initialized with a symbol', () => {
+        assert.throws(() => new Reactor(Symbol('foo')), {
+          name: 'TypeError',
+          message: 'Reactor source must be an Object'
+        })
+      })
+      it('throws an error when initialized with a boolean true value', () => {
+        assert.throws(() => new Reactor(true), {
+          name: 'TypeError',
+          message: 'Reactor source must be an Object'
+        })
+      })
+      it('throws an error when initialized with a boolean false value', () => {
+        assert.throws(() => new Reactor(false), {
+          name: 'TypeError',
+          message: 'Reactor source must be an Object'
+        })
+      })
+      it('throws an error when initialized with a zero value', () => {
+        assert.throws(() => new Reactor(0), {
+          name: 'TypeError',
+          message: 'Reactor source must be an Object'
+        })
+      })
+      it('throws an error when initialized with an empty string', () => {
+        assert.throws(() => new Reactor(''), {
+          name: 'TypeError',
+          message: 'Reactor source must be an Object'
+        })
+      })
+      it('throws an error when initialized with a null value', () => {
+        assert.throws(() => new Reactor(null), {
+          name: 'TypeError',
+          message: 'Reactor source must be an Object'
+        })
+      })
+      it('throws an error when initialized with an undefined value', () => {
+        assert.throws(() => new Reactor(undefined), {
+          name: 'TypeError',
+          message: 'Reactor source must be an Object'
+        })
+      })
+      it('throws an error when initialized with multiple arguments', () => {
+        assert.throws(() => new Reactor({}, {}), {
+          name: 'Error',
+          message: 'Reactor constructor takes at most one argument'
+        })
+      })
     })
   })
 
-  it('writes without error', () => {
-    const reactor = new Reactor()
-    reactor.foo = 'bar'
-  })
-
-  it('reads without error', () => {
-    const reactor = new Reactor()
-    reactor.foo = 'bar'
-    assert.equal(reactor.foo, 'bar')
-  })
-
-  it('reads from existing object without error', () => {
-    const reactor = new Reactor({
-      foo: 'bar'
+  describe('exposes the same properties and returns values from the wrapped object', () => {
+    it('reads the same primitive values as the wrapped object when initialized', () => {
+      const reactor = new Reactor({ foo: 'bar' })
+      assert.strictEqual(reactor.foo, 'bar')
     })
-    assert.equal(reactor.foo, 'bar')
-  })
-
-  it('can defineProperty without error', () => {
-    const reactor = new Reactor()
-    Object.defineProperty(reactor, 'foo', {
-      get () { return 'bar' }
-    })
-    assert.equal(reactor.foo, 'bar')
-  })
-
-  it('fails write after defineProperty non-writable', () => {
-    const reactor = new Reactor()
-    Object.defineProperty(reactor, 'foo', {
-      value: 'bar',
-      writable: false
-    })
-    assert.throws(() => (reactor.foo = 'baz'), {
-      name: 'TypeError'
+    it('reads the same primitive values from the wrapped object when it is modified', () => {
+      const object = { foo: 'bar' }
+      const reactor = new Reactor(object)
+      object.foo = 'baz'
+      assert.strictEqual(reactor.foo, 'baz')
     })
   })
 
-  it('can deleteProperty without error', () => {
-    const reactor = new Reactor({
-      foo: 'bar'
+  describe('returns object values recursively wrapped in reactors', () => {
+    it('returns an object value as a reactor', () => {
+      const object = {}
+      const reactor = new Reactor({
+        foo: object
+      })
+      const readResult = reactor.foo
+      assert.notStrictEqual(object, readResult)
+      assert(Reactors.has(readResult))
+      assert.strictEqual(object, shuck(readResult))
     })
-    delete reactor.foo
-    assert.equal(reactor.foo, undefined)
+    it('returns a nested object value as a reactor', () => {
+      const object = {}
+      const reactor = new Reactor({
+        foo: {
+          bar: object
+        }
+      })
+      const readResult = reactor.foo.bar
+      assert.notStrictEqual(object, readResult)
+      assert(Reactors.has(readResult))
+      assert.strictEqual(object, shuck(readResult))
+    })
   })
 
-  it('can call map on Array Reactor without error', () => {
-    const reactor = new Reactor(['0', '1', '2'])
-    reactor.map(x => 'this is ' + x)
+  describe('can set properties and get what was set', () => {
+    it('sets values through to the wrapped object', () => {
+      const object = {}
+      const reactor = new Reactor(object)
+      reactor.foo = 'bar'
+      assert.strictEqual(object.foo, 'bar')
+    })
+
+    it('returns the set values', () => {
+      const object = {}
+      const reactor = new Reactor(object)
+      const writeReturn = (reactor.foo = 'bar')
+      assert.strictEqual(writeReturn, 'bar')
+    })
+
+    it('gets the value that was set', () => {
+      const object = {}
+      const reactor = new Reactor(object)
+      reactor.foo = 'bar'
+      assert.strictEqual(reactor.foo, 'bar')
+    })
+
+    it('deletes properties from the wrapped object', () => {
+      const object = { foo: 'bar' }
+      const reactor = new Reactor(object)
+      delete reactor.foo
+      assert.strictEqual(object.foo, undefined)
+    })
+
+    it('deletes properties from itself', () => {
+      const object = { foo: 'bar' }
+      const reactor = new Reactor(object)
+      delete reactor.foo
+      assert.strictEqual(reactor.foo, undefined)
+    })
+
+    it('works with Object.defineProperty', () => {
+      const proxiedObject = {}
+      const reactor = new Reactor(proxiedObject)
+      const result = Object.defineProperty(reactor, 'foo', {
+        get () { return 'bar' }
+      })
+      assert.strictEqual(proxiedObject.foo, 'bar')
+      assert.strictEqual(reactor.foo, 'bar')
+      assert.strictEqual(result, reactor)
+    })
+
+    it('respects the writable property descriptor', () => {
+      const reactor = new Reactor()
+      Object.defineProperty(reactor, 'foo', {
+        value: 'bar',
+        writable: false
+      })
+      assert.strictEqual(reactor.foo, 'bar')
+      assert.throws(() => {
+        reactor.foo = 'baz'
+      }, {
+        name: 'TypeError',
+        message: "Cannot assign to read only property 'foo' of object '#<Reactor>'"
+      })
+    })
   })
 
-  describe('Misc', () => {
-    it('respects receiver context for prototype inheritors', () => {
+  describe('maintains compatibility with native object behavior', () => {
+    it('works with Array.prototype.map()', () => {
+      const reactor = new Reactor(['0', '1', '2'])
+      const result = reactor.map(x => 'this is ' + x)
+      assert.deepStrictEqual(result, ['this is 0', 'this is 1', 'this is 2'])
+    })
+
+    it('works with Array.prototype.filter()', () => {
+      const reactor = new Reactor([1, 2, 3, 4, 5, 6])
+      const result = reactor.filter(x => x % 2 === 0)
+      assert.deepStrictEqual(result, [2, 4, 6])
+    })
+
+    it('works with Array.prototype.reduce()', () => {
+      const reactor = new Reactor([1, 2, 3, 4, 5])
+      const result = reactor.reduce((sum, x) => sum + x, 0)
+      assert.strictEqual(result, 15)
+    })
+
+    it('works with Array.prototype.reduceRight()', () => {
+      const reactor = new Reactor([1, 2, 3, 4, 5])
+      const result = reactor.reduceRight((sum, x) => sum + x, 0)
+      assert.strictEqual(result, 15)
+    })
+
+    it('works with Array.prototype.find()', () => {
+      const reactor = new Reactor([1, 2, 3, 4, 5])
+      const result = reactor.find(x => x > 3)
+      assert.strictEqual(result, 4)
+    })
+
+    it('works with Array.prototype.findIndex()', () => {
+      const reactor = new Reactor([1, 2, 3, 4, 5])
+      const result = reactor.findIndex(x => x > 3)
+      assert.strictEqual(result, 3)
+    })
+
+    it('works with Array.prototype.some()', () => {
+      const reactor = new Reactor([1, 2, 3, 4, 5])
+      const result = reactor.some(x => x > 3)
+      assert.strictEqual(result, true)
+    })
+
+    it('works with Array.prototype.every()', () => {
+      const reactor = new Reactor([1, 2, 3, 4, 5])
+      const result = reactor.every(x => x > 0)
+      assert.strictEqual(result, true)
+    })
+
+    it('works with Array.prototype.forEach()', () => {
+      const reactor = new Reactor([1, 2, 3])
+      const results = []
+      reactor.forEach(x => results.push(x * 2))
+      assert.deepStrictEqual(results, [2, 4, 6])
+    })
+
+    it('works with Array.prototype.slice()', () => {
+      const reactor = new Reactor([1, 2, 3, 4, 5])
+      const result = reactor.slice(1, 4)
+      assert.deepStrictEqual(result, [2, 3, 4])
+    })
+
+    it('works with Array.prototype.splice()', () => {
+      const reactor = new Reactor([1, 2, 3, 4, 5])
+      const removed = reactor.splice(1, 2, 'a', 'b')
+      assert.deepStrictEqual(removed, [2, 3])
+      assert.deepStrictEqual(shuck(reactor), [1, 'a', 'b', 4, 5])
+    })
+
+    it('works with Array.prototype.concat()', () => {
+      const reactor = new Reactor([1, 2, 3])
+      const result = reactor.concat([4, 5], [6])
+      assert.deepStrictEqual(result, [1, 2, 3, 4, 5, 6])
+    })
+
+    it('works with Array.prototype.join()', () => {
+      const reactor = new Reactor(['a', 'b', 'c'])
+      const result = reactor.join('-')
+      assert.strictEqual(result, 'a-b-c')
+    })
+
+    it('works with Array.prototype.reverse()', () => {
+      const reactor = new Reactor([1, 2, 3, 4])
+      const result = reactor.reverse()
+      assert.deepStrictEqual(shuck(result), [4, 3, 2, 1])
+      assert.deepStrictEqual(shuck(reactor), [4, 3, 2, 1]) // reverse modifies in place
+    })
+
+    it('works with Array.prototype.sort()', () => {
+      const reactor = new Reactor([3, 1, 4, 1, 5])
+      const result = reactor.sort()
+      assert.deepStrictEqual(shuck(result), [1, 1, 3, 4, 5])
+      assert.deepStrictEqual(shuck(reactor), [1, 1, 3, 4, 5]) // sort modifies in place
+    })
+
+    it('works with Array.prototype.sort() with comparator', () => {
+      const reactor = new Reactor([3, 1, 4, 1, 5])
+      const result = reactor.sort((a, b) => b - a)
+      assert.deepStrictEqual(shuck(result), [5, 4, 3, 1, 1])
+    })
+
+    it('works with Array.prototype.flat()', () => {
+      const reactor = new Reactor([1, [2, 3], [4, [5, 6]]])
+      assert.deepStrictEqual(reactor.flat(), [1, 2, 3, 4, [5, 6]])
+    })
+
+    it('works with Array.prototype.flatMap()', () => {
+      const reactor = new Reactor([1, 2, 3])
+      const result = reactor.flatMap(x => [x, x * 2])
+      assert.deepStrictEqual(result, [1, 2, 2, 4, 3, 6])
+    })
+
+    it('works with Array.prototype.includes()', () => {
+      const reactor = new Reactor([1, 2, 3, 4, 5])
+      assert.strictEqual(reactor.includes(3), true)
+      assert.strictEqual(reactor.includes(6), false)
+    })
+
+    it('works with Array.prototype.indexOf()', () => {
+      const reactor = new Reactor([1, 2, 3, 2, 5])
+      assert.strictEqual(reactor.indexOf(2), 1)
+      assert.strictEqual(reactor.indexOf(6), -1)
+    })
+
+    it('works with Array.prototype.lastIndexOf()', () => {
+      const reactor = new Reactor([1, 2, 3, 2, 5])
+      assert.strictEqual(reactor.lastIndexOf(2), 3)
+      assert.strictEqual(reactor.lastIndexOf(6), -1)
+    })
+
+    it('works with Array.prototype.entries()', () => {
+      const reactor = new Reactor(['a', 'b', 'c'])
+      const result = Array.from(reactor.entries())
+      assert.deepStrictEqual(result, [[0, 'a'], [1, 'b'], [2, 'c']])
+    })
+
+    it('works with Array.prototype.keys()', () => {
+      const reactor = new Reactor(['a', 'b', 'c'])
+      const result = Array.from(reactor.keys())
+      assert.deepStrictEqual(result, [0, 1, 2])
+    })
+
+    it('works with Array.prototype.values()', () => {
+      const reactor = new Reactor(['a', 'b', 'c'])
+      const result = Array.from(reactor.values())
+      assert.deepStrictEqual(result, ['a', 'b', 'c'])
+    })
+
+    it('works with Array.prototype.fill()', () => {
+      const reactor = new Reactor([1, 2, 3, 4, 5])
+      const result = reactor.fill(0, 1, 4)
+      assert.deepStrictEqual(shuck(result), [1, 0, 0, 0, 5])
+      assert.deepStrictEqual(shuck(reactor), [1, 0, 0, 0, 5]) // fill modifies in place
+    })
+
+    it('works with Array.prototype.copyWithin()', () => {
+      const reactor = new Reactor([1, 2, 3, 4, 5])
+      const result = reactor.copyWithin(0, 3, 5)
+      assert.deepStrictEqual(shuck(result), [4, 5, 3, 4, 5])
+      assert.deepStrictEqual(shuck(reactor), [4, 5, 3, 4, 5]) // copyWithin modifies in place
+    })
+
+    it('works with Array.prototype.push()', () => {
+      const reactor = new Reactor([1, 2, 3])
+      const result = reactor.push(4, 5)
+      assert.strictEqual(result, 5)
+      assert.deepStrictEqual(shuck(reactor), [1, 2, 3, 4, 5])
+    })
+
+    it('works with Array.prototype.pop()', () => {
+      const reactor = new Reactor([1, 2, 3])
+      const result = reactor.pop()
+      assert.strictEqual(result, 3)
+      assert.deepStrictEqual(shuck(reactor), [1, 2])
+    })
+
+    it('works with Array.prototype.shift()', () => {
+      const reactor = new Reactor([1, 2, 3])
+      const result = reactor.shift()
+      assert.strictEqual(result, 1)
+      assert.deepStrictEqual(shuck(reactor), [2, 3])
+    })
+
+    it('works with Array.prototype.unshift()', () => {
+      const reactor = new Reactor([1, 2, 3])
+      const result = reactor.unshift(0, -1)
+      assert.strictEqual(result, 5)
+      assert.deepStrictEqual(shuck(reactor), [0, -1, 1, 2, 3])
+    })
+
+    it('works with Array.prototype.length property', () => {
+      const reactor = new Reactor([1, 2, 3])
+      assert.strictEqual(reactor.length, 3)
+      reactor.push(4)
+      assert.strictEqual(reactor.length, 4)
+    })
+
+    it('works with Array.prototype.isArray()', () => {
+      const reactor = new Reactor([1, 2, 3])
+      assert.strictEqual(Array.isArray(reactor), true)
+    })
+
+    it('works with Array.prototype.from()', () => {
+      const reactor = new Reactor([1, 2, 3])
+      const result = Array.from(reactor, x => x * 2)
+      assert.deepStrictEqual(result, [2, 4, 6])
+    })
+
+    it('works with Array.prototype.of()', () => {
+      const reactor = new Reactor([1, 2, 3])
+      const result = Array.of(...reactor, 4, 5)
+      assert.deepStrictEqual(result, [1, 2, 3, 4, 5])
+    })
+
+    it('can read native properties', () => {
+      const map = new Map()
+      const reactor = new Reactor(map)
+      // Normally proxy wrapping will fail
+      // This checks to see if we redirect the call `this`
+      // to the wrapped object instead of the wrapper when appropriate
+      assert.strictEqual(reactor.size, 0)
+      map.set('foo', 'bar')
+      assert.strictEqual(reactor.size, 1)
+    })
+
+    it('can call native object methods', () => {
+      const reactor = new Reactor(new Map())
+      // Normally proxy wrapping will fail
+      // since .keys() cannot be called on a Proxy
+      const result = reactor.keys()
+      assert(typeof result[Symbol.iterator] === 'function')
+    })
+  })
+
+  describe('preserves object identity and inheritance behavior', () => {
+    // When initialized with an existing object, it has reactor behaviours but is not a Reactor instance
+    // This is because we maintain the original class inheritance chain instead
+    // and javascript does not support multiple inheritance
+    it('is an instance of its original class when initialized with an existing object', () => {
+      const object = new Date()
+      const reactor = new Reactor(object)
+      const originalClass = object.constructor
+      assert(reactor instanceof originalClass)
+    })
+
+    it('is an instance of Reactor when initialized with no arguments', () => {
+      const reactor = new Reactor()
+      assert(reactor instanceof Reactor)
+    })
+
+    it('respects receiver this context for prototype inheritors', () => {
       const reactor = new Reactor()
       reactor.foo = 'bar'
       Object.defineProperty(reactor, 'getFoo', {
@@ -111,820 +491,13 @@ describe('Reactor', () => {
           return this.foo
         }
       })
-      assert.equal(reactor.getFoo, 'bar')
-      reactor.foo = 'quu'
-      assert.equal(reactor.getFoo, 'quu')
       const inheritor = Object.create(reactor)
-      assert.equal(inheritor.foo, 'quu')
-      assert.equal(inheritor.getFoo, 'quu')
-      inheritor.foo = 'mux'
-      assert.equal(inheritor.getFoo, 'mux')
-    })
-
-    it('allows Reactor wrapping of native object properties', () => {
-      const native = new Map()
-      const proxy = new Reactor(native)
-      // Normaly proxy wrapping will fail
-      // This check to see if we redirect the call `this`
-      // to the wrapped object instead of the wrapper when appropriate
-      assert.equal(proxy.size, 0)
-    })
-
-    it('allows Reactor wrapping of native objects methods', () => {
-      const reactor = new Reactor(new Map())
-      // Normal proxy wrapping will fail
-      // since .keys() cannot be called on a Proxy
-      reactor.keys()
-    })
-
-    it('allows shucking of a Reactor to get the underlying object', () => {
-      const reactor = new Reactor(new Map())
-      assert.throws(() => Map.prototype.keys.call(reactor), {
-        name: 'TypeError',
-        message: 'Method Map.prototype.keys called on incompatible receiver #<Map>'
-      })
-      const source = shuck(reactor)
-      Map.prototype.keys.call(source)
-    })
-
-    it('Wraps the same object to the same Reactor', () => {
-      const outerDummy = {}
-      const reactorA = new Reactor(outerDummy)
-      const reactorB = new Reactor(outerDummy)
-      const innerDummy = {}
-      reactorA.foo = innerDummy
-      reactorB.bar = innerDummy
-      assert.equal(reactorA, reactorB)
-      assert.equal(reactorA.foo, reactorB.bar)
-    })
-
-    it('does not read an observer when calling start', () => {
-      let counter = 0
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      const innerObserver = new Observer(() => reactor.foo)
-      new Observer(() => {
-        innerObserver.start()
-        counter += 1
-      })()
-      assert.equal(counter, 1)
-      reactor.foo = 'baz'
-      assert.equal(counter, 1)
-    })
-
-    it('passes instanceof checks', () => {
-      const a = new Reactor()
-      assert(a instanceof Reactor)
-      const b = new Reactor([])
-      assert(b instanceof Array)
-      // assert(b instanceof Reactor)
-    })
-  })
-})
-
-describe('Observer', () => {
-  it('passes instanceof checks', () => {
-    const a = new Observer(() => {})
-    assert(a instanceof Observer)
-    assert(a instanceof Function)
-  })
-
-  it('can be used as a constructor', () => {
-    const A = new Observer(function (arg) {
-      this.foo = 'bar' + arg
-      return this
-    })
-    const a = new A('baz')
-    assert.equal(JSON.stringify(a), '{"foo":"barbaz"}')
-  })
-
-  it('initializes function without error', () => new Observer(() => {}))
-
-  it('passed correct value of this to observer', () => {
-    let aResult
-    const a = new Observer(function () { aResult = this })
-    let barResult
-    const foo = {
-      a,
-      bar: function () { barResult = this }
-    }
-    foo.a()
-    foo.bar()
-    assert.equal(foo, aResult)
-    assert.equal(foo, barResult)
-    assert.equal(aResult, barResult)
-  })
-
-  it('fails to initialize with no argument', () => {
-    assert.throws(() => new Observer(), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-  })
-
-  it('fails to initialize with non-function', () => {
-    assert.throws(() => new Observer(true), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-    assert.throws(() => new Observer(false), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-    assert.throws(() => new Observer(null), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-    assert.throws(() => new Observer(undefined), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-    assert.throws(() => new Observer(1), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-    assert.throws(() => new Observer(0), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-    assert.throws(() => new Observer('a'), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-    assert.throws(() => new Observer(''), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-    assert.throws(() => new Observer(Symbol('dummyTest')), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-    assert.throws(() => new Observer({}), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-    assert.throws(() => new Observer([]), {
-      name: 'TypeError',
-      message: 'Cannot create observer with a non-function'
-    })
-  })
-
-  it('exposes the raw function as execute', () => {
-    const dummyFunction = function () {
-      return 'foo'
-    }
-    const observer = new Observer(dummyFunction)
-    assert.equal(observer.execute, dummyFunction)
-  })
-
-  it('exposes the last derived value', () => {
-    const rx = new Reactor({
-      foo: 'foo'
-    })
-    const observer = new Observer(() => {
-      return rx.foo
-    })
-    assert(typeof observer.value === 'undefined')
-    observer()
-    assert.equal(observer.value, 'foo')
-    rx.foo = 'bar'
-    assert.equal(observer.value, 'bar')
-  })
-
-  it('returns the function return value', () => {
-    const observer = new Observer(() => 'foo')
-    assert.equal(observer(), 'foo')
-  })
-
-  it('can observe an observer', () => {
-    let outcome
-    const rx = new Reactor({
-      foo: 'foo'
-    })
-    const a = new Observer(() => rx.foo + 'bar')
-    a()
-    const b = new Observer(() => (outcome = a.value + 'baz'))
-    b()
-    assert.equal(outcome, 'foobarbaz')
-    rx.foo = 'qux'
-    assert.equal(outcome, 'quxbarbaz')
-  })
-
-  describe('Triggering', () => {
-    it('triggers once on initialization', () => {
-      let counter = 0
-      new Observer(() => { counter += 1 })()
-      assert.equal(counter, 1)
-    })
-
-    it('triggers once on Reactor dependency write', () => {
-      let counter = 0
-      let tracker
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      new Observer(() => {
-        counter += 1
-        tracker = reactor.foo
-      })()
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'bar')
-      reactor.foo = 'mux'
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'mux')
-    })
-
-    it('triggers once on nested Reactor dependency write', () => {
-      let counter = 0
-      let tracker
-      const reactor = new Reactor({
-        foo: {
-          bar: 'baz'
-        }
-      })
-      new Observer(() => {
-        counter += 1
-        tracker = reactor.foo.bar
-      })()
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'baz')
-      reactor.foo.bar = 'moo'
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'moo')
-    })
-
-    it('triggers on defineProperty', () => {
-      let tracker
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      new Observer(() => (tracker = reactor.foo))()
-      assert.equal(tracker, 'bar')
-      Object.defineProperty(reactor, 'foo', {
-        get () { return 'baz' }
-      })
-      assert.equal(tracker, 'baz')
-    })
-
-    it('trigger on deleteProperty', () => {
-      let tracker
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      new Observer(() => (tracker = reactor.foo))()
-      assert.equal(tracker, 'bar')
-      delete reactor.foo
-      assert.equal(tracker, undefined)
-    })
-
-    it('triggers on array update methods', () => {
-      let counter = 0
-      let tracker
-      const reactor = new Reactor([])
-      new Observer(() => {
-        counter += 1
-        tracker = reactor[0]
-      })()
-      assert.equal(counter, 1)
-      assert.equal(tracker, undefined)
-      reactor.push('foo')
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'foo')
-      reactor.unshift('bar')
-      assert.equal(counter, 3)
-      assert.equal(tracker, 'bar')
-    })
-
-    it('triggers only once despite multiple dependencies', () => {
-      let counter = 0
-      let hasTracker
-      let getTracker
-      let ownKeysTracker
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      new Observer(() => {
-        counter += 1
-        hasTracker = ('foo' in reactor)
-        getTracker = reactor.foo
-        ownKeysTracker = Object.getOwnPropertyNames(reactor)
-      })()
-      assert.equal(counter, 1)
-      assert.equal(hasTracker, true)
-      assert.equal(getTracker, 'bar')
-      assert.equal(JSON.stringify(ownKeysTracker), '["foo"]')
-      reactor.foo = 'baz'
-      assert.equal(counter, 2)
-      assert.equal(hasTracker, true)
-      assert.equal(getTracker, 'baz')
-      assert.equal(JSON.stringify(ownKeysTracker), '["foo"]')
-    })
-
-    it('triggers only once even for functions with multiple changes', () => {
-      let counter = 0
-      let lengthTracker
-      let firstTracker
-      const reactor = new Reactor([])
-      new Observer(() => {
-        counter += 1
-        lengthTracker = reactor.length
-        firstTracker = reactor[0]
-      })()
-      assert.equal(counter, 1)
-      assert.equal(lengthTracker, 0)
-      assert.equal(firstTracker, undefined)
-      reactor.push('bar')
-      assert.equal(counter, 2)
-      assert.equal(lengthTracker, 1)
-      assert.equal(firstTracker, 'bar')
-    })
-
-    it('triggers correctly on nested observer definitions', () => {
-      const reactor = new Reactor({
-        outer: 'foo',
-        inner: 'bar'
-      })
-      let outerCounter = 0
-      let innerCounter = 0
-      let outerTracker
-      let innerTracker
-      let innerObserver
-      new Observer(() => {
-        outerCounter += 1
-        outerTracker = reactor.outer
-        if (innerObserver) innerObserver.stop()
-        innerObserver = new Observer(() => {
-          innerCounter += 1
-          innerTracker = reactor.inner
-        })()
-      })()
-      assert.equal(outerCounter, 1)
-      assert.equal(outerTracker, 'foo')
-      assert.equal(innerCounter, 1)
-      assert.equal(innerTracker, 'bar')
-      reactor.inner = 'baz'
-      assert.equal(outerCounter, 1)
-      assert.equal(outerTracker, 'foo')
-      assert.equal(innerCounter, 2)
-      assert.equal(innerTracker, 'baz')
-      reactor.outer = 'moo'
-      assert.equal(outerCounter, 2)
-      assert.equal(outerTracker, 'moo')
-      assert.equal(innerCounter, 3)
-      assert.equal(innerTracker, 'baz')
-    })
-
-    it('subscribes on Object.keys', () => {
-      let counter = 0
-      let tracker
-      const reactor = new Reactor({ foo: 'bar' })
-      new Observer(() => {
-        counter += 1
-        tracker = Object.keys(reactor)
-      })()
-      assert.equal(counter, 1)
-      assert.equal(JSON.stringify(tracker), '["foo"]')
-      reactor.moo = 'mux'
-      assert.equal(counter, 2)
-      assert.equal(JSON.stringify(tracker), '["foo","moo"]')
-    })
-
-    it('subscribes on in operator', () => {
-      let counter = 0
-      let tracker
-      const reactor = new Reactor()
-      new Observer(() => {
-        counter += 1
-        tracker = ('foo' in reactor)
-      })()
-      assert.equal(counter, 1)
-      assert.equal(tracker, false)
-      reactor.foo = 'bar'
-      assert.equal(counter, 2)
-      assert.equal(tracker, true)
-    })
-
-    it('subscribes using observe keyword', () => {
-      let counter = 0
-      let tracker
-      const reactor = new Reactor({ value: 'foo' })
-      new Observer(() => {
-        counter += 1
-        tracker = reactor.value
-      })()
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-      reactor.value = 'bar'
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'bar')
-    })
-
-    it('does not subscribe in hide block', () => {
-      const reactor = new Reactor({
-        outer: 'foo',
-        inner: 'bar'
-      })
-      let outerCounter = 0
-      let innerCounter = 0
-      let outerTracker
-      let innerTracker
-      new Observer(() => {
-        outerCounter += 1
-        outerTracker = reactor.outer
-        hide(() => {
-          innerCounter += 1
-          innerTracker = reactor.inner
-        })
-      })()
-      assert.equal(outerCounter, 1)
-      assert.equal(innerCounter, 1)
-      assert.equal(outerTracker, 'foo')
-      assert.equal(innerTracker, 'bar')
-      reactor.inner = 'baz'
-      assert.equal(outerCounter, 1)
-      assert.equal(innerCounter, 1)
-      assert.equal(outerTracker, 'foo')
-      assert.equal(innerTracker, 'bar')
-      reactor.outer = 'moo'
-      assert.equal(outerCounter, 2)
-      assert.equal(innerCounter, 2)
-      assert.equal(outerTracker, 'moo')
-      assert.equal(innerTracker, 'baz')
-    })
-
-    it('returns output of hide block', () => {
-      const reactor = new Reactor({
-        outer: 'foo',
-        inner: 'bar'
-      })
-      let outerCounter = 0
-      let innerCounter = 0
-      let outerTracker
-      let innerTracker
-      new Observer(() => {
-        outerCounter += 1
-        outerTracker = reactor.outer
-        innerTracker = hide(() => {
-          innerCounter += 1
-          return reactor.inner
-        })
-      })()
-      assert.equal(outerCounter, 1)
-      assert.equal(innerCounter, 1)
-      assert.equal(outerTracker, 'foo')
-      assert.equal(innerTracker, 'bar')
-      reactor.inner = 'baz'
-      assert.equal(outerCounter, 1)
-      assert.equal(innerCounter, 1)
-      assert.equal(outerTracker, 'foo')
-      assert.equal(innerTracker, 'bar')
-      reactor.outer = 'moo'
-      assert.equal(outerCounter, 2)
-      assert.equal(innerCounter, 2)
-      assert.equal(outerTracker, 'moo')
-      assert.equal(innerTracker, 'baz')
-    })
-
-    it('does not self trigger in an hide block', () => {
-      const reactor = new Reactor(['a', 'b', 'c'])
-      new Observer(() => {
-        hide(() => reactor.pop())
-      })()
-    })
-
-    it('can redefine an observer', () => {
-      const reactor = new Reactor({
-        first: 'foo',
-        second: 'bar'
-      })
-      let firstCounter = 0
-      let secondCounter = 0
-      let firstTracker
-      let secondTracker
-      const observer = new Observer(() => {
-        firstCounter += 1
-        firstTracker = reactor.first
-      })
-      observer()
-      assert.equal(firstCounter, 1)
-      assert.equal(secondCounter, 0)
-      assert.equal(firstTracker, 'foo')
-      assert.equal(secondTracker, undefined)
-      observer.execute = () => {
-        secondCounter += 1
-        secondTracker = reactor.second
-      }
-      assert.equal(firstCounter, 1)
-      assert.equal(secondCounter, 1)
-      assert.equal(firstTracker, 'foo')
-      assert.equal(secondTracker, 'bar')
-      reactor.first = 'moo'
-      assert.equal(firstCounter, 1)
-      assert.equal(secondCounter, 1)
-      assert.equal(firstTracker, 'foo')
-      assert.equal(secondTracker, 'bar')
-      reactor.second = 'baz'
-      assert.equal(firstCounter, 1)
-      assert.equal(secondCounter, 2)
-      assert.equal(firstTracker, 'foo')
-      assert.equal(secondTracker, 'baz')
-    })
-
-    it('delays and combines observer triggers when using batch', () => {
-      const reactor = new Reactor({ value: 'foo' })
-      let counter = 0
-      new Observer(() => {
-        counter += 1
-        return reactor.value
-      })()
-      assert.equal(counter, 1)
-      batch(() => {
-        reactor.value = 'bleep'
-        assert.equal(counter, 1)
-        reactor.value = 'bloop'
-        assert.equal(counter, 1)
-        reactor.value = 'blarp'
-        assert.equal(counter, 1)
-      })
-      assert.equal(counter, 2)
-    })
-
-    it('can nest batchers with no consequence', () => {
-      const reactor = new Reactor({ value: 'foo' })
-      let counter = 0
-      new Observer(() => {
-        counter += 1
-        return reactor.value
-      })()
-      assert.equal(counter, 1)
-      batch(() => {
-        reactor.value = 'bleep'
-        assert.equal(counter, 1)
-        reactor.value = 'bloop'
-        assert.equal(counter, 1)
-        reactor.value = 'blarp'
-        assert.equal(counter, 1)
-        batch(() => {
-          reactor.value = 'bink'
-          assert.equal(counter, 1)
-          reactor.value = 'bonk'
-          assert.equal(counter, 1)
-          reactor.value = 'bup'
-          assert.equal(counter, 1)
-        })
-      })
-      assert.equal(counter, 2)
-    })
-
-    it('triggers chained observers', () => {
-      let tracker
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      new Observer(() => {
-        reactor.bigFoo = reactor.foo.toUpperCase()
-      })()
-      assert.equal(reactor.bigFoo, 'BAR')
-      new Observer(() => {
-        tracker = reactor.bigFoo
-      })()
-      assert.equal(tracker, 'BAR')
-      reactor.foo = 'qux'
-      assert.equal(reactor.bigFoo, 'QUX')
-      assert.equal(tracker, 'QUX')
-    })
-
-    it('does not redundantly trigger on setting identical values', () => {
-      let counter = 0
-      let tracker
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      new Observer(() => {
-        counter += 1
-        tracker = reactor.foo
-      })()
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'bar')
-      reactor.foo = 'bar'
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'bar')
-    })
-
-    it('does not redundantly trigger if has check remains the same', () => {
-      let counter = 0
-      let tracker
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      new Observer(() => {
-        counter += 1
-        tracker = 'foo' in reactor
-      })()
-      assert.equal(counter, 1)
-      assert.equal(tracker, true)
-      reactor.foo = 'baz'
-      assert.equal(counter, 1)
-      assert.equal(tracker, true)
-    })
-
-    it('does not redundantly trigger if ownKeys check is the same', () => {
-      let counter = 0
-      const reactor = new Reactor({
-        foo: 'bar'
-      })
-      new Observer(() => {
-        counter += 1
-        Object.keys(reactor)
-      })()
-      reactor.foo = 'baz'
-      assert.equal(counter, 1)
-      delete reactor.boo
-      assert.equal(counter, 1)
-      delete reactor.foo
-      assert.equal(counter, 2)
-      reactor.foo = 'bar'
-      assert.equal(counter, 3)
-    })
-  })
-
-  describe('Start Stop', () => {
-    it('can stop observing', () => {
-      let counter = 0
-      let tracker
-      const reactor = new Reactor({ value: 'foo' })
-      const observer = new Observer(() => {
-        counter += 1
-        tracker = reactor.value
-      })
-      observer()
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-      reactor.value = 'bar'
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'bar')
-      observer.stop()
-      reactor.value = 'moo'
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'bar')
-    })
-
-    it('can start after stopping', () => {
-      let counter = 0
-      let tracker = null
-      const reactor = new Reactor({ value: 'foo' })
-      const observer = new Observer(() => {
-        counter += 1
-        tracker = reactor.value
-      })
-      observer()
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-      observer.stop()
-      reactor.value = 'moo'
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-      observer.start()
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'moo')
-    })
-
-    it('has no effect with repeated starts', () => {
-      let counter = 0
-      let tracker = null
-      const reactor = new Reactor({ value: 'foo' })
-      const observer = new Observer(() => {
-        counter += 1
-        tracker = reactor.value
-      })
-      observer()
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-      observer.stop()
-      reactor.value = 'moo'
-      assert.equal(counter, 1)
-      assert.equal(tracker, 'foo')
-      observer.start()
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'moo')
-      observer.start()
-      assert.equal(counter, 2)
-      assert.equal(tracker, 'moo')
-    })
-  })
-
-  describe('Context & Subscriptions', () => {
-    it('context defaults to undefined', () => {
-      let contextChecker = 'foo'
-      new Observer((context) => {
-        contextChecker = context
-      })()
-      assert(typeof contextChecker === 'undefined')
-    })
-
-    it('can set context', () => {
-      let contextChecker
-      const observer = new Observer((context) => {
-        contextChecker = context
-      })
-      observer('foo')
-      assert.equal(contextChecker, 'foo')
-      const dummyObject = {}
-      observer(dummyObject)
-      assert.equal(contextChecker, dummyObject)
-    })
-
-    it('can set context with multiple params', () => {
-      let contextChecker
-      const observer = new Observer((a, b, c) => {
-        contextChecker = '' + a + b + c
-      })
-      observer('foo', 'bar', 'baz')
-      assert.equal(contextChecker, 'foobarbaz')
-      contextChecker = null
-      observer()
-      assert.equal(contextChecker, 'undefinedundefinedundefined')
-    })
-
-    it('can set context and react to it', () => {
-      const reactor = new Reactor()
-      const contextChecker = {}
-      const observer = new Observer(function (...args) {
-        contextChecker.this = this
-        contextChecker.args = args
-        contextChecker.result = reactor.foo
-      })
-      const bar = {
-        baz: observer
-      }
-      assert(typeof contextChecker.this === 'undefined')
-      assert(typeof contextChecker.args === 'undefined')
-      assert(typeof contextChecker.result === 'undefined')
-      bar.baz('qux')
-      assert.equal(contextChecker.this, bar)
-      assert.equal(contextChecker.args[0], 'qux')
-      assert(typeof contextChecker.result === 'undefined')
-      reactor.foo = 'bop'
-      assert.equal(contextChecker.this, bar)
-      assert.equal(contextChecker.args[0], 'qux')
-      assert.equal(contextChecker.result, 'bop')
-    })
-  })
-
-  describe('Error Handling', () => {
-    it('throws an error on a write if there is an Observer error', () => {
-      const reactor = new Reactor({ value: 'foo' })
-      new Observer(() => {
-        if (reactor.value > 1) throw new Error('dummy error')
-      })()
-      assert.throws(() => (reactor.value = 2), {
-        name: 'Error',
-        message: 'dummy error'
-      })
-    })
-
-    it('throws a CompoundError if there are multiple Observer errors', () => {
-      const reactor = new Reactor({ value: 1 })
-      new Observer(() => {
-        if (reactor.value > 1) throw new Error('dummy error 1')
-      })()
-      new Observer(() => {
-        if (reactor.value > 1) throw new Error('dummy error 2')
-      })()
-      assert.throws(() => (reactor.value = 2), {
-        name: 'CompoundError'
-      })
-    })
-
-    it('throws a flattened compound error with chained observers', () => {
-      const reactor = new Reactor({
-        foo: 'Bar'
-      })
-      // Successful passthrough to create subsequent compound errors
-      new Observer(() => {
-        reactor.passthrough = reactor.foo
-      })()
-      assert.equal(reactor.passthrough, 'Bar')
-      // Initial error failrues to create an initial compound error
-      new Observer(() => {
-        if (reactor.foo === 'error') throw new Error('BIG ERROR 1')
-      })()
-      new Observer(() => {
-        if (reactor.foo === 'error') throw new Error('BIG ERROR 2')
-      })()
-      // Chain off reactor.passthrough to create a subsequent compound error
-      new Observer(() => {
-        if (reactor.passthrough === 'error') throw new Error('small error 1')
-      })()
-      new Observer(() => {
-        if (reactor.passthrough === 'error') throw new Error('small error 2')
-      })()
-      assert.throws(() => (reactor.foo = 'error'), (error) => {
-        assert.equal(error.name, 'CompoundError')
-        assert.equal(error.cause.length, 4)
-        return true
-      })
+      assert.strictEqual(inheritor.getFoo, 'bar')
+      // The inheritor is still using its inherited getter
+      // But it is being executed with the inheritor as `this`
+      // So it should return the inheritor's foo property instead of the original
+      inheritor.foo = 'qux'
+      assert.strictEqual(inheritor.getFoo, 'qux')
     })
   })
 })
